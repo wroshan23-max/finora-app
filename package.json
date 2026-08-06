@@ -1,0 +1,9 @@
+{
+  "name": "finora-site",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Finora — personal finance app with Cloud Sync, Google Drive backup, and PayHere-powered Pro subscriptions.",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  }
+}
