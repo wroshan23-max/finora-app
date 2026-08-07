@@ -297,6 +297,8 @@
 
   <div id="adSlotContainer" class="card" style="display:none;margin-bottom:16px;text-align:center;overflow:hidden;"></div>
 
+  <div id="workspaceBanner" class="card" style="display:none;margin-bottom:16px;background:#eef6ff;border:1px solid rgba(42,120,214,0.25);font-size:13px;"></div>
+
   <nav class="tabs">
     <button data-tab="dashboard" class="active">Dashboard</button>
     <button data-tab="transactions">Transactions</button>
@@ -686,6 +688,12 @@
           <button type="button" class="ghost" id="driveRestoreBtn">Restore from Drive</button>
         </div>
       </div>
+    </div>
+
+    <div class="card" id="householdCard" style="display:none;">
+      <h2>👨‍👩‍👧 Shared Household <span style="font-weight:400;font-size:12px;color:var(--text-muted);">(Finora Pro)</span></h2>
+      <p class="hint">Invite family members to share full view + edit access to your data — they don't need their own Pro subscription while working inside your household.</p>
+      <div id="householdBody"></div>
     </div>
 
     <div class="card">
@@ -1573,12 +1581,21 @@
       box.innerHTML = "";
       return;
     }
-    if (state.isPro) {
+    // The Subscribe/Cancel button always reflects MY OWN subscription — you can only
+    // ever manage your own billing, even while viewing a shared household below.
+    var myIsPro = !!(currentSubscription && currentSubscription.is_pro);
+    var viewingShared = activeOwnerId && activeOwnerId !== cloudSession.user.id;
+
+    if (myIsPro) {
       statusEl.innerHTML = '<span class="badge-good">PRO</span> You\'re subscribed to Finora Pro.';
       box.innerHTML = '<button type="button" class="ghost" id="proCancelBtn">Cancel Subscription</button>' +
         '<button type="button" class="ghost" id="proRefreshBtn">Refresh Status</button>';
       $("proCancelBtn").addEventListener("click", cancelSubscription);
-      $("proRefreshBtn").addEventListener("click", function () { toast("Checking…", "good"); refreshSubscriptionStatus(); });
+      $("proRefreshBtn").addEventListener("click", function () { toast("Checking…", "good"); refreshMySubscription().then(refreshWorkspaceProStatus); });
+    } else if (viewingShared && state.isPro) {
+      statusEl.innerHTML = "You're on the Free plan yourself, but you're currently working inside <strong>" + escapeHtml(activeOwnerEmail || "a shared") + "</strong>'s Pro household, so Pro features are unlocked here.";
+      box.innerHTML = '<button type="button" class="primary" id="proSubscribeBtn">Subscribe for my own account — Rs ' + CONFIG.SUBSCRIPTION_PRICE_LKR + '/month</button>';
+      $("proSubscribeBtn").addEventListener("click", startSubscriptionCheckout);
     } else {
       statusEl.textContent = "You're on the Free plan. Editing past entries is a Pro feature.";
       box.innerHTML = '<button type="button" class="primary" id="proSubscribeBtn">Subscribe — Rs ' + CONFIG.SUBSCRIPTION_PRICE_LKR + '/month</button>';
@@ -1618,6 +1635,7 @@
     updateJarFieldVisibility();
     renderCurrencySelect();
     renderProStatus();
+    renderHousehold();
     renderAdSlot();
     scheduleCloudSave();
   }
@@ -2225,6 +2243,27 @@
   var cloudSyncInFlight = false;
   var cloudSuppressAutoSave = false;
   var cloudLastSyncedAt = null;
+  // Whose data is currently loaded — normally your own (cloudSession.user.id), but
+  // switches to a household owner's id when you're viewing/editing shared data you
+  // were invited into (see "Shared Household" below). Every cloud read/write always
+  // goes through this, never straight to cloudSession.user.id.
+  var activeOwnerId = null;
+  var activeOwnerEmail = null;
+  // Shared Household (Finora Pro): people I've invited as owner, invites addressed to
+  // me that I haven't accepted yet, and households I've been accepted into as a member.
+  var householdMembers = [];
+  var pendingInvites = [];
+  var myMemberships = [];
+
+  function emptyCloudState() {
+    return {
+      transactions: [], accounts: [], liabilities: [],
+      incomeSources: DEFAULT_INCOME_SOURCES.slice(),
+      jarPct: Object.assign({}, DEFAULT_PCT),
+      homeCurrency: state.homeCurrency, freedomTarget: 0,
+      pyfEnabled: true, settlement: { extraPayment: 0 }
+    };
+  }
 
   function cloudStateSnapshot() {
     // Only the user's actual money data — never device-local flags like isPro or theme.
@@ -2247,19 +2286,22 @@
     if (cloudSession) {
       signedOut.style.display = "none";
       signedIn.style.display = "block";
-      $("cloudSyncStatus").textContent = "Signed in as " + cloudSession.user.email +
+      var viewingNote = (activeOwnerId && activeOwnerId !== cloudSession.user.id)
+        ? (" — viewing " + (activeOwnerEmail || "a shared") + "'s household") : "";
+      $("cloudSyncStatus").textContent = "Signed in as " + cloudSession.user.email + viewingNote +
         (cloudLastSyncedAt ? (" — last synced " + cloudLastSyncedAt.toLocaleTimeString()) : " — not yet synced");
     } else {
       signedOut.style.display = "block";
       signedIn.style.display = "none";
     }
+    renderWorkspaceBanner();
   }
 
   function cloudSaveNow() {
-    if (!cloudEnabled || !cloudSession || cloudSyncInFlight) return;
+    if (!cloudEnabled || !cloudSession || !activeOwnerId || cloudSyncInFlight) return;
     cloudSyncInFlight = true;
     supaClient.from("user_data").upsert({
-      user_id: cloudSession.user.id,
+      user_id: activeOwnerId,
       data: cloudStateSnapshot(),
       updated_at: new Date().toISOString()
     }).then(function (res) {
@@ -2270,23 +2312,28 @@
     });
   }
 
-  function cloudLoadNow() {
-    if (!cloudEnabled || !cloudSession) return;
-    supaClient.from("user_data").select("data").eq("user_id", cloudSession.user.id).maybeSingle().then(function (res) {
+  function cloudLoadNow(skipConfirm) {
+    if (!cloudEnabled || !cloudSession || !activeOwnerId) return;
+    supaClient.from("user_data").select("data").eq("user_id", activeOwnerId).maybeSingle().then(function (res) {
       if (res.error) { toast("Couldn't load cloud data: " + res.error.message, "error"); return; }
       if (res.data && res.data.data) {
         var hasLocalData = state.transactions.length || state.accounts.length || state.liabilities.length;
-        if (hasLocalData) {
-          confirmDialog("Cloud backup found for this account. Replace what's on this device with your cloud data?", function () {
+        if (hasLocalData && !skipConfirm) {
+          confirmDialog("Cloud data found for this workspace. Replace what's on this device with it?", function () {
             applyImportedState(res.data.data);
             toast("Cloud data loaded.", "good");
           });
         } else {
           applyImportedState(res.data.data);
-          toast("Cloud data loaded.", "good");
+          toast(skipConfirm ? "Switched workspace." : "Cloud data loaded.", "good");
         }
-      } else {
-        cloudSaveNow(); // first sync for this account — push current local data up
+      } else if (activeOwnerId === cloudSession.user.id && !skipConfirm) {
+        cloudSaveNow(); // first-ever sync for your own account — push current local data up
+      } else if (skipConfirm) {
+        // Switching into a workspace with nothing synced yet (e.g. a household that
+        // hasn't saved anything, or your own account after only ever using someone
+        // else's) — show an empty workspace rather than silently keep the old data.
+        applyImportedState(emptyCloudState());
       }
       cloudLastSyncedAt = new Date();
       updateCloudUi();
@@ -2297,6 +2344,161 @@
     if (!cloudEnabled || !cloudSession || cloudSuppressAutoSave) return;
     if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
     cloudSyncTimer = setTimeout(cloudSaveNow, 2500);
+  }
+
+  function renderWorkspaceBanner() {
+    var el = $("workspaceBanner");
+    if (!el) return;
+    if (!cloudSession || !activeOwnerId || activeOwnerId === cloudSession.user.id) {
+      el.style.display = "none";
+      el.innerHTML = "";
+      return;
+    }
+    el.style.display = "block";
+    el.innerHTML = "You're viewing <strong>" + escapeHtml(activeOwnerEmail || "a shared") + "</strong>'s household — changes you make here save to their account, not yours." +
+      ' <button type="button" class="ghost" id="workspaceSwitchBackBtn" style="margin-left:8px;">Switch back to my own data</button>';
+    $("workspaceSwitchBackBtn").addEventListener("click", function () {
+      switchWorkspace(cloudSession.user.id, cloudSession.user.email);
+    });
+  }
+
+  function switchWorkspace(ownerId, ownerEmail) {
+    if (!cloudSession || !ownerId || ownerId === activeOwnerId) return;
+    var label = (ownerId === cloudSession.user.id) ? "your own data" : ((ownerEmail || "that household") + "'s household data");
+    confirmDialog("Switch to " + label + "? This replaces what's shown on this device with that workspace's data.", function () {
+      if (cloudSyncTimer) { clearTimeout(cloudSyncTimer); cloudSyncTimer = null; }
+      activeOwnerId = ownerId;
+      activeOwnerEmail = (ownerId === cloudSession.user.id) ? cloudSession.user.email : ownerEmail;
+      updateCloudUi();
+      cloudLoadNow(true);
+    });
+  }
+
+  /* ================= Shared Household Access (Finora Pro feature) =================
+     A Pro subscriber ("owner") can invite other people by email to get full view+edit
+     access to the owner's data — members don't need their own Pro subscription while
+     working inside that household. Backed by the shared_access table and the
+     claim_shared_invite() function in supabase-schema.sql; RLS enforces the Pro gate
+     and the email match server-side, this is just the UI on top. */
+  function loadHouseholdData() {
+    if (!billingEnabled || !cloudSession) return Promise.resolve();
+    // member_email is always stored lowercased (see inviteMember) — match that here too,
+    // since Postgres text equality is case-sensitive.
+    var myEmail = (cloudSession.user.email || "").toLowerCase();
+    return Promise.all([
+      supaClient.from("shared_access").select("id,member_email,status,created_at").eq("owner_user_id", cloudSession.user.id).neq("status", "revoked").order("created_at", { ascending: true }),
+      supaClient.from("shared_access").select("id,owner_user_id,owner_email,status,created_at").eq("member_email", myEmail).eq("status", "pending"),
+      supaClient.from("shared_access").select("id,owner_user_id,owner_email,status,created_at").eq("member_user_id", cloudSession.user.id).eq("status", "active")
+    ]).then(function (results) {
+      householdMembers = (results[0] && !results[0].error && results[0].data) ? results[0].data : [];
+      pendingInvites = (results[1] && !results[1].error && results[1].data) ? results[1].data : [];
+      myMemberships = (results[2] && !results[2].error && results[2].data) ? results[2].data : [];
+      renderHousehold();
+    });
+  }
+
+  function inviteMember(email) {
+    if (!billingEnabled || !cloudSession) return;
+    email = (email || "").trim().toLowerCase();
+    if (!email) { toast("Enter an email to invite.", "error"); return; }
+    if (email === cloudSession.user.email.toLowerCase()) { toast("That's your own email.", "error"); return; }
+    // The (owner_user_id, member_email) pair is unique, so re-inviting someone you'd
+    // previously revoked has to reset their existing row rather than insert a new one.
+    supaClient.from("shared_access").select("id,status").eq("owner_user_id", cloudSession.user.id).eq("member_email", email).maybeSingle().then(function (existing) {
+      if (existing.error) { toast("Couldn't send invite: " + existing.error.message, "error"); return; }
+      if (existing.data && existing.data.status !== "revoked") {
+        toast("You've already invited that email.", "error");
+        return;
+      }
+      var row = { owner_user_id: cloudSession.user.id, owner_email: cloudSession.user.email, member_email: email, status: "pending", member_user_id: null };
+      var op = existing.data
+        ? supaClient.from("shared_access").update(row).eq("id", existing.data.id)
+        : supaClient.from("shared_access").insert(row);
+      op.then(function (res) {
+        if (res.error) { toast("Couldn't send invite: " + res.error.message, "error"); return; }
+        toast("Invite sent — they'll see it once they sign in to Finora with that email.", "good");
+        if ($("householdInviteEmail")) $("householdInviteEmail").value = "";
+        loadHouseholdData();
+      });
+    });
+  }
+
+  function revokeMember(id) {
+    confirmDialog("Revoke this person's access to your household data?", function () {
+      supaClient.from("shared_access").update({ status: "revoked" }).eq("id", id).then(function (res) {
+        if (res.error) { toast("Couldn't revoke: " + res.error.message, "error"); return; }
+        toast("Access revoked.", "good");
+        loadHouseholdData();
+      });
+    });
+  }
+
+  function acceptInvite(id, ownerEmail) {
+    supaClient.rpc("claim_shared_invite", { invite_id: id }).then(function (res) {
+      if (res.error) { toast("Couldn't accept invite: " + res.error.message, "error"); return; }
+      if (!res.data) { toast("This invite is no longer available.", "error"); return; }
+      toast("Invite accepted — you can switch to " + (ownerEmail || "their") + " household below.", "good");
+      loadHouseholdData();
+    });
+  }
+
+  function renderHousehold() {
+    var card = $("householdCard"), body = $("householdBody");
+    if (!card || !body) return;
+    if (!billingEnabled || !cloudSession) { card.style.display = "none"; return; }
+    card.style.display = "block";
+
+    var myIsPro = !!(currentSubscription && currentSubscription.is_pro);
+    var html = "";
+
+    if (myIsPro) {
+      html += '<div class="settings-grid"><div class="field"><label>Invite by email</label><input type="email" id="householdInviteEmail" autocomplete="off"></div></div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;"><button type="button" class="primary" id="householdInviteBtn">Send Invite</button></div>';
+      if (householdMembers.length) {
+        html += '<div style="margin-top:14px;font-size:12.5px;color:var(--text-secondary);">Members you\'ve invited:</div>';
+        html += householdMembers.map(function (m) {
+          var statusLabel = m.status === "active" ? '<span class="badge-good">ACTIVE</span>' : '<span class="hint">PENDING</span>';
+          return '<div class="row" style="margin-top:6px;"><span>' + escapeHtml(m.member_email) + ' ' + statusLabel + '</span>' +
+            '<button type="button" class="ghost" data-revoke-id="' + m.id + '" style="padding:2px 10px;font-size:12px;">Revoke</button></div>';
+        }).join("");
+      }
+    } else {
+      html += '<p class="hint">Inviting family members requires your own Finora Pro subscription — subscribe above to unlock this.</p>';
+    }
+
+    if (pendingInvites.length) {
+      html += '<div style="margin-top:14px;font-size:12.5px;color:var(--text-secondary);">Invites waiting for you:</div>';
+      html += pendingInvites.map(function (inv) {
+        return '<div class="row" style="margin-top:6px;"><span>' + escapeHtml(inv.owner_email || "Someone") + ' invited you to their household</span>' +
+          '<button type="button" class="primary" data-accept-id="' + inv.id + '" data-accept-email="' + escapeHtml(inv.owner_email || "") + '" style="padding:2px 10px;font-size:12px;">Accept</button></div>';
+      }).join("");
+    }
+
+    if (myMemberships.length) {
+      html += '<div style="margin-top:14px;font-size:12.5px;color:var(--text-secondary);">Switch workspace:</div>';
+      html += '<div class="row" style="margin-top:6px;"><span>My own data' + (!activeOwnerId || activeOwnerId === cloudSession.user.id ? ' (current)' : '') + '</span>' +
+        (!activeOwnerId || activeOwnerId === cloudSession.user.id ? '' : '<button type="button" class="ghost" data-switch-id="' + cloudSession.user.id + '" data-switch-email="" style="padding:2px 10px;font-size:12px;">Switch</button>') + '</div>';
+      html += myMemberships.map(function (m) {
+        var isCurrent = activeOwnerId === m.owner_user_id;
+        return '<div class="row" style="margin-top:6px;"><span>' + escapeHtml(m.owner_email || "Shared household") + (isCurrent ? ' (current)' : '') + '</span>' +
+          (isCurrent ? '' : '<button type="button" class="ghost" data-switch-id="' + m.owner_user_id + '" data-switch-email="' + escapeHtml(m.owner_email || "") + '" style="padding:2px 10px;font-size:12px;">Switch</button>') + '</div>';
+      }).join("");
+    }
+
+    body.innerHTML = html;
+
+    if ($("householdInviteBtn")) {
+      $("householdInviteBtn").addEventListener("click", function () { inviteMember($("householdInviteEmail").value); });
+    }
+    Array.prototype.forEach.call(body.querySelectorAll("[data-revoke-id]"), function (btn) {
+      btn.addEventListener("click", function () { revokeMember(btn.getAttribute("data-revoke-id")); });
+    });
+    Array.prototype.forEach.call(body.querySelectorAll("[data-accept-id]"), function (btn) {
+      btn.addEventListener("click", function () { acceptInvite(btn.getAttribute("data-accept-id"), btn.getAttribute("data-accept-email")); });
+    });
+    Array.prototype.forEach.call(body.querySelectorAll("[data-switch-id]"), function (btn) {
+      btn.addEventListener("click", function () { switchWorkspace(btn.getAttribute("data-switch-id"), btn.getAttribute("data-switch-email")); });
+    });
   }
 
   function setupCloudSync() {
@@ -2311,10 +2513,13 @@
       supaClient.auth.signInWithPassword({ email: email, password: pw }).then(function (res) {
         if (res.error) { toast("Sign in failed: " + res.error.message, "error"); return; }
         cloudSession = res.data.session;
+        activeOwnerId = cloudSession.user.id;
+        activeOwnerEmail = cloudSession.user.email;
         updateCloudUi();
         toast("Signed in.", "good");
         cloudLoadNow();
-        refreshSubscriptionStatus();
+        refreshMySubscription().then(refreshWorkspaceProStatus);
+        loadHouseholdData();
       });
     });
     $("cloudSignUpBtn").addEventListener("click", function () {
@@ -2325,10 +2530,13 @@
         if (res.error) { toast("Sign up failed: " + res.error.message, "error"); return; }
         if (res.data.session) {
           cloudSession = res.data.session;
+          activeOwnerId = cloudSession.user.id;
+          activeOwnerEmail = cloudSession.user.email;
           updateCloudUi();
           toast("Account created — signed in.", "good");
           cloudSaveNow();
-          refreshSubscriptionStatus();
+          refreshMySubscription().then(refreshWorkspaceProStatus);
+          loadHouseholdData();
         } else {
           toast("Account created — check your email to confirm it, then sign in.", "good");
         }
@@ -2337,10 +2545,17 @@
     $("cloudSignOutBtn").addEventListener("click", function () {
       supaClient.auth.signOut().then(function () {
         cloudSession = null;
+        activeOwnerId = null;
+        activeOwnerEmail = null;
         currentSubscription = null;
+        workspaceSubscription = null;
+        householdMembers = [];
+        pendingInvites = [];
+        myMemberships = [];
         state.isPro = false;
         updateCloudUi();
         renderProStatus();
+        renderHousehold();
         renderAdSlot();
         renderTxTable();
         toast("Signed out.", "good");
@@ -2354,8 +2569,11 @@
     supaClient.auth.getSession().then(function (res) {
       if (res.data && res.data.session) {
         cloudSession = res.data.session;
+        activeOwnerId = cloudSession.user.id;
+        activeOwnerEmail = cloudSession.user.email;
         updateCloudUi();
-        refreshSubscriptionStatus();
+        refreshMySubscription().then(refreshWorkspaceProStatus);
+        loadHouseholdData();
       }
     });
   }
@@ -2463,22 +2681,57 @@
      Entirely optional. billingEnabled is false until CONFIG.BILLING_ENABLED is
      switched on AND Cloud Sync (Supabase) is configured — a subscription always
      belongs to a signed-in account, never just a browser tab. The Pro flag itself
-     (state.isPro) is never trusted from local data; it's only ever set by
-     refreshSubscriptionStatus() reading the server-side "subscriptions" table,
-     which only the payhere-notify Netlify Function (using a service-role key) is
-     allowed to write to. */
-  var currentSubscription = null;
+     (state.isPro) is never trusted from local data.
 
-  function refreshSubscriptionStatus() {
+     Two separate things are tracked, because of Shared Household:
+       - currentSubscription: MY OWN subscription row (always cloudSession.user.id).
+         Drives the Subscribe/Cancel button — you can only ever manage your own
+         billing, never a household you're just visiting.
+       - workspaceSubscription / state.isPro: the subscription of whoever's data is
+         currently active (activeOwnerId) — this is what unlocks Pro features
+         (editing past entries, no ads) while working inside a shared household. */
+  var currentSubscription = null;
+  var workspaceSubscription = null;
+
+  function refreshMySubscription() {
     if (!billingEnabled || !cloudSession) return Promise.resolve();
     return supaClient.from("subscriptions")
       .select("is_pro,status,payhere_subscription_id,updated_at")
       .eq("user_id", cloudSession.user.id)
       .maybeSingle()
       .then(function (res) {
-        if (res.error) { console.error("refreshSubscriptionStatus:", res.error.message); return; }
+        if (res.error) { console.error("refreshMySubscription:", res.error.message); return; }
         currentSubscription = res.data || null;
-        state.isPro = !!(currentSubscription && currentSubscription.is_pro);
+        renderProStatus();
+        renderHousehold();
+      });
+  }
+
+  function refreshWorkspaceProStatus() {
+    if (!billingEnabled || !cloudSession || !activeOwnerId) {
+      state.isPro = false;
+      renderProStatus();
+      renderAdSlot();
+      renderTxTable();
+      return Promise.resolve();
+    }
+    if (activeOwnerId === cloudSession.user.id) {
+      // Own workspace — reuse currentSubscription instead of an identical second query.
+      workspaceSubscription = currentSubscription;
+      state.isPro = !!(currentSubscription && currentSubscription.is_pro);
+      renderProStatus();
+      renderAdSlot();
+      renderTxTable();
+      return Promise.resolve();
+    }
+    return supaClient.from("subscriptions")
+      .select("is_pro,status,updated_at")
+      .eq("user_id", activeOwnerId)
+      .maybeSingle()
+      .then(function (res) {
+        if (res.error) { console.error("refreshWorkspaceProStatus:", res.error.message); return; }
+        workspaceSubscription = res.data || null;
+        state.isPro = !!(workspaceSubscription && workspaceSubscription.is_pro);
         renderProStatus();
         renderAdSlot();
         renderTxTable();
@@ -2490,7 +2743,7 @@
   // to be in that file.
   function syncProStatus() {
     if (!billingEnabled) return;
-    if (cloudSession) { refreshSubscriptionStatus(); }
+    if (cloudSession) { refreshMySubscription().then(refreshWorkspaceProStatus); }
     else { state.isPro = false; renderProStatus(); renderAdSlot(); renderTxTable(); }
   }
 
@@ -2528,7 +2781,7 @@
         .then(function (res) {
           if (!res.ok || res.body.error) { toast("Couldn't cancel: " + (res.body.error || "server error"), "error"); return; }
           toast("Subscription cancelled.", "good");
-          refreshSubscriptionStatus();
+          refreshMySubscription().then(refreshWorkspaceProStatus);
         }).catch(function (e) { toast("Couldn't cancel: " + e.message, "error"); });
     });
   }
@@ -2548,7 +2801,7 @@
       var attempts = 0;
       var poll = setInterval(function () {
         attempts++;
-        refreshSubscriptionStatus().then(function () {
+        refreshMySubscription().then(refreshWorkspaceProStatus).then(function () {
           if (state.isPro || attempts >= 6) {
             clearInterval(poll);
             if (state.isPro) toast("You're now a Finora Pro subscriber! 🎉", "good");

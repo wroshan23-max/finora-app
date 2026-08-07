@@ -26,11 +26,15 @@ Your code is now on GitHub. You'll come back here later to update files (just cl
 ## Part 2 — Deploy it on Netlify from GitHub
 
 1. Go to **netlify.com** and sign in (or sign up) — using **"Sign up with GitHub"** is easiest since it connects the two automatically.
-2. Click **Add new site → Import an existing project → Deploy with GitHub**.
-3. Pick the `finora-app` repository you just created. Netlify will detect the `netlify.toml` automatically — leave the build settings as they are and click **Deploy**.
-4. Wait a minute for the first deploy. You'll get a URL like `https://random-name-123.netlify.app`. You can rename it under **Site settings → Change site name**.
+2. On your Netlify dashboard, click **Add new project**.
+3. Choose **Import an existing project**.
+4. Choose **GitHub** as the provider, and approve/authorize Netlify to access your GitHub account if it asks.
+5. Pick the `finora-app` repository from the list. Netlify reads your `netlify.toml` automatically and fills in the build settings — you don't need to change anything there.
+6. Click **Deploy** (may be labeled **Publish**/**Deploy site** depending on the screen).
+7. Wait roughly a minute for the first deploy. You'll land on your project's dashboard with a URL like `https://random-name-123.netlify.app` — that's your live site.
+8. To pick a nicer name: **Project configuration → General → Site details → Change site name** (or similar — Netlify occasionally renames these sub-pages; look for "site name" under project settings).
 
-From now on, any time you edit a file on GitHub and save it, Netlify automatically redeploys within a minute or two — no manual redeploy step.
+From now on, any time you edit a file on GitHub and save it, Netlify automatically rebuilds and redeploys within a minute or two — no manual redeploy step needed for code changes.
 
 ## Part 3 — Create your Supabase project (Cloud Sync + subscription database)
 
@@ -58,7 +62,7 @@ You'll repeat steps 3-5 for the **live** account once you're ready to accept rea
 
 ## Part 5 — Wire it all together with Netlify environment variables
 
-In your Netlify site, go to **Site configuration → Environment variables** and add each of these (all as plain text values — Netlify keeps them private, they're never visible in the deployed page):
+In your Netlify project, go to **Project configuration → Environment variables** (direct URL pattern: `app.netlify.com/projects/YOUR-SITE-NAME/configuration/env`). Click **Add a variable** for each of these (all as plain text values — Netlify keeps them private, they're never visible in the deployed page or to site visitors):
 
 | Key | Value |
 |---|---|
@@ -71,7 +75,7 @@ In your Netlify site, go to **Site configuration → Environment variables** and
 | `PAYHERE_APP_SECRET` | from Part 4 step 4 |
 | `PAYHERE_MODE` | `sandbox` (change to `live` later) |
 
-After adding these, trigger a redeploy (**Deploys → Trigger deploy → Deploy site**) so the functions pick them up.
+Environment variable changes only take effect after a new deploy — go to the **Deploys** tab and **Trigger deploy → Deploy site** so the functions pick them up.
 
 ## Part 6 — Turn the features on in the app
 
@@ -92,6 +96,10 @@ var CONFIG = {
 Save, wait for Netlify to redeploy, then visit your site: sign up for an account, go to Settings, and click **Subscribe**. You'll land on PayHere's sandbox checkout — use one of [PayHere's published test cards](https://support.payhere.lk/api-&-mobile-sdk/testing) to simulate a real payment. Within a few seconds of paying, Finora should show you as a Pro subscriber. Try **Cancel Subscription** too, and confirm it goes back to Free.
 
 If something doesn't work, check **Netlify → your site → Functions** for logs from `payhere-start`, `payhere-notify`, and `payhere-cancel` — errors are logged there.
+
+### Shared Household (family/partner access) — no extra setup needed
+
+Once billing works, Pro subscribers automatically get a **Shared Household** card in Settings — this was already created by the `supabase-schema.sql` you ran in Part 3, so there's nothing further to configure. A Pro subscriber can invite anyone by email; once that person signs up or signs in to Finora with that same email, they'll see the invite under Settings, can accept it, and can then switch into the owner's household to get full view + edit access to that data — without needing their own Pro subscription. Members can switch back to their own data at any time from the banner shown while viewing a shared household.
 
 ## Part 7 — Set your real price
 
