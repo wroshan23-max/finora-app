@@ -500,6 +500,10 @@
           <input type="text" inputmode="decimal" id="accOpening" value="0" required>
         </div>
         <div class="field">
+          <label id="accBalanceDateLabel">Balance as of</label>
+          <input type="date" id="accBalanceDate" required>
+        </div>
+        <div class="field">
           <label>Currency</label>
           <select id="accCurrency"></select>
         </div>
@@ -876,7 +880,7 @@
     // all set up (see the setup guide). Must match the PRICE_LKR set in
     // netlify/functions/payhere-start.js — that server-side value is what's actually
     // charged; this one is only used to show the price on the button.
-    BILLING_ENABLED: true,
+    BILLING_ENABLED: false,
     SUBSCRIPTION_PRICE_LKR: "990",
     // From your Google AdSense account, e.g. "ca-pub-1234567890123456" / "1234567890".
     ADSENSE_CLIENT_ID: "",
@@ -1066,7 +1070,13 @@
     var acc = accountById(accountId);
     if (!acc) return 0;
     var bal = acc.openingBalance || 0;
+    // balanceDate is the day the opening balance was accurate as of — transactions dated
+    // before it are already reflected in that opening figure, so they're skipped here to
+    // avoid double-counting. Accounts from older backups have no balanceDate; treat those
+    // as "always applied" so existing data keeps behaving exactly as it did before.
+    var sinceDate = acc.balanceDate || "0000-01-01";
     state.transactions.forEach(function (t) {
+      if ((t.date || "9999-99-99") < sinceDate) return;
       if (t.type === "income" && t.accountId === accountId) {
         bal += accountDelta(acc.type, "in", t.amount);
       } else if (t.type === "expense" && t.accountId === accountId) {
@@ -1424,6 +1434,7 @@
       '<div class="a-head"><span class="a-name">' + meta.icon + ' ' + escapeHtml(a.name) + (a.hidden ? ' <span class="tag">Hidden</span>' : "") + (foreign ? ' <span class="tag">' + cur + '</span>' : "") + '</span></div>' +
       '<div class="a-type">' + meta.label + '</div>' +
       '<div class="a-balance ' + cls + '">' + fmtMoneyIn(displayBal, cur) + '</div>' +
+      (a.balanceDate ? '<div style="font-size:11px;color:var(--text-muted);">as of ' + a.balanceDate + '</div>' : "") +
       (foreign ? '<div style="font-size:11px;color:var(--text-muted);">≈ ' + fmtMoney(toHomeAmount(displayBal, a)) + ' at 1 ' + cur + ' = ' + (a.exchangeRate || 0) + ' ' + state.homeCurrency + '</div>' : "") +
       (a.type === "creditcard" ? '<div style="font-size:11px;color:var(--text-muted);">negative = amount owed</div>' : "") +
       actions + '</div>';
@@ -1787,6 +1798,7 @@
       body = '<div class="form-grid">' +
         '<div class="field"><label>Name</label><input type="text" id="m_name" value="' + escapeHtml(a.name) + '" required></div>' +
         '<div class="field"><label>Opening balance</label><input type="text" inputmode="decimal" id="m_opening" value="' + a.openingBalance + '" required></div>' +
+        '<div class="field"><label>Balance as of</label><input type="date" id="m_balanceDate" value="' + (a.balanceDate || new Date().toISOString().slice(0, 10)) + '" required></div>' +
         '<div class="field"><label>Currency</label><select id="m_currency">' + CURRENCIES.map(function (c) { return '<option value="' + c.code + '"' + (c.code === aCur ? " selected" : "") + '>' + c.code + ' (' + c.symbol.trim() + ')</option>'; }).join("") + '</select></div>' +
         '<div class="field" id="m_rateWrap" style="' + (aCur === state.homeCurrency ? "display:none;" : "") + '"><label>Exchange rate (1 ' + aCur + ' = ? ' + state.homeCurrency + ')</label><input type="text" inputmode="decimal" id="m_rate" value="' + (a.exchangeRate || 1) + '"></div>' +
         '</div>';
@@ -1864,6 +1876,7 @@
         var a = accountById(id);
         a.name = nameVal;
         a.openingBalance = evalAmount($("m_opening").value) || 0;
+        a.balanceDate = $("m_balanceDate").value || new Date().toISOString().slice(0, 10);
         a.currency = newCurrency;
         a.exchangeRate = newRate;
       } else if (mode === "adjustAccount") {
@@ -1992,6 +2005,7 @@
   }
 
   function setupAccountForm() {
+    $("accBalanceDate").value = new Date().toISOString().slice(0, 10);
     $("accType").addEventListener("change", function () {
       $("accOpeningLabel").textContent = $("accType").value === "creditcard" ? "Opening balance owed" : "Opening balance";
     });
@@ -2007,6 +2021,8 @@
       var opening = evalAmount(openingRaw);
       if (openingRaw !== "" && isNaN(opening)) { toast("Opening balance must be a number.", "error"); $("accOpening").focus(); return; }
       if (isNaN(opening)) opening = 0;
+      var balanceDate = $("accBalanceDate").value;
+      if (!balanceDate) { toast("Please pick the date this balance is as of.", "error"); $("accBalanceDate").focus(); return; }
       var currency = $("accCurrency").value || state.homeCurrency;
       var isForeign = currency !== state.homeCurrency;
       var rate = 1;
@@ -2015,9 +2031,12 @@
         if (!rate || isNaN(rate) || rate <= 0) { toast("Please enter a valid exchange rate (1 " + currency + " = ? " + state.homeCurrency + ").", "error"); $("accRate").focus(); return; }
       }
       // Credit card opening balance entered as "amount owed" (positive); stored internally as owed-positive too, matches computeAccountBalance convention (openingBalance is in "internal" terms where cc positive = owed)
-      state.accounts.push({ id: uid(), name: name, type: type, openingBalance: opening, hidden: $("accHidden").checked, currency: currency, exchangeRate: rate });
+      // balanceDate marks the day this openingBalance was accurate as of — only transactions dated on/after
+      // this date are added on top of it, so logging an earlier-dated transaction later doesn't double-count.
+      state.accounts.push({ id: uid(), name: name, type: type, openingBalance: opening, balanceDate: balanceDate, hidden: $("accHidden").checked, currency: currency, exchangeRate: rate });
       $("accountForm").reset();
       $("accOpening").value = "0";
+      $("accBalanceDate").value = new Date().toISOString().slice(0, 10);
       $("accHidden").checked = false;
       renderAll();
       toast('Account "' + name + '" added.', "good");
