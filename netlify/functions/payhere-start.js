@@ -18,7 +18,7 @@ const { createClient } = require("@supabase/supabase-js");
 // ---- Change your subscription price here. Keep two decimal places. ----
 // This is the value that's actually charged — it must match
 // CONFIG.SUBSCRIPTION_PRICE_LKR in index.html, which is only used for display.
-const PRICE_LKR = "990.00";
+const PRICE_LKR = "500.00";
 const CURRENCY = "LKR";
 const ITEM_NAME = "Finora Pro — Monthly Subscription";
 
