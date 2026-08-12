@@ -908,7 +908,7 @@
     BILLING_ENABLED: true,
     SUBSCRIPTION_PRICE_LKR: "500",
     // From your Google AdSense account, e.g. "ca-pub-1234567890123456" / "1234567890".
-    ADSENSE_CLIENT_ID: "",
+    ADSENSE_CLIENT_ID: "ca-pub-2768304069617672",
     ADSENSE_SLOT_ID: ""
   };
   var cloudEnabled = !!(CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY && window.supabase);
@@ -918,6 +918,9 @@
   // tied to an actual account rather than just a browser tab.
   var billingEnabled = !!(CONFIG.BILLING_ENABLED && cloudEnabled);
   var adsEnabled = !!(CONFIG.ADSENSE_CLIENT_ID && CONFIG.ADSENSE_SLOT_ID);
+  // The AdSense loader script only needs the Publisher ID — Google uses its presence
+  // to verify/connect a new site under "Sites" before an ad unit (slot) even exists.
+  var adsScriptEnabled = !!CONFIG.ADSENSE_CLIENT_ID;
 
   /* ================= State (in-memory only, no browser storage) ================= */
   var state = {
@@ -3026,7 +3029,7 @@
      Entirely optional; a no-op until CONFIG.ADSENSE_CLIENT_ID and ADSENSE_SLOT_ID
      are both filled in. Ads are hidden automatically for Pro subscribers. */
   function setupAdsense() {
-    if (!adsEnabled) return;
+    if (!adsScriptEnabled) return;
     var loader = document.createElement("script");
     loader.async = true;
     loader.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=" + encodeURIComponent(CONFIG.ADSENSE_CLIENT_ID);
