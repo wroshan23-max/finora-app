@@ -300,6 +300,10 @@
      top of the app script below. Safe to load even when unused. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<!-- Google AdSense — static tag (not JS-injected) so Google's site-verification
+     crawler can see it without needing to execute JavaScript. If you ever change
+     CONFIG.ADSENSE_CLIENT_ID below, update the client= value here to match. -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2768304069617672" crossorigin="anonymous"></script>
 </head>
 <body data-theme="light">
 <div id="splashOverlay">
