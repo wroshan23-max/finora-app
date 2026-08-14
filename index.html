@@ -145,6 +145,15 @@
   .stat-tile .sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
   .stat-section-label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); margin: 4px 0 8px; }
 
+  .health-score-wrap { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .health-score-num { font-size: 46px; font-weight: 800; line-height: 1; min-width: 90px; }
+  .health-score-band { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+
+  .budget-row { margin-bottom: 12px; }
+  .budget-row .budget-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+  .budget-bar-track { height: 8px; border-radius: 5px; background: var(--grid); overflow: hidden; }
+  .budget-bar-fill { height: 100%; border-radius: 5px; }
+
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   @media (max-width: 820px) { .grid-2 { grid-template-columns: 1fr; } }
 
@@ -211,6 +220,7 @@
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .toast.error { background: var(--status-critical); color: #fff; }
   .toast.good { background: var(--status-good); color: #fff; }
+  .toast.warning { background: var(--status-warning); color: #2b2200; }
 
   .fab-stack {
     position: fixed; right: 20px; bottom: 24px; z-index: 60;
@@ -294,6 +304,17 @@
   }
 
   svg text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+
+  /* Printing a Report: hide everything except the active report's content, so
+     the browser's native Print > Save as PDF produces a clean one-page report
+     instead of the whole app chrome (nav, other tabs, forms, floating buttons). */
+  body.printing-report header.top, body.printing-report nav.tabs, body.printing-report footer,
+  body.printing-report .fab-stack, body.printing-report #panel-reports > .card:first-child {
+    display: none !important;
+  }
+  body.printing-report .app { max-width: 100%; padding: 0; }
+  body.printing-report section.tab-panel { display: none !important; }
+  body.printing-report #panel-reports { display: block !important; }
 </style>
 <!-- Optional cloud features (Cloud Sync + Google Drive backup). Both stay completely
      inactive — no network calls, no errors — until CONFIG values are filled in near the
@@ -345,6 +366,7 @@
     <button data-tab="accounts">Accounts</button>
     <button data-tab="liabilities">Liabilities</button>
     <button data-tab="jars">6 Jars &amp; Freedom</button>
+    <button data-tab="reports">Reports</button>
     <button data-tab="settings">Settings</button>
   </nav>
 
@@ -355,11 +377,29 @@
       <button class="primary small" data-goto-tab="accounts">Add an account</button>
     </div>
 
+    <div class="card" id="healthScoreCard">
+      <h2>🏆 Financial Health Score</h2>
+      <div class="health-score-wrap">
+        <div class="health-score-num" id="healthScoreNum">—</div>
+        <div>
+          <div class="health-score-band" id="healthScoreBand"></div>
+          <div id="healthScoreBreakdown" style="font-size:12px;color:var(--text-secondary);line-height:1.7;"></div>
+        </div>
+      </div>
+      <p class="hint" style="margin-top:10px;margin-bottom:0;">A general indicator based on your savings rate, net worth, and debt payoff progress — not financial advice.</p>
+    </div>
+
     <div class="stat-section-label">Net Worth</div>
     <div class="stat-grid" id="netWorthGrid"></div>
 
     <div class="stat-section-label">Cash Flow (all time)</div>
     <div class="stat-grid" id="statGrid"></div>
+
+    <div class="card" id="businessCard" style="display:none;">
+      <h2>💼 Business Income</h2>
+      <p class="hint">Income and expenses you've marked as Business are tracked here separately — they don't count toward the 6 Jars.</p>
+      <div class="stat-grid" id="businessStatGrid"></div>
+    </div>
 
     <div class="grid-2">
       <div class="card">
@@ -393,6 +433,12 @@
             <button type="button" data-type="income" class="active">Income</button>
             <button type="button" data-type="expense">Expense</button>
           </div>
+        </div>
+        <div class="field wide" id="businessFieldWrap">
+          <label style="font-size:12px;display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" id="txIsBusiness">
+            <span id="businessFieldLabel">This is Business Income (kept separate from the 6 Jars)</span>
+          </label>
         </div>
         <div class="field">
           <label>Amount <span id="txAmountCurrencyLabel" style="color:var(--text-muted);font-weight:400;"></span></label>
@@ -637,6 +683,17 @@
     </div>
 
     <div class="card">
+      <h2>📊 Budget Limits (This Month)</h2>
+      <p class="hint">Set an optional monthly spending limit per Jar and/or per Category — leave blank for no limit. You'll get a warning toast when an expense pushes one past 80%, and another once it goes over.</p>
+      <div class="stat-section-label" style="margin-top:4px;">By Jar</div>
+      <div class="settings-grid" id="jarBudgetInputs"></div>
+      <div id="jarBudgetBars" style="margin-top:10px;"></div>
+      <div class="stat-section-label" style="margin-top:16px;">By Category</div>
+      <div class="settings-grid" id="categoryBudgetInputs"></div>
+      <div id="categoryBudgetBars" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="card">
       <h2>🎯 Financial Freedom Account (FFA) Tracker</h2>
       <p class="hint">Money in the FFA jar is never spent — only invested to build passive income. Set your Financial Freedom Number and watch your progress.</p>
       <div class="settings-grid" style="margin-bottom:10px;">
@@ -661,6 +718,44 @@
         <input type="checkbox" id="pyfToggle" checked>
         Show the "Pay Yourself First" reminder whenever I add income
       </label>
+    </div>
+  </section>
+
+  <!-- REPORTS -->
+  <section class="tab-panel" id="panel-reports">
+    <div class="card">
+      <h2>📅 Report Period</h2>
+      <div class="type-toggle" id="reportPeriodToggle" style="margin-bottom:10px;">
+        <button type="button" data-report-period="monthly" class="active">Monthly</button>
+        <button type="button" data-report-period="yearly">Yearly</button>
+      </div>
+      <div class="settings-grid">
+        <div class="field" id="reportMonthWrap"><label>Month</label><input type="month" id="reportMonth"></div>
+        <div class="field" id="reportYearWrap" style="display:none;"><label>Year</label><select id="reportYear"></select></div>
+      </div>
+      <div style="margin-top:8px;">
+        <button type="button" class="ghost" id="reportPrintBtn">🖨️ Print / Save as PDF</button>
+      </div>
+    </div>
+
+    <div id="reportContent">
+      <div class="stat-grid" id="reportStatGrid"></div>
+
+      <div class="card" id="reportBusinessCard" style="display:none;">
+        <h2>💼 Business Income (this period)</h2>
+        <div class="stat-grid" id="reportBusinessStatGrid"></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h2>Top Categories</h2>
+          <div id="reportCategoryDonut"></div>
+        </div>
+        <div class="card">
+          <h2>Summary</h2>
+          <div id="reportSummaryText" style="font-size:13px;line-height:1.9;"></div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -708,6 +803,19 @@
         <button id="importBtn2" class="ghost">⬆ Load Data (.json)</button>
         <button id="clearBtn" class="ghost">🗑 Clear All Data</button>
       </div>
+    </div>
+
+    <div class="card">
+      <h2>🔒 App Password</h2>
+      <p class="hint">Optional — set a local password that has to be entered before "Clear All Data" will actually run, so a stray/accidental click can't wipe everything. This is separate from your Cloud Sync account password and is never sent anywhere.</p>
+      <div class="settings-grid">
+        <div class="field"><label>App Password</label><input type="password" id="appPasswordInput" placeholder="Leave blank, then Save, to turn this off" autocomplete="off"></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+        <button type="button" class="primary" id="appPasswordSaveBtn">Save Password</button>
+        <button type="button" class="ghost" id="appPasswordClearBtn">Remove Password</button>
+      </div>
+      <p class="hint" id="appPasswordStatus" style="margin-top:8px;margin-bottom:0;"></p>
     </div>
 
     <div class="card" id="cloudSyncCard">
@@ -962,6 +1070,16 @@
     // else always gets the confirmation — this can only ever be turned OFF, never
     // used to force extra friction on someone who doesn't want it.
     confirmBeforeDelete: true,
+    // Local-only safety net against an accidental "Clear All Data" click — empty
+    // string means the feature is off. Never synced to the cloud (see
+    // cloudStateSnapshot) so it can't leak to Shared Household members who see
+    // the owner's synced data; it does travel in local .json / Drive backups,
+    // which are only ever the user's own.
+    appPassword: "",
+    // Optional monthly spending limits: { NEC: 50000, ... } / { "Food & Groceries": 10000, ... }.
+    // 0 / blank / missing = no limit set for that jar or category.
+    jarBudgets: {},
+    categoryBudgets: {},
     settlement: { extraPayment: 0 },
     isPro: false
   };
@@ -1217,13 +1335,15 @@
     return { income: income, expense: expense, balance: income - expense, savingsRate: income > 0 ? ((income - expense) / income) * 100 : 0 };
   }
 
+  // Business-flagged income/expense is intentionally excluded from the 6 Jars —
+  // it's tracked as its own separate pool instead (see computeBusinessTotals).
   function computeJarBalances() {
     var bal = {}; JARS.forEach(function (j) { bal[j.key] = 0; });
     state.transactions.forEach(function (t) {
-      if (t.type === "income") {
+      if (t.type === "income" && !t.isBusiness) {
         var homeAmt = txAmountInHome(t);
         JARS.forEach(function (j) { bal[j.key] += homeAmt * ((state.jarPct[j.key] || 0) / 100); });
-      } else if (t.type === "expense" && t.jar) {
+      } else if (t.type === "expense" && t.jar && !t.isBusiness) {
         bal[t.jar] -= txAmountInHome(t);
       }
     });
@@ -1232,8 +1352,80 @@
 
   function computeJarSpent() {
     var spent = {}; JARS.forEach(function (j) { spent[j.key] = 0; });
-    state.transactions.forEach(function (t) { if (t.type === "expense" && t.jar) spent[t.jar] += txAmountInHome(t); });
+    state.transactions.forEach(function (t) { if (t.type === "expense" && t.jar && !t.isBusiness) spent[t.jar] += txAmountInHome(t); });
     return spent;
+  }
+
+  // Business Income: a separate pool for people whose income is business income —
+  // it doesn't get split into the 6 Jars, and business expenses deduct directly
+  // from this pool instead of from a Jar.
+  function computeBusinessTotals() {
+    var income = 0, expense = 0;
+    state.transactions.forEach(function (t) {
+      if (t.type === "income" && t.isBusiness) income += txAmountInHome(t);
+      else if (t.type === "expense" && t.isBusiness) expense += txAmountInHome(t);
+    });
+    return { income: income, expense: expense, balance: income - expense };
+  }
+
+  // Start (inclusive) / end (exclusive) date strings for the current calendar month —
+  // used to scope "this month's" spending for Budget Limits.
+  function thisMonthRange() {
+    var now = new Date();
+    var y = now.getFullYear(), m = now.getMonth();
+    var pad = function (n) { return (n < 10 ? "0" : "") + n; };
+    var start = y + "-" + pad(m + 1) + "-01";
+    var nextM = m === 11 ? 0 : m + 1, nextY = m === 11 ? y + 1 : y;
+    var end = nextY + "-" + pad(nextM + 1) + "-01";
+    return { start: start, end: end };
+  }
+
+  function computeMonthJarSpent() {
+    var range = thisMonthRange();
+    var spent = {}; JARS.forEach(function (j) { spent[j.key] = 0; });
+    state.transactions.forEach(function (t) {
+      if (t.type === "expense" && t.jar && !t.isBusiness) {
+        var d = t.date || "";
+        if (d >= range.start && d < range.end) spent[t.jar] += txAmountInHome(t);
+      }
+    });
+    return spent;
+  }
+
+  function computeMonthCategorySpent() {
+    var range = thisMonthRange();
+    var spent = {};
+    state.transactions.forEach(function (t) {
+      if (t.type === "expense" && t.category) {
+        var d = t.date || "";
+        if (d >= range.start && d < range.end) spent[t.category] = (spent[t.category] || 0) + txAmountInHome(t);
+      }
+    });
+    return spent;
+  }
+
+  // Totals for an arbitrary [startDate, endDateExclusive) window — powers the Reports tab.
+  function computePeriodTotals(startDate, endExclusive) {
+    var income = 0, expense = 0, categorySpend = {}, businessIncome = 0, businessExpense = 0;
+    state.transactions.forEach(function (t) {
+      if (t.type !== "income" && t.type !== "expense") return;
+      var d = t.date || "";
+      if (d < startDate || d >= endExclusive) return;
+      var amt = txAmountInHome(t);
+      if (t.type === "income") {
+        income += amt;
+        if (t.isBusiness) businessIncome += amt;
+      } else {
+        expense += amt;
+        if (t.isBusiness) businessExpense += amt;
+        if (t.category) categorySpend[t.category] = (categorySpend[t.category] || 0) + amt;
+      }
+    });
+    return {
+      income: income, expense: expense, net: income - expense,
+      savingsRate: income > 0 ? ((income - expense) / income) * 100 : 0,
+      categorySpend: categorySpend, businessIncome: businessIncome, businessExpense: businessExpense
+    };
   }
 
   function computeMonthlySeries() {
@@ -1292,6 +1484,50 @@
     return { months: months, totalInterest: totalInterest, order: orderNames, possible: possible };
   }
 
+  /* ================= Financial Health Score =================
+     A simplified 0-100 heuristic combining three signals already computed
+     elsewhere in the app. It's a general check-in indicator, not financial
+     advice — always shown with that disclaimer in the UI. */
+  function computeHealthScore() {
+    var totals = computeTotals();
+    var nw = computeNetWorth();
+
+    // Savings Rate — up to 40 points. 20%+ (Eker's recommended minimum) scores full.
+    var savingsComponent = Math.max(0, Math.min(40, (totals.savingsRate / 20) * 40));
+
+    // Net Worth health — up to 30 points, based on how much of your assets are
+    // offset by debt (credit card debt + other liabilities). A brand new user
+    // with no assets and no debt yet scores a neutral midpoint rather than 0.
+    var totalDebt = nw.cardDebt + nw.liabilities;
+    var netWorthComponent;
+    if (nw.assets <= 0 && totalDebt <= 0) netWorthComponent = 15;
+    else if (nw.assets <= 0) netWorthComponent = 0;
+    else netWorthComponent = Math.max(0, Math.min(30, (1 - totalDebt / nw.assets) * 30));
+
+    // Debt payoff progress — up to 30 points. No liabilities scores full; otherwise
+    // based on how many months the Avalanche plan (at your current extra payment)
+    // takes to reach debt-free, capped against a 10-year horizon.
+    var debtComponent;
+    if (state.liabilities.length === 0) {
+      debtComponent = 30;
+    } else {
+      var plan = simulateSettlement("avalanche", state.settlement.extraPayment || 0);
+      if (!plan.possible) debtComponent = 5;
+      else debtComponent = Math.max(5, Math.min(30, 30 * (1 - plan.months / 120)));
+    }
+
+    var score = Math.max(0, Math.min(100, Math.round(savingsComponent + netWorthComponent + debtComponent)));
+    var band = score >= 80 ? "Excellent" : score >= 60 ? "Good" : score >= 40 ? "Needs Attention" : "At Risk";
+    var bandColor = score >= 80 ? "var(--status-good)" : score >= 60 ? "var(--good)" : score >= 40 ? "var(--status-warning)" : "var(--status-critical)";
+
+    return {
+      score: score, band: band, bandColor: bandColor,
+      savingsComponent: Math.round(savingsComponent),
+      netWorthComponent: Math.round(netWorthComponent),
+      debtComponent: Math.round(debtComponent)
+    };
+  }
+
   /* ================= Tooltip ================= */
   var tooltipEl;
   function showTooltip(evt, html) { tooltipEl.innerHTML = html; tooltipEl.classList.add("show"); positionTooltip(evt); }
@@ -1317,6 +1553,20 @@
   }
 
   /* ================= Rendering: stats ================= */
+  function renderHealthScore() {
+    var h = computeHealthScore();
+    var numEl = $("healthScoreNum"), bandEl = $("healthScoreBand"), breakdownEl = $("healthScoreBreakdown");
+    if (!numEl) return;
+    numEl.textContent = h.score;
+    numEl.style.color = h.bandColor;
+    bandEl.textContent = h.band;
+    bandEl.style.color = h.bandColor;
+    breakdownEl.innerHTML =
+      '<div>Savings Rate: ' + h.savingsComponent + '/40</div>' +
+      '<div>Net Worth Health: ' + h.netWorthComponent + '/30</div>' +
+      '<div>Debt Payoff Progress: ' + h.debtComponent + '/30</div>';
+  }
+
   function renderNetWorth() {
     var nw = computeNetWorth();
     var tiles = [
@@ -1344,6 +1594,22 @@
     $("statGrid").innerHTML = tiles.map(function (s) {
       return '<div class="stat-tile"><div class="label">' + s.label + '</div><div class="value ' + (s.cls || "") + '">' + s.value + '</div>' +
         (s.sub ? '<div class="sub">' + s.sub + '</div>' : "") + '</div>';
+    }).join("");
+  }
+
+  function renderBusiness() {
+    var b = computeBusinessTotals();
+    var card = $("businessCard");
+    if (!card) return;
+    if (b.income === 0 && b.expense === 0) { card.style.display = "none"; return; }
+    card.style.display = "block";
+    var tiles = [
+      { label: "Business Income", value: fmtMoney(b.income), cls: "good" },
+      { label: "Business Expenses", value: fmtMoney(b.expense), cls: "bad" },
+      { label: "Business Balance", value: fmtMoney(b.balance), cls: b.balance >= 0 ? "good" : "bad" }
+    ];
+    $("businessStatGrid").innerHTML = tiles.map(function (s) {
+      return '<div class="stat-tile"><div class="label">' + s.label + '</div><div class="value ' + (s.cls || "") + '">' + s.value + '</div></div>';
     }).join("");
   }
 
@@ -1449,6 +1715,119 @@
     renderDonut("expenseDonut", segments, { centerLabel: fmtMoney(total), centerSub: "total spent" });
   }
 
+  /* ================= Rendering: Reports tab ================= */
+  var reportPeriodType = "monthly";
+  function seriesColor(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+  function populateReportYearSelect() {
+    if (!$("reportYear")) return;
+    var years = {};
+    state.transactions.forEach(function (t) { if (t.date) years[t.date.slice(0, 4)] = true; });
+    var currentYear = new Date().getFullYear();
+    years[currentYear] = true;
+    var sortedYears = Object.keys(years).sort().reverse();
+    var prevVal = $("reportYear").value;
+    $("reportYear").innerHTML = sortedYears.map(function (y) { return '<option value="' + y + '">' + y + '</option>'; }).join("");
+    $("reportYear").value = sortedYears.indexOf(prevVal) !== -1 ? prevVal : String(currentYear);
+  }
+
+  function setupReports() {
+    $("reportMonth").value = new Date().toISOString().slice(0, 7);
+    populateReportYearSelect();
+    document.querySelectorAll("#reportPeriodToggle button").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        reportPeriodType = btn.getAttribute("data-report-period");
+        document.querySelectorAll("#reportPeriodToggle button").forEach(function (b) { b.classList.toggle("active", b === btn); });
+        $("reportMonthWrap").style.display = reportPeriodType === "monthly" ? "flex" : "none";
+        $("reportYearWrap").style.display = reportPeriodType === "yearly" ? "flex" : "none";
+        renderReport();
+      });
+    });
+    $("reportMonth").addEventListener("change", renderReport);
+    $("reportYear").addEventListener("change", renderReport);
+    $("reportPrintBtn").addEventListener("click", function () {
+      document.body.classList.add("printing-report");
+      window.print();
+      setTimeout(function () { document.body.classList.remove("printing-report"); }, 300);
+    });
+  }
+
+  function renderReport() {
+    if (!$("reportStatGrid") || !$("reportMonth")) return;
+    var startDate, endExclusive, periodLabel;
+    if (reportPeriodType === "yearly") {
+      var year = $("reportYear").value || String(new Date().getFullYear());
+      startDate = year + "-01-01";
+      endExclusive = (parseInt(year, 10) + 1) + "-01-01";
+      periodLabel = year;
+    } else {
+      var monthVal = $("reportMonth").value || new Date().toISOString().slice(0, 7);
+      startDate = monthVal + "-01";
+      var parts = monthVal.split("-"), y = parseInt(parts[0], 10), m = parseInt(parts[1], 10);
+      var nextM = m === 12 ? 1 : m + 1, nextY = m === 12 ? y + 1 : y;
+      endExclusive = nextY + "-" + (nextM < 10 ? "0" : "") + nextM + "-01";
+      periodLabel = new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    }
+
+    var current = computePeriodTotals(startDate, endExclusive);
+
+    // Previous period of the same length, purely for a simple trend comparison.
+    var prevStart, prevEnd = startDate;
+    if (reportPeriodType === "yearly") {
+      prevStart = (parseInt(startDate.slice(0, 4), 10) - 1) + "-01-01";
+    } else {
+      var sy = parseInt(startDate.slice(0, 4), 10), sm = parseInt(startDate.slice(5, 7), 10);
+      var pm = sm === 1 ? 12 : sm - 1, py = sm === 1 ? sy - 1 : sy;
+      prevStart = py + "-" + (pm < 10 ? "0" : "") + pm + "-01";
+    }
+    var previous = computePeriodTotals(prevStart, prevEnd);
+
+    function trendSub(curVal, prevVal) {
+      if (prevVal === 0) return curVal === 0 ? "" : "no data last period to compare";
+      var change = ((curVal - prevVal) / Math.abs(prevVal)) * 100;
+      return (change >= 0 ? "+" : "") + change.toFixed(0) + "% vs previous period";
+    }
+
+    var tiles = [
+      { label: "Income", value: fmtMoney(current.income), cls: "good", sub: trendSub(current.income, previous.income) },
+      { label: "Expense", value: fmtMoney(current.expense), cls: "bad", sub: trendSub(current.expense, previous.expense) },
+      { label: "Net (Income − Expense)", value: fmtMoney(current.net), cls: current.net >= 0 ? "good" : "bad" },
+      { label: "Savings Rate", value: (current.income > 0 ? current.savingsRate.toFixed(1) : "0.0") + "%", cls: current.savingsRate >= 20 ? "good" : (current.savingsRate < 0 ? "bad" : "") }
+    ];
+    $("reportStatGrid").innerHTML = tiles.map(function (s) {
+      return '<div class="stat-tile"><div class="label">' + s.label + '</div><div class="value ' + (s.cls || "") + '">' + s.value + '</div>' + (s.sub ? '<div class="sub">' + s.sub + '</div>' : "") + '</div>';
+    }).join("");
+
+    if (current.businessIncome === 0 && current.businessExpense === 0) {
+      $("reportBusinessCard").style.display = "none";
+    } else {
+      $("reportBusinessCard").style.display = "block";
+      $("reportBusinessStatGrid").innerHTML = [
+        { label: "Business Income", value: fmtMoney(current.businessIncome), cls: "good" },
+        { label: "Business Expenses", value: fmtMoney(current.businessExpense), cls: "bad" },
+        { label: "Business Balance", value: fmtMoney(current.businessIncome - current.businessExpense), cls: (current.businessIncome - current.businessExpense) >= 0 ? "good" : "bad" }
+      ].map(function (s) { return '<div class="stat-tile"><div class="label">' + s.label + '</div><div class="value ' + s.cls + '">' + s.value + '</div></div>'; }).join("");
+    }
+
+    var catEntries = Object.keys(current.categorySpend).map(function (k) { return { key: k, label: k, value: current.categorySpend[k] }; })
+      .sort(function (a, b) { return b.value - a.value; });
+    var top = catEntries.slice(0, 5);
+    var rest = catEntries.slice(5);
+    var restTotal = rest.reduce(function (s, c) { return s + c.value; }, 0);
+    var palette = ["--series-1", "--series-2", "--series-3", "--series-4", "--series-5", "--series-8"].map(seriesColor);
+    var segments = top.map(function (c, i) { return { key: c.key, label: c.label, value: c.value, color: palette[i % palette.length] }; });
+    if (restTotal > 0) segments.push({ key: "other", label: "Other", value: restTotal, color: palette[5] });
+    if (segments.length === 0) $("reportCategoryDonut").innerHTML = '<div class="empty-state">No expenses in this period.</div>';
+    else renderDonut("reportCategoryDonut", segments, { centerLabel: fmtMoney(current.expense), centerSub: "total spent" });
+
+    $("reportSummaryText").innerHTML =
+      '<div><strong>' + escapeHtml(periodLabel) + '</strong></div>' +
+      '<div>Income: ' + fmtMoney(current.income) + '</div>' +
+      '<div>Expense: ' + fmtMoney(current.expense) + '</div>' +
+      '<div>Savings Rate: ' + (current.income > 0 ? current.savingsRate.toFixed(1) : "0.0") + '%</div>' +
+      (top.length ? '<div style="margin-top:8px;">Top category: <strong>' + escapeHtml(top[0].label) + '</strong> (' + fmtMoney(top[0].value) + ')</div>' : "");
+  }
+
   /* ================= Rendering: jars ================= */
   function renderJarGrid() {
     var bal = computeJarBalances();
@@ -1461,6 +1840,78 @@
         '<div class="bar-track"><div class="bar-fill" style="width:' + pctWidth + '%;background:' + color + ';"></div></div>' +
         '<div class="jar-desc">' + j.desc + '</div></div>';
     }).join("");
+  }
+
+  /* ================= Rendering: budget limits ================= */
+  function budgetBarHtml(label, spent, limit) {
+    var pct = limit > 0 ? (spent / limit) * 100 : 0;
+    var color = pct >= 100 ? "var(--status-critical)" : pct >= 80 ? "var(--status-warning)" : "var(--status-good)";
+    return '<div class="budget-row"><div class="budget-label"><span>' + escapeHtml(label) + '</span><span>' + fmtMoney(spent) + ' of ' + fmtMoney(limit) + ' (' + pct.toFixed(0) + '%)</span></div>' +
+      '<div class="budget-bar-track"><div class="budget-bar-fill" style="width:' + Math.min(100, pct) + '%;background:' + color + ';"></div></div></div>';
+  }
+
+  // Rebuilds the editable limit <input> fields — call on tab-level re-renders,
+  // NOT on every keystroke (that would steal focus mid-typing).
+  function renderBudgetInputs() {
+    $("jarBudgetInputs").innerHTML = JARS.map(function (j) {
+      return '<div class="field"><label>' + j.name + '</label><input type="number" min="0" step="1" data-jar-budget="' + j.key + '" value="' + (state.jarBudgets[j.key] || "") + '" placeholder="No limit"></div>';
+    }).join("");
+    $("categoryBudgetInputs").innerHTML = state.expenseCategories.map(function (c) {
+      return '<div class="field"><label>' + escapeHtml(c) + '</label><input type="number" min="0" step="1" data-category-budget="' + escapeHtml(c) + '" value="' + (state.categoryBudgets[c] || "") + '" placeholder="No limit"></div>';
+    }).join("");
+    renderBudgetBars();
+  }
+
+  // Only updates the progress bars — safe to call after every keystroke.
+  function renderBudgetBars() {
+    var jarSpent = computeMonthJarSpent();
+    var jarBarsHtml = JARS.filter(function (j) { return (state.jarBudgets[j.key] || 0) > 0; })
+      .map(function (j) { return budgetBarHtml(j.name, jarSpent[j.key] || 0, state.jarBudgets[j.key]); }).join("");
+    $("jarBudgetBars").innerHTML = jarBarsHtml || '<div class="hint">No jar limits set yet.</div>';
+
+    var catSpent = computeMonthCategorySpent();
+    var catBarsHtml = state.expenseCategories.filter(function (c) { return (state.categoryBudgets[c] || 0) > 0; })
+      .map(function (c) { return budgetBarHtml(c, catSpent[c] || 0, state.categoryBudgets[c]); }).join("");
+    $("categoryBudgetBars").innerHTML = catBarsHtml || '<div class="hint">No category limits set yet.</div>';
+  }
+
+  function setupBudgets() {
+    $("jarBudgetInputs").addEventListener("input", function (evt) {
+      var key = evt.target.getAttribute("data-jar-budget"); if (!key) return;
+      var val = parseFloat(evt.target.value);
+      if (!val || val <= 0) delete state.jarBudgets[key]; else state.jarBudgets[key] = val;
+      renderBudgetBars();
+    });
+    $("categoryBudgetInputs").addEventListener("input", function (evt) {
+      var key = evt.target.getAttribute("data-category-budget"); if (!key) return;
+      var val = parseFloat(evt.target.value);
+      if (!val || val <= 0) delete state.categoryBudgets[key]; else state.categoryBudgets[key] = val;
+      renderBudgetBars();
+    });
+  }
+
+  // Called right after an expense is added — warns (once) if it pushed a Jar or
+  // Category past 80% / 100% of its monthly limit. Combined into one toast since
+  // toast() only shows one message at a time.
+  function checkBudgetAlerts(tx) {
+    if (tx.type !== "expense") return;
+    var messages = [];
+    if (tx.jar && !tx.isBusiness && (state.jarBudgets[tx.jar] || 0) > 0) {
+      var jarSpent = computeMonthJarSpent()[tx.jar] || 0;
+      var limit = state.jarBudgets[tx.jar];
+      var pct = (jarSpent / limit) * 100;
+      var jarName = jarByKey(tx.jar) ? jarByKey(tx.jar).name : tx.jar;
+      if (pct >= 100) messages.push(jarName + " jar is over budget this month (" + fmtMoney(jarSpent) + " of " + fmtMoney(limit) + ").");
+      else if (pct >= 80) messages.push(jarName + " jar is at " + pct.toFixed(0) + "% of this month's budget.");
+    }
+    if (tx.category && (state.categoryBudgets[tx.category] || 0) > 0) {
+      var catSpent = computeMonthCategorySpent()[tx.category] || 0;
+      var catLimit = state.categoryBudgets[tx.category];
+      var catPct = (catSpent / catLimit) * 100;
+      if (catPct >= 100) messages.push('"' + tx.category + '" category is over budget this month (' + fmtMoney(catSpent) + " of " + fmtMoney(catLimit) + ").");
+      else if (catPct >= 80) messages.push('"' + tx.category + '" category is at ' + catPct.toFixed(0) + "% of this month's budget.");
+    }
+    if (messages.length) toast(messages.join(" · "), messages.some(function (m) { return m.indexOf("over budget") !== -1; }) ? "error" : "warning");
   }
 
   function renderFreedomTracker() {
@@ -1580,7 +2031,11 @@
       .slice().sort(function (a, b) { return (b.date || "").localeCompare(a.date || "") || b.id.localeCompare(a.id); });
     rows = rows.filter(function (t) {
       if (typeFilter !== "all" && t.type !== typeFilter) return false;
-      if (jarFilter !== "all" && t.type === "expense" && t.jar !== jarFilter) return false;
+      if (jarFilter === "__business__") {
+        if (!t.isBusiness) return false;
+      } else if (jarFilter !== "all" && t.type === "expense" && t.jar !== jarFilter) {
+        return false;
+      }
       if (categoryFilter !== "all" && t.type === "expense" && t.category !== categoryFilter) return false;
       if (accFilter !== "all" && t.accountId !== accFilter) return false;
       return true;
@@ -1590,7 +2045,8 @@
     else {
       $("txEmptyState").style.display = "none";
       $("txTableBody").innerHTML = rows.map(function (t) {
-        var jarCell = t.type === "income" ? '<span class="tag">Split × 6</span>' :
+        var jarCell = t.isBusiness ? '<span class="tag">💼 Business</span>' :
+          t.type === "income" ? '<span class="tag">Split × 6</span>' :
           (jarByKey(t.jar) ? '<span class="tag"><span class="dot" style="background:' + jarColor(t.jar) + ';"></span>' + jarByKey(t.jar).name + '</span>' : "—");
         var acc = accountById(t.accountId);
         var accCell = acc ? escapeHtml(acc.name) : '<span style="color:var(--text-muted)">—</span>';
@@ -1637,7 +2093,7 @@
   function renderDropdowns() {
     var jarOpts = JARS.map(function (j) { return '<option value="' + j.key + '">' + j.name + '</option>'; }).join("");
     $("txJar").innerHTML = jarOpts;
-    $("filterJar").innerHTML = '<option value="all">All jars</option>' + jarOpts;
+    $("filterJar").innerHTML = '<option value="all">All jars</option>' + jarOpts + '<option value="__business__">💼 Business only</option>';
 
     var prevCategory = $("txCategory").value;
     var categoryOpts = state.expenseCategories.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join("");
@@ -1747,6 +2203,10 @@
     var acc = accountById($("txAccount").value);
     var homeAmt = acc ? toHomeAmount(amt, acc) : amt;
     var fxNote = acc && isForeignAccount(acc) ? "<div style=\"margin-bottom:6px;\">≈ " + fmtMoney(homeAmt) + " at your account's exchange rate</div>" : "";
+    if ($("txIsBusiness").checked) {
+      $("splitPreview").innerHTML = fxNote + "<strong>💼 This will be tracked as Business Income</strong><div class=\"hint\" style=\"margin-top:4px;\">Not split into the 6 Jars — see the Business Income card on the Dashboard.</div>";
+      return;
+    }
     $("splitPreview").innerHTML = "<strong>This income will split into:</strong><br>" + fxNote + JARS.map(function (j) {
       var pct = state.jarPct[j.key] || 0; var share = homeAmt * (pct / 100);
       return '<div class="row"><span><span class="swatch" style="background:' + jarColor(j.key) + ';"></span>' + j.name + ' (' + pct + '%)</span><span>' + fmtMoney(share) + '</span></div>';
@@ -1759,12 +2219,15 @@
     renderAccounts();
     renderForeignAssets();
     renderLiabilities();
+    renderHealthScore();
     renderNetWorth();
     renderStats();
+    renderBusiness();
     renderBarChart();
     renderAllocationDonut();
     renderExpenseDonut();
     renderJarGrid();
+    renderBudgetInputs();
     renderFreedomTracker();
     renderTxTable();
     renderTransferTable();
@@ -1773,8 +2236,10 @@
     updateJarFieldVisibility();
     renderCurrencySelect();
     renderProStatus();
+    renderAppPasswordStatus();
     renderHousehold();
     renderAdSlot();
+    renderReport();
     scheduleCloudSave();
   }
 
@@ -1784,6 +2249,7 @@
   function setTxType(type) {
     currentTxType = type;
     document.querySelectorAll(".type-toggle button").forEach(function (b) { b.classList.toggle("active", b.getAttribute("data-type") === type); });
+    $("txIsBusiness").checked = false;
     renderDropdowns();
     updateJarFieldVisibility();
     renderSplitPreview();
@@ -1799,6 +2265,7 @@
     $("txAmount").addEventListener("input", renderSplitPreview);
     attachCalculator("txAmount", "txCalcBtn", renderSplitPreview);
     $("txAccount").addEventListener("change", updateTxAmountCurrencyLabel);
+    $("txIsBusiness").addEventListener("change", function () { updateJarFieldVisibility(); renderSplitPreview(); });
 
     function submitTxForm() {
       var amount = evalAmount($("txAmount").value);
@@ -1809,16 +2276,22 @@
       if (!accountId) { toast("Please choose an account.", "error"); return; }
       var date = $("txDate").value || new Date().toISOString().slice(0, 10);
       var note = $("txNote").value.trim();
+      var isBusiness = $("txIsBusiness").checked;
       if (currentTxType === "income" && $("txSource").value === ADD_SOURCE_VALUE) { toast("Please finish adding the new source, or pick an existing one.", "error"); return; }
       if (currentTxType === "expense" && $("txCategory").value === ADD_CATEGORY_VALUE) { toast("Please finish adding the new category, or pick an existing one.", "error"); return; }
-      var tx = { id: uid(), type: currentTxType, amount: amount, date: date, note: note, accountId: accountId };
-      if (currentTxType === "expense") { tx.jar = $("txJar").value; tx.category = $("txCategory").value; }
-      else tx.source = $("txSource").value;
+      var tx = { id: uid(), type: currentTxType, amount: amount, date: date, note: note, accountId: accountId, isBusiness: isBusiness };
+      if (currentTxType === "expense") {
+        tx.category = $("txCategory").value;
+        if (!isBusiness) tx.jar = $("txJar").value;
+      } else {
+        tx.source = $("txSource").value;
+      }
 
       state.transactions.push(tx);
       $("txAmount").value = ""; $("txNote").value = "";
       renderAll();
-      if (currentTxType === "income" && state.pyfEnabled) openPyfModal(tx);
+      if (currentTxType === "income" && state.pyfEnabled && !isBusiness) openPyfModal(tx);
+      checkBudgetAlerts(tx);
     }
     // Use plain button clicks (not native form submission) — some embedded/artifact
     // viewers sandbox iframes without "allow-forms", which silently blocks the
@@ -1832,12 +2305,15 @@
 
   function updateJarFieldVisibility() {
     var jarWrap = $("jarFieldWrap"), sourceWrap = $("sourceFieldWrap"), categoryWrap = $("categoryFieldWrap");
+    var isBusiness = $("txIsBusiness").checked;
     if (currentTxType === "income") {
       jarWrap.style.display = "none"; sourceWrap.style.display = "flex"; categoryWrap.style.display = "none";
       $("accountFieldLabel").textContent = "Account (receives income)";
+      $("businessFieldLabel").textContent = "This is Business Income (kept separate from the 6 Jars)";
     } else {
-      jarWrap.style.display = "flex"; sourceWrap.style.display = "none"; categoryWrap.style.display = "flex";
+      jarWrap.style.display = isBusiness ? "none" : "flex"; sourceWrap.style.display = "none"; categoryWrap.style.display = "flex";
       $("accountFieldLabel").textContent = "Account (pays for this)";
+      $("businessFieldLabel").textContent = "This is a Business Expense (deducts from Business Income instead of a Jar)";
     }
   }
 
@@ -1911,7 +2387,11 @@
         '<div class="field"><label>Category</label><select id="m_category">' + state.expenseCategories.map(function (c) { return '<option value="' + escapeHtml(c) + '"' + (c === tx.category ? " selected" : "") + '>' + escapeHtml(c) + '</option>'; }).join("") + '</select></div>' : "";
       var sourceField = tx.type === "income" ?
         '<div class="field"><label>Income Source</label><select id="m_source">' + state.incomeSources.map(function (s) { return '<option value="' + escapeHtml(s) + '"' + (s === tx.source ? " selected" : "") + '>' + escapeHtml(s) + '</option>'; }).join("") + '</select></div>' : "";
+      var businessLabel = tx.type === "income" ? "This is Business Income (kept separate from the 6 Jars)" : "This is a Business Expense (deducts from Business Income instead of a Jar)";
+      var businessField = '<div class="field wide"><label style="font-size:12px;display:flex;align-items:center;gap:8px;">' +
+        '<input type="checkbox" id="m_isBusiness"' + (tx.isBusiness ? " checked" : "") + '><span>' + businessLabel + '</span></label></div>';
       body = '<div class="form-grid">' +
+        businessField +
         '<div class="field"><label>Amount</label><input type="text" inputmode="decimal" id="m_amount" value="' + tx.amount + '" required></div>' +
         '<div class="field"><label>Account</label><select id="m_account">' + mAccOpts + '</select></div>' +
         jarField + categoryField + sourceField +
@@ -1943,6 +2423,12 @@
       var tfEdit = state.transactions.filter(function (x) { return x.id === contextId; })[0];
       $("m_from").value = tfEdit.fromAccountId;
       $("m_to").value = tfEdit.toAccountId;
+    }
+    if (mode === "editTransaction" && $("m_isBusiness") && $("m_jar")) {
+      $("m_isBusiness").addEventListener("change", function () {
+        $("m_jar").closest(".field").style.display = $("m_isBusiness").checked ? "none" : "flex";
+      });
+      if ($("m_isBusiness").checked) $("m_jar").closest(".field").style.display = "none";
     }
     ["m_opening", "m_target", "m_amount", "m_rate", "m_fee"].forEach(function (fid) {
       if ($(fid)) attachCalculator(fid, null);
@@ -2000,8 +2486,12 @@
           editTxObj.accountId = editAccId;
           editTxObj.date = $("m_date").value || editTxObj.date;
           editTxObj.note = $("m_note").value.trim();
-          if (editTxObj.type === "expense" && $("m_jar")) editTxObj.jar = $("m_jar").value;
+          if ($("m_isBusiness")) editTxObj.isBusiness = $("m_isBusiness").checked;
           if (editTxObj.type === "expense" && $("m_category")) editTxObj.category = $("m_category").value;
+          if (editTxObj.type === "expense" && $("m_jar")) {
+            if (editTxObj.isBusiness) delete editTxObj.jar;
+            else editTxObj.jar = $("m_jar").value;
+          }
           if (editTxObj.type === "income" && $("m_source")) editTxObj.source = $("m_source").value;
           toast("Entry updated.", "good");
         }
@@ -2251,12 +2741,47 @@
     $("freedomTarget").addEventListener("input", function () { state.freedomTarget = parseFloat($("freedomTarget").value) || 0; renderFreedomTracker(); });
     $("pyfToggle").addEventListener("change", function () { state.pyfEnabled = $("pyfToggle").checked; });
     $("deleteConfirmToggle").addEventListener("change", function () { state.confirmBeforeDelete = $("deleteConfirmToggle").checked; });
-    $("clearBtn").addEventListener("click", function () {
-      confirmDialog("This will delete ALL data (transactions, accounts, liabilities) in this session. Continue?", function () {
-        state.transactions = []; state.accounts = []; state.liabilities = [];
-        renderAll();
-      });
+
+    $("appPasswordSaveBtn").addEventListener("click", function () {
+      var val = $("appPasswordInput").value;
+      if (!val) { toast("Enter a password first — or leave it blank and use Remove Password to turn this off.", "error"); return; }
+      state.appPassword = val;
+      $("appPasswordInput").value = "";
+      renderAppPasswordStatus();
+      toast("App password set.", "good");
     });
+    $("appPasswordClearBtn").addEventListener("click", function () {
+      if (!state.appPassword) { toast("No app password is set.", "error"); return; }
+      state.appPassword = "";
+      $("appPasswordInput").value = "";
+      renderAppPasswordStatus();
+      toast("App password removed.", "good");
+    });
+
+    function doClearAllData() {
+      state.transactions = []; state.accounts = []; state.liabilities = [];
+      renderAll();
+      toast("All data cleared.", "good");
+    }
+    $("clearBtn").addEventListener("click", function () {
+      if (state.appPassword) {
+        promptDialog("This app has an App Password set. Enter it to clear all data:", function (val) {
+          if (val === null) return; // cancelled
+          if (val !== state.appPassword) { toast("Incorrect app password — nothing was cleared.", "error"); return; }
+          confirmDialog("This will permanently delete ALL data (transactions, accounts, liabilities) in this session. Continue?", doClearAllData);
+        }, "App password");
+      } else {
+        confirmDialog("This will delete ALL data (transactions, accounts, liabilities) in this session. Continue?", doClearAllData);
+      }
+    });
+  }
+
+  function renderAppPasswordStatus() {
+    var el = $("appPasswordStatus");
+    if (!el) return;
+    el.textContent = state.appPassword
+      ? "Currently ON — Clear All Data will ask for this password first."
+      : "Currently OFF — Clear All Data only asks you to confirm.";
   }
 
   /* ================= Export / Import ================= */
@@ -2282,10 +2807,16 @@
         state.incomeSources = (incoming.incomeSources && incoming.incomeSources.length) ? incoming.incomeSources : DEFAULT_INCOME_SOURCES.slice();
         state.expenseCategories = (incoming.expenseCategories && incoming.expenseCategories.length) ? incoming.expenseCategories : DEFAULT_EXPENSE_CATEGORIES.slice();
         state.jarPct = Object.assign({}, DEFAULT_PCT, incoming.jarPct || {});
+        state.jarBudgets = incoming.jarBudgets || {};
+        state.categoryBudgets = incoming.categoryBudgets || {};
         state.homeCurrency = incoming.homeCurrency || incoming.currency || "USD";
         state.freedomTarget = incoming.freedomTarget || 0;
         state.pyfEnabled = incoming.pyfEnabled !== undefined ? incoming.pyfEnabled : true;
         state.confirmBeforeDelete = incoming.confirmBeforeDelete !== undefined ? incoming.confirmBeforeDelete : true;
+        // Only overwrite the App Password if this file actually specifies one — a
+        // cloud/Drive payload never includes it (see cloudStateSnapshot), and we
+        // don't want a routine sync to silently clear a password set on this device.
+        if (incoming.appPassword !== undefined) state.appPassword = incoming.appPassword;
         state.settlement = incoming.settlement || { extraPayment: 0 };
         // When real billing is on, Pro status always comes from the subscriptions table
         // (see syncProStatus below) — never trust a hand-editable "isPro" field from a
@@ -2307,17 +2838,17 @@
   }
 
   function exportCsv() {
-    var header = ["Date", "Type", "Jar", "Category", "Account", "Source/Note", "Amount", "Currency", "Amount (" + state.homeCurrency + ")"];
+    var header = ["Date", "Type", "Business", "Jar", "Category", "Account", "Source/Note", "Amount", "Currency", "Amount (" + state.homeCurrency + ")"];
     var lines = [header.join(",")];
     state.transactions.filter(function (t) { return t.type === "income" || t.type === "expense"; })
       .slice().sort(function (a, b) { return (a.date || "").localeCompare(b.date || ""); })
       .forEach(function (t) {
-        var jar = t.type === "income" ? "Split x6" : (jarByKey(t.jar) ? jarByKey(t.jar).name : "");
+        var jar = t.isBusiness ? "" : (t.type === "income" ? "Split x6" : (jarByKey(t.jar) ? jarByKey(t.jar).name : ""));
         var category = t.type === "expense" ? (t.category || "") : "";
         var acc = accountById(t.accountId); var accName = acc ? acc.name : "";
         var cur = acc ? accountCurrency(acc) : state.homeCurrency;
         var noteVal = t.type === "income" ? (t.source || "") + (t.note ? " - " + t.note : "") : (t.note || "");
-        var row = [t.date, t.type, jar, '"' + category.replace(/"/g, '""') + '"', '"' + accName.replace(/"/g, '""') + '"', '"' + noteVal.replace(/"/g, '""') + '"', t.amount, cur, txAmountInHome(t).toFixed(2)];
+        var row = [t.date, t.type, t.isBusiness ? "Yes" : "", jar, '"' + category.replace(/"/g, '""') + '"', '"' + accName.replace(/"/g, '""') + '"', '"' + noteVal.replace(/"/g, '""') + '"', t.amount, cur, txAmountInHome(t).toFixed(2)];
         lines.push(row.join(","));
       });
     var blob = new Blob([lines.join("\n")], { type: "text/csv" });
@@ -2457,10 +2988,13 @@
     state.incomeSources = (incoming.incomeSources && incoming.incomeSources.length) ? incoming.incomeSources : DEFAULT_INCOME_SOURCES.slice();
     state.expenseCategories = (incoming.expenseCategories && incoming.expenseCategories.length) ? incoming.expenseCategories : DEFAULT_EXPENSE_CATEGORIES.slice();
     state.jarPct = Object.assign({}, DEFAULT_PCT, incoming.jarPct || {});
+    state.jarBudgets = incoming.jarBudgets || {};
+    state.categoryBudgets = incoming.categoryBudgets || {};
     state.homeCurrency = incoming.homeCurrency || incoming.currency || "USD";
     state.freedomTarget = incoming.freedomTarget || 0;
     state.pyfEnabled = incoming.pyfEnabled !== undefined ? incoming.pyfEnabled : true;
     state.confirmBeforeDelete = incoming.confirmBeforeDelete !== undefined ? incoming.confirmBeforeDelete : true;
+    if (incoming.appPassword !== undefined) state.appPassword = incoming.appPassword;
     state.settlement = incoming.settlement || { extraPayment: 0 };
     state.accounts.forEach(function (a) { if (!a.currency) a.currency = state.homeCurrency; if (!a.exchangeRate) a.exchangeRate = 1; });
     if ($("pyfToggle")) $("pyfToggle").checked = state.pyfEnabled;
@@ -2502,6 +3036,7 @@
       incomeSources: DEFAULT_INCOME_SOURCES.slice(),
       expenseCategories: DEFAULT_EXPENSE_CATEGORIES.slice(),
       jarPct: Object.assign({}, DEFAULT_PCT),
+      jarBudgets: {}, categoryBudgets: {},
       homeCurrency: state.homeCurrency, freedomTarget: 0,
       pyfEnabled: true, confirmBeforeDelete: true, settlement: { extraPayment: 0 }
     };
@@ -2516,6 +3051,8 @@
       incomeSources: state.incomeSources,
       expenseCategories: state.expenseCategories,
       jarPct: state.jarPct,
+      jarBudgets: state.jarBudgets,
+      categoryBudgets: state.categoryBudgets,
       homeCurrency: state.homeCurrency,
       freedomTarget: state.freedomTarget,
       pyfEnabled: state.pyfEnabled,
@@ -3199,6 +3736,8 @@
     setupPromptModal();
     setupIncomeSourceAdd();
     setupCategoryAdd();
+    setupBudgets();
+    setupReports();
     setupFabButtons();
     setupCloudSync();
     setupDriveBackup();
