@@ -405,6 +405,10 @@
           <label id="jarFieldLabel">Jar (which jar covers this expense?)</label>
           <select id="txJar"></select>
         </div>
+        <div class="field" id="categoryFieldWrap">
+          <label>Category (what was it spent on?)</label>
+          <select id="txCategory"></select>
+        </div>
         <div class="field">
           <label id="accountFieldLabel">Account</label>
           <select id="txAccount"></select>
@@ -442,6 +446,9 @@
         </select>
         <select id="filterJar">
           <option value="all">All jars</option>
+        </select>
+        <select id="filterCategory">
+          <option value="all">All categories</option>
         </select>
         <select id="filterAccount">
           <option value="all">All accounts</option>
@@ -676,6 +683,13 @@
         <li>More Pro features coming later</li>
       </ul>
       <div id="proActionBox" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"></div>
+      <div id="proDeleteConfirmWrap" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid rgba(11,11,11,0.08);">
+        <label style="font-size:12px;display:flex;align-items:center;gap:8px;">
+          <input type="checkbox" id="deleteConfirmToggle" checked>
+          Ask me to confirm before deleting a transaction, transfer, account, or liability
+        </label>
+        <p class="hint" style="margin:4px 0 0;">Pro-only: turn this off if the extra confirmation step feels unnecessary. Everyone else always gets asked.</p>
+      </div>
     </div>
 
     <div class="card">
@@ -896,6 +910,12 @@
   var DEFAULT_INCOME_SOURCES = ["Salary", "Business", "Freelance / Side Income", "Investment / Dividends", "Gift", "Other"];
   var ADD_SOURCE_VALUE = "__add_new_source__";
 
+  // Expense Categories are a separate concept from the 6 Jars: a Jar is which broad
+  // "bucket" of your budget an expense counts against, a Category is what the money
+  // was actually spent on — lets you filter/report spending by merchant type.
+  var DEFAULT_EXPENSE_CATEGORIES = ["Food & Groceries", "Transport", "Bills & Utilities", "Shopping", "Health", "Entertainment", "Rent / Housing", "Other"];
+  var ADD_CATEGORY_VALUE = "__add_new_category__";
+
   /* ================= Cloud config =================
      Leave every value blank to run fully offline (the default — nothing below ever
      runs, no network calls happen). After deploying to Netlify and creating a Supabase
@@ -932,11 +952,16 @@
     accounts: [],
     liabilities: [],
     incomeSources: DEFAULT_INCOME_SOURCES.slice(),
+    expenseCategories: DEFAULT_EXPENSE_CATEGORIES.slice(),
     jarPct: Object.assign({}, DEFAULT_PCT),
     homeCurrency: "USD",
     freedomTarget: 100000,
     theme: "light",
     pyfEnabled: true,
+    // Pro-only: lets a Pro user skip the "are you sure?" dialog on deletes. Everyone
+    // else always gets the confirmation — this can only ever be turned OFF, never
+    // used to force extra friction on someone who doesn't want it.
+    confirmBeforeDelete: true,
     settlement: { extraPayment: 0 },
     isPro: false
   };
@@ -1550,12 +1575,13 @@
 
   /* ================= Rendering: transactions table ================= */
   function renderTxTable() {
-    var typeFilter = $("filterType").value, jarFilter = $("filterJar").value, accFilter = $("filterAccount").value;
+    var typeFilter = $("filterType").value, jarFilter = $("filterJar").value, categoryFilter = $("filterCategory").value, accFilter = $("filterAccount").value;
     var rows = state.transactions.filter(function (t) { return t.type === "income" || t.type === "expense"; })
       .slice().sort(function (a, b) { return (b.date || "").localeCompare(a.date || "") || b.id.localeCompare(a.id); });
     rows = rows.filter(function (t) {
       if (typeFilter !== "all" && t.type !== typeFilter) return false;
       if (jarFilter !== "all" && t.type === "expense" && t.jar !== jarFilter) return false;
+      if (categoryFilter !== "all" && t.type === "expense" && t.category !== categoryFilter) return false;
       if (accFilter !== "all" && t.accountId !== accFilter) return false;
       return true;
     });
@@ -1568,7 +1594,8 @@
           (jarByKey(t.jar) ? '<span class="tag"><span class="dot" style="background:' + jarColor(t.jar) + ';"></span>' + jarByKey(t.jar).name + '</span>' : "—");
         var acc = accountById(t.accountId);
         var accCell = acc ? escapeHtml(acc.name) : '<span style="color:var(--text-muted)">—</span>';
-        var noteCell = t.type === "income" ? escapeHtml(t.source || "") + (t.note ? " — " + escapeHtml(t.note) : "") : escapeHtml(t.note || "—");
+        var noteCell = t.type === "income" ? escapeHtml(t.source || "") + (t.note ? " — " + escapeHtml(t.note) : "") :
+          (t.category ? '<span class="tag">' + escapeHtml(t.category) + '</span>' : "") + (t.note ? (t.category ? " " : "") + escapeHtml(t.note) : (t.category ? "" : "—"));
         var cur = acc ? accountCurrency(acc) : state.homeCurrency;
         var amtCell = fmtMoneyIn(t.amount, cur) + (acc && isForeignAccount(acc) ? '<div style="font-size:10px;color:var(--text-muted);font-weight:400;">≈ ' + fmtMoney(txAmountInHome(t)) + '</div>' : "");
         return '<tr><td>' + fmtDate(t.date) + '</td><td>' + (t.type === "income" ? "Income" : "Expense") + '</td><td>' + jarCell + '</td>' +
@@ -1588,7 +1615,7 @@
       var cur = from ? accountCurrency(from) : state.homeCurrency;
       return '<tr><td>' + fmtDate(t.date) + '</td><td>' + (from ? escapeHtml(from.name) : "—") + '</td><td>' + (to ? escapeHtml(to.name) : "—") + '</td>' +
         '<td>' + fmtMoneyIn(t.amount, cur) + '</td><td>' + fmtMoneyIn(t.fee || 0, cur) + '</td><td>' + escapeHtml(t.note || "—") + '</td>' +
-        '<td><button data-del-tx="' + t.id + '" class="ghost small">Delete</button></td></tr>';
+        '<td class="row-actions"><button data-edit-tx="' + t.id + '" class="ghost small">Edit' + (state.isPro ? "" : " 🔒") + '</button><button data-del-tx="' + t.id + '" class="ghost small">Delete</button></td></tr>';
     }).join("");
   }
 
@@ -1611,6 +1638,12 @@
     var jarOpts = JARS.map(function (j) { return '<option value="' + j.key + '">' + j.name + '</option>'; }).join("");
     $("txJar").innerHTML = jarOpts;
     $("filterJar").innerHTML = '<option value="all">All jars</option>' + jarOpts;
+
+    var prevCategory = $("txCategory").value;
+    var categoryOpts = state.expenseCategories.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join("");
+    $("txCategory").innerHTML = categoryOpts + '<option value="' + ADD_CATEGORY_VALUE + '">+ Add new category…</option>';
+    if (state.expenseCategories.indexOf(prevCategory) !== -1) $("txCategory").value = prevCategory;
+    $("filterCategory").innerHTML = '<option value="all">All categories</option>' + categoryOpts;
 
     var accOpts = state.accounts.map(function (a) { return '<option value="' + a.id + '">' + accountTypeMeta(a.type).icon + ' ' + escapeHtml(a.name) + '</option>'; }).join("");
     var incomeAccOpts = state.accounts.filter(function (a) { return a.type !== "creditcard"; })
@@ -1669,6 +1702,12 @@
   function renderProStatus() {
     var statusEl = $("proStatusText"), box = $("proActionBox");
     if (!statusEl || !box) return;
+
+    var deleteConfirmWrap = $("proDeleteConfirmWrap");
+    if (deleteConfirmWrap) {
+      deleteConfirmWrap.style.display = state.isPro ? "block" : "none";
+      if ($("deleteConfirmToggle")) $("deleteConfirmToggle").checked = state.confirmBeforeDelete !== false;
+    }
 
     if (!billingEnabled) {
       statusEl.textContent = "You're on the Free plan. Subscriptions aren't set up yet — see the setup guide to turn Finora Pro on.";
@@ -1771,8 +1810,9 @@
       var date = $("txDate").value || new Date().toISOString().slice(0, 10);
       var note = $("txNote").value.trim();
       if (currentTxType === "income" && $("txSource").value === ADD_SOURCE_VALUE) { toast("Please finish adding the new source, or pick an existing one.", "error"); return; }
+      if (currentTxType === "expense" && $("txCategory").value === ADD_CATEGORY_VALUE) { toast("Please finish adding the new category, or pick an existing one.", "error"); return; }
       var tx = { id: uid(), type: currentTxType, amount: amount, date: date, note: note, accountId: accountId };
-      if (currentTxType === "expense") tx.jar = $("txJar").value;
+      if (currentTxType === "expense") { tx.jar = $("txJar").value; tx.category = $("txCategory").value; }
       else tx.source = $("txSource").value;
 
       state.transactions.push(tx);
@@ -1791,12 +1831,12 @@
   }
 
   function updateJarFieldVisibility() {
-    var jarWrap = $("jarFieldWrap"), sourceWrap = $("sourceFieldWrap");
+    var jarWrap = $("jarFieldWrap"), sourceWrap = $("sourceFieldWrap"), categoryWrap = $("categoryFieldWrap");
     if (currentTxType === "income") {
-      jarWrap.style.display = "none"; sourceWrap.style.display = "flex";
+      jarWrap.style.display = "none"; sourceWrap.style.display = "flex"; categoryWrap.style.display = "none";
       $("accountFieldLabel").textContent = "Account (receives income)";
     } else {
-      jarWrap.style.display = "flex"; sourceWrap.style.display = "none";
+      jarWrap.style.display = "flex"; sourceWrap.style.display = "none"; categoryWrap.style.display = "flex";
       $("accountFieldLabel").textContent = "Account (pays for this)";
     }
   }
@@ -1867,14 +1907,28 @@
         .map(function (a) { return '<option value="' + a.id + '"' + (a.id === tx.accountId ? " selected" : "") + '>' + accountTypeMeta(a.type).icon + ' ' + escapeHtml(a.name) + '</option>'; }).join("");
       var jarField = tx.type === "expense" ?
         '<div class="field"><label>Jar</label><select id="m_jar">' + JARS.map(function (j) { return '<option value="' + j.key + '"' + (j.key === tx.jar ? " selected" : "") + '>' + j.name + '</option>'; }).join("") + '</select></div>' : "";
+      var categoryField = tx.type === "expense" ?
+        '<div class="field"><label>Category</label><select id="m_category">' + state.expenseCategories.map(function (c) { return '<option value="' + escapeHtml(c) + '"' + (c === tx.category ? " selected" : "") + '>' + escapeHtml(c) + '</option>'; }).join("") + '</select></div>' : "";
       var sourceField = tx.type === "income" ?
         '<div class="field"><label>Income Source</label><select id="m_source">' + state.incomeSources.map(function (s) { return '<option value="' + escapeHtml(s) + '"' + (s === tx.source ? " selected" : "") + '>' + escapeHtml(s) + '</option>'; }).join("") + '</select></div>' : "";
       body = '<div class="form-grid">' +
         '<div class="field"><label>Amount</label><input type="text" inputmode="decimal" id="m_amount" value="' + tx.amount + '" required></div>' +
         '<div class="field"><label>Account</label><select id="m_account">' + mAccOpts + '</select></div>' +
-        jarField + sourceField +
+        jarField + categoryField + sourceField +
         '<div class="field"><label>Date</label><input type="date" id="m_date" value="' + tx.date + '"></div>' +
         '<div class="field"><label>Note</label><input type="text" id="m_note" value="' + escapeHtml(tx.note || "") + '"></div>' +
+        '</div>';
+    } else if (mode === "editTransfer") {
+      var tf = state.transactions.filter(function (x) { return x.id === contextId; })[0];
+      title = "Edit Transfer — Pro ✨";
+      var tfAccOpts = state.accounts.map(function (a) { return '<option value="' + a.id + '">' + accountTypeMeta(a.type).icon + ' ' + escapeHtml(a.name) + '</option>'; }).join("");
+      body = '<div class="form-grid">' +
+        '<div class="field"><label>From account</label><select id="m_from">' + tfAccOpts + '</select></div>' +
+        '<div class="field"><label>To account</label><select id="m_to">' + tfAccOpts + '</select></div>' +
+        '<div class="field"><label>Amount</label><input type="text" inputmode="decimal" id="m_amount" value="' + tf.amount + '" required></div>' +
+        '<div class="field"><label>Bank charge / fee</label><input type="text" inputmode="decimal" id="m_fee" value="' + (tf.fee || 0) + '"></div>' +
+        '<div class="field"><label>Date</label><input type="date" id="m_date" value="' + tf.date + '"></div>' +
+        '<div class="field"><label>Note</label><input type="text" id="m_note" value="' + escapeHtml(tf.note || "") + '"></div>' +
         '</div>';
     }
     $("actionModalTitle").textContent = title;
@@ -1885,7 +1939,12 @@
         $("m_rateWrap").style.display = $("m_currency").value === state.homeCurrency ? "none" : "flex";
       });
     }
-    ["m_opening", "m_target", "m_amount", "m_rate"].forEach(function (fid) {
+    if (mode === "editTransfer") {
+      var tfEdit = state.transactions.filter(function (x) { return x.id === contextId; })[0];
+      $("m_from").value = tfEdit.fromAccountId;
+      $("m_to").value = tfEdit.toAccountId;
+    }
+    ["m_opening", "m_target", "m_amount", "m_rate", "m_fee"].forEach(function (fid) {
       if ($(fid)) attachCalculator(fid, null);
     });
   }
@@ -1942,8 +2001,28 @@
           editTxObj.date = $("m_date").value || editTxObj.date;
           editTxObj.note = $("m_note").value.trim();
           if (editTxObj.type === "expense" && $("m_jar")) editTxObj.jar = $("m_jar").value;
+          if (editTxObj.type === "expense" && $("m_category")) editTxObj.category = $("m_category").value;
           if (editTxObj.type === "income" && $("m_source")) editTxObj.source = $("m_source").value;
           toast("Entry updated.", "good");
+        }
+      } else if (mode === "editTransfer") {
+        if (!state.isPro) { toast("Editing entries requires Pro.", "error"); return; }
+        var tfFromId = $("m_from").value, tfToId = $("m_to").value;
+        if (!tfFromId || !tfToId || tfFromId === tfToId) { toast("Choose two different accounts.", "error"); return; }
+        var tfAmt = evalAmount($("m_amount").value);
+        if (!tfAmt || isNaN(tfAmt) || tfAmt <= 0) { toast("Please enter a transfer amount greater than 0.", "error"); return; }
+        var tfFeeRaw = $("m_fee").value.trim();
+        var tfFee = tfFeeRaw === "" ? 0 : evalAmount(tfFeeRaw);
+        if (isNaN(tfFee)) tfFee = 0;
+        var editTfObj = state.transactions.filter(function (x) { return x.id === id; })[0];
+        if (editTfObj) {
+          editTfObj.fromAccountId = tfFromId;
+          editTfObj.toAccountId = tfToId;
+          editTfObj.amount = Math.round(tfAmt * 100) / 100;
+          editTfObj.fee = Math.round(tfFee * 100) / 100;
+          editTfObj.date = $("m_date").value || editTfObj.date;
+          editTfObj.note = $("m_note").value.trim();
+          toast("Transfer updated.", "good");
         }
       }
       closeActionModal();
@@ -1973,14 +2052,23 @@
   function setupDelegatedEvents() {
     document.body.addEventListener("click", function (evt) {
       var delTx = evt.target.getAttribute && evt.target.getAttribute("data-del-tx");
-      if (delTx) { state.transactions = state.transactions.filter(function (t) { return t.id !== delTx; }); renderAll(); return; }
+      if (delTx) {
+        var delTxObj = state.transactions.filter(function (t) { return t.id === delTx; })[0];
+        var delTxMsg = delTxObj && delTxObj.type === "transfer" ? "Delete this transfer?" : "Delete this transaction?";
+        confirmDeleteAction(delTxMsg, function () {
+          state.transactions = state.transactions.filter(function (t) { return t.id !== delTx; });
+          renderAll();
+        });
+        return;
+      }
 
       var editTx = evt.target.getAttribute && evt.target.getAttribute("data-edit-tx");
       if (editTx) {
         if (!state.isPro) {
           confirmDialog("Editing entries is a Finora Pro feature. Open Settings to enable Pro?", function () { activateTab("settings"); });
         } else {
-          openActionModal("editTransaction", editTx);
+          var editTxObjLookup = state.transactions.filter(function (x) { return x.id === editTx; })[0];
+          openActionModal(editTxObjLookup && editTxObjLookup.type === "transfer" ? "editTransfer" : "editTransaction", editTx);
         }
         return;
       }
@@ -1995,8 +2083,8 @@
       if (delAcc) {
         var used = state.transactions.some(function (t) { return t.accountId === delAcc || t.fromAccountId === delAcc || t.toAccountId === delAcc; });
         var doDeleteAcc = function () { state.accounts = state.accounts.filter(function (x) { return x.id !== delAcc; }); renderAll(); };
-        if (used) confirmDialog("This account has transactions linked to it. Delete anyway? Linked transactions will remain but show as unlinked.", doDeleteAcc);
-        else doDeleteAcc();
+        var delAccMsg = used ? "This account has transactions linked to it. Delete anyway? Linked transactions will remain but show as unlinked." : "Delete this account?";
+        confirmDeleteAction(delAccMsg, doDeleteAcc);
         return;
       }
 
@@ -2006,7 +2094,7 @@
       if (recPay) { openActionModal("recordPayment", recPay); return; }
       var delLi = evt.target.getAttribute && evt.target.getAttribute("data-delete-liability");
       if (delLi) {
-        confirmDialog("Delete this liability and its history?", function () {
+        confirmDeleteAction("Delete this liability and its history?", function () {
           state.liabilities = state.liabilities.filter(function (x) { return x.id !== delLi; });
           state.transactions = state.transactions.filter(function (t) { return t.liabilityId !== delLi; });
           renderAll();
@@ -2017,6 +2105,7 @@
 
     $("filterType").addEventListener("change", renderTxTable);
     $("filterJar").addEventListener("change", renderTxTable);
+    $("filterCategory").addEventListener("change", renderTxTable);
     $("filterAccount").addEventListener("change", renderTxTable);
     $("settleExtra").addEventListener("input", renderSettlementPlan);
   }
@@ -2161,6 +2250,7 @@
     });
     $("freedomTarget").addEventListener("input", function () { state.freedomTarget = parseFloat($("freedomTarget").value) || 0; renderFreedomTracker(); });
     $("pyfToggle").addEventListener("change", function () { state.pyfEnabled = $("pyfToggle").checked; });
+    $("deleteConfirmToggle").addEventListener("change", function () { state.confirmBeforeDelete = $("deleteConfirmToggle").checked; });
     $("clearBtn").addEventListener("click", function () {
       confirmDialog("This will delete ALL data (transactions, accounts, liabilities) in this session. Continue?", function () {
         state.transactions = []; state.accounts = []; state.liabilities = [];
@@ -2190,10 +2280,12 @@
         state.accounts = incoming.accounts || [];
         state.liabilities = incoming.liabilities || [];
         state.incomeSources = (incoming.incomeSources && incoming.incomeSources.length) ? incoming.incomeSources : DEFAULT_INCOME_SOURCES.slice();
+        state.expenseCategories = (incoming.expenseCategories && incoming.expenseCategories.length) ? incoming.expenseCategories : DEFAULT_EXPENSE_CATEGORIES.slice();
         state.jarPct = Object.assign({}, DEFAULT_PCT, incoming.jarPct || {});
         state.homeCurrency = incoming.homeCurrency || incoming.currency || "USD";
         state.freedomTarget = incoming.freedomTarget || 0;
         state.pyfEnabled = incoming.pyfEnabled !== undefined ? incoming.pyfEnabled : true;
+        state.confirmBeforeDelete = incoming.confirmBeforeDelete !== undefined ? incoming.confirmBeforeDelete : true;
         state.settlement = incoming.settlement || { extraPayment: 0 };
         // When real billing is on, Pro status always comes from the subscriptions table
         // (see syncProStatus below) — never trust a hand-editable "isPro" field from a
@@ -2215,16 +2307,17 @@
   }
 
   function exportCsv() {
-    var header = ["Date", "Type", "Jar", "Account", "Source/Note", "Amount", "Currency", "Amount (" + state.homeCurrency + ")"];
+    var header = ["Date", "Type", "Jar", "Category", "Account", "Source/Note", "Amount", "Currency", "Amount (" + state.homeCurrency + ")"];
     var lines = [header.join(",")];
     state.transactions.filter(function (t) { return t.type === "income" || t.type === "expense"; })
       .slice().sort(function (a, b) { return (a.date || "").localeCompare(b.date || ""); })
       .forEach(function (t) {
         var jar = t.type === "income" ? "Split x6" : (jarByKey(t.jar) ? jarByKey(t.jar).name : "");
+        var category = t.type === "expense" ? (t.category || "") : "";
         var acc = accountById(t.accountId); var accName = acc ? acc.name : "";
         var cur = acc ? accountCurrency(acc) : state.homeCurrency;
         var noteVal = t.type === "income" ? (t.source || "") + (t.note ? " - " + t.note : "") : (t.note || "");
-        var row = [t.date, t.type, jar, '"' + accName.replace(/"/g, '""') + '"', '"' + noteVal.replace(/"/g, '""') + '"', t.amount, cur, txAmountInHome(t).toFixed(2)];
+        var row = [t.date, t.type, jar, '"' + category.replace(/"/g, '""') + '"', '"' + accName.replace(/"/g, '""') + '"', '"' + noteVal.replace(/"/g, '""') + '"', t.amount, cur, txAmountInHome(t).toFixed(2)];
         lines.push(row.join(","));
       });
     var blob = new Blob([lines.join("\n")], { type: "text/csv" });
@@ -2288,6 +2381,14 @@
     });
   }
 
+  // Wraps any destructive action behind the confirm dialog — unless the acting user
+  // is Pro AND has explicitly turned the double-confirmation off in Settings, in
+  // which case the action runs immediately. Free users always get the confirmation.
+  function confirmDeleteAction(message, onConfirm) {
+    if (state.isPro && state.confirmBeforeDelete === false) { onConfirm(); return; }
+    confirmDialog(message, onConfirm);
+  }
+
   /* ================= Custom prompt dialog =================
      Same reasoning as confirmDialog — window.prompt() has the same sandbox risk. */
   var promptCallback = null;
@@ -2328,6 +2429,21 @@
     });
   }
 
+  /* ================= Custom expense categories ================= */
+  function setupCategoryAdd() {
+    $("txCategory").addEventListener("change", function () {
+      if ($("txCategory").value !== ADD_CATEGORY_VALUE) return;
+      promptDialog("Name of the new expense category:", function (val) {
+        if (!val) { renderDropdowns(); return; } // cancelled — fall back to first real option
+        var exists = state.expenseCategories.some(function (c) { return c.toLowerCase() === val.toLowerCase(); });
+        if (!exists) state.expenseCategories.push(val);
+        renderDropdowns();
+        $("txCategory").value = exists ? state.expenseCategories.filter(function (c) { return c.toLowerCase() === val.toLowerCase(); })[0] : val;
+        toast('Expense category "' + val + '" added.', "good");
+      }, "e.g. Subscriptions, Pet Care...");
+    });
+  }
+
   /* ================= Shared: apply a full state payload from cloud / Drive =================
      Same shape used by the local .json import (see importData) — kept as a separate
      function because cloud/Drive restores go through a confirm dialog and must not
@@ -2339,10 +2455,12 @@
     state.accounts = incoming.accounts || [];
     state.liabilities = incoming.liabilities || [];
     state.incomeSources = (incoming.incomeSources && incoming.incomeSources.length) ? incoming.incomeSources : DEFAULT_INCOME_SOURCES.slice();
+    state.expenseCategories = (incoming.expenseCategories && incoming.expenseCategories.length) ? incoming.expenseCategories : DEFAULT_EXPENSE_CATEGORIES.slice();
     state.jarPct = Object.assign({}, DEFAULT_PCT, incoming.jarPct || {});
     state.homeCurrency = incoming.homeCurrency || incoming.currency || "USD";
     state.freedomTarget = incoming.freedomTarget || 0;
     state.pyfEnabled = incoming.pyfEnabled !== undefined ? incoming.pyfEnabled : true;
+    state.confirmBeforeDelete = incoming.confirmBeforeDelete !== undefined ? incoming.confirmBeforeDelete : true;
     state.settlement = incoming.settlement || { extraPayment: 0 };
     state.accounts.forEach(function (a) { if (!a.currency) a.currency = state.homeCurrency; if (!a.exchangeRate) a.exchangeRate = 1; });
     if ($("pyfToggle")) $("pyfToggle").checked = state.pyfEnabled;
@@ -2382,9 +2500,10 @@
     return {
       transactions: [], accounts: [], liabilities: [],
       incomeSources: DEFAULT_INCOME_SOURCES.slice(),
+      expenseCategories: DEFAULT_EXPENSE_CATEGORIES.slice(),
       jarPct: Object.assign({}, DEFAULT_PCT),
       homeCurrency: state.homeCurrency, freedomTarget: 0,
-      pyfEnabled: true, settlement: { extraPayment: 0 }
+      pyfEnabled: true, confirmBeforeDelete: true, settlement: { extraPayment: 0 }
     };
   }
 
@@ -2395,10 +2514,12 @@
       accounts: state.accounts,
       liabilities: state.liabilities,
       incomeSources: state.incomeSources,
+      expenseCategories: state.expenseCategories,
       jarPct: state.jarPct,
       homeCurrency: state.homeCurrency,
       freedomTarget: state.freedomTarget,
       pyfEnabled: state.pyfEnabled,
+      confirmBeforeDelete: state.confirmBeforeDelete,
       settlement: state.settlement
     };
   }
@@ -3077,6 +3198,7 @@
     setupConfirmModal();
     setupPromptModal();
     setupIncomeSourceAdd();
+    setupCategoryAdd();
     setupFabButtons();
     setupCloudSync();
     setupDriveBackup();
