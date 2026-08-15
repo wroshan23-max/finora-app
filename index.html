@@ -1041,7 +1041,10 @@
     SUBSCRIPTION_PRICE_LKR: "500",
     // From your Google AdSense account, e.g. "ca-pub-1234567890123456" / "1234567890".
     ADSENSE_CLIENT_ID: "ca-pub-2768304069617672",
-    ADSENSE_SLOT_ID: ""
+    ADSENSE_SLOT_ID: "",
+    // From your Google Analytics 4 property's Data Stream, e.g. "G-XXXXXXXXXX".
+    // Leave blank to run with no page-view analytics at all.
+    GA_MEASUREMENT_ID: "G-S1MXMHE9WG"
   };
   var cloudEnabled = !!(CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY && window.supabase);
   var driveEnabled = !!CONFIG.GOOGLE_CLIENT_ID;
@@ -1053,6 +1056,7 @@
   // The AdSense loader script only needs the Publisher ID — Google uses its presence
   // to verify/connect a new site under "Sites" before an ad unit (slot) even exists.
   var adsScriptEnabled = !!CONFIG.ADSENSE_CLIENT_ID;
+  var gaEnabled = !!CONFIG.GA_MEASUREMENT_ID;
 
   /* ================= State (in-memory only, no browser storage) ================= */
   var state = {
@@ -3687,6 +3691,23 @@
     }
   }
 
+  /* ================= Google Analytics (anonymous usage stats) =================
+     Entirely optional; a no-op until CONFIG.GA_MEASUREMENT_ID is filled in. Only
+     counts page views/visits — never sees any financial data, since that data
+     never leaves the browser (or goes to Supabase, not Google) in the first place. */
+  function setupGoogleAnalytics() {
+    if (!gaEnabled) return;
+    var loader = document.createElement("script");
+    loader.async = true;
+    loader.src = "https://www.googletagmanager.com/gtag/js?id=" + encodeURIComponent(CONFIG.GA_MEASUREMENT_ID);
+    document.head.appendChild(loader);
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { window.dataLayer.push(arguments); }
+    window.gtag = gtag;
+    gtag("js", new Date());
+    gtag("config", CONFIG.GA_MEASUREMENT_ID);
+  }
+
   /* ================= Google AdSense (free-tier ads) =================
      Entirely optional; a no-op until CONFIG.ADSENSE_CLIENT_ID and ADSENSE_SLOT_ID
      are both filled in. Ads are hidden automatically for Pro subscribers. */
@@ -3742,6 +3763,7 @@
     setupCloudSync();
     setupDriveBackup();
     setupAdsense();
+    setupGoogleAnalytics();
     renderAll();
     checkBillingReturn();
   }
