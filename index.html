@@ -186,9 +186,6 @@
   .breakdown-row { margin-bottom: 10px; }
   .breakdown-row .row-top { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; gap: 8px; }
   .breakdown-row .row-top .amt { font-weight: 600; white-space: nowrap; }
-  .goal-card { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
-  .goal-card .goal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; gap: 8px; flex-wrap: wrap; }
-  .goal-card .goal-actions { display: flex; gap: 6px; flex-wrap: wrap; }
   .stat-section-label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); margin: 4px 0 8px; }
 
   .health-score-wrap { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
@@ -218,13 +215,6 @@
   .type-toggle button { flex: 1; padding: 7px; }
   .type-toggle button.active[data-type="income"] { background: var(--series-1); color: #fff; border-color: var(--series-1); }
   .type-toggle button.active[data-type="expense"] { background: var(--series-8); color: #fff; border-color: var(--series-8); }
-  /* Separate from .type-toggle (which is keyed to [data-type] and wired up
-     app-wide for the main Add Transaction form) so the Recurring Transactions
-     form's own income/expense toggle never collides with it. */
-  .rec-type-toggle { display: flex; gap: 6px; }
-  .rec-type-toggle button { flex: 1; padding: 7px; }
-  .rec-type-toggle button.active[data-rec-type="income"] { background: var(--series-1); color: #fff; border-color: var(--series-1); }
-  .rec-type-toggle button.active[data-rec-type="expense"] { background: var(--series-8); color: #fff; border-color: var(--series-8); }
 
   .split-preview { font-size: 11px; color: var(--text-muted); margin-top: 10px; line-height: 1.6; }
   .split-preview .row { display: flex; justify-content: space-between; }
@@ -432,8 +422,6 @@
       <button class="primary small" data-goto-tab="accounts">Add an account</button>
     </div>
 
-    <div id="billRemindersBanner" style="display:none;margin-bottom:16px;"></div>
-
     <div class="card" id="healthScoreCard">
       <h2>🏆 Financial Health Score</h2>
       <div class="health-score-wrap">
@@ -448,12 +436,6 @@
 
     <div class="stat-section-label">Net Worth</div>
     <div class="stat-grid" id="netWorthGrid"></div>
-
-    <div class="card" id="netWorthHistoryCard">
-      <h2>📈 Net Worth Over Time</h2>
-      <p class="hint">Reconstructed from your transaction history — the last 6 months, ending today. Uses today's exchange rates for foreign-currency accounts.</p>
-      <div id="netWorthHistoryChart"></div>
-    </div>
 
     <div class="stat-section-label">Cash Flow (all time)</div>
     <div class="stat-grid" id="statGrid"></div>
@@ -548,7 +530,6 @@
     <div class="card">
       <h2>Income &amp; Expense History</h2>
       <div class="filters">
-        <input type="text" id="txSearchInput" placeholder="🔎 Search notes, source, category…" style="min-width:180px;">
         <select id="filterType">
           <option value="all">All types</option>
           <option value="income">Income only</option>
@@ -581,54 +562,6 @@
       <p class="hint" style="margin-top:-6px;">Updates automatically with the filters above.</p>
       <div class="stat-grid" id="txFilterStatGrid"></div>
       <div id="txFilterDonut" style="margin-top:6px;"></div>
-    </div>
-
-    <div class="card" id="recurringCard">
-      <h2>🔁 Recurring Transactions</h2>
-      <p class="hint">Rent, salary, subscriptions — anything that repeats on a schedule. It's logged automatically (no reminder needed) the next time you open Finora on or after its due date, and you'll see a toast confirming what was added.</p>
-      <form class="form-grid" id="recurringForm" novalidate>
-        <div class="field"><label>Name</label><input type="text" id="recName" placeholder="e.g. Rent, Salary, Netflix"></div>
-        <div class="field">
-          <label>Type</label>
-          <div class="rec-type-toggle" id="recTypeToggle">
-            <button type="button" data-rec-type="income" class="active">Income</button>
-            <button type="button" data-rec-type="expense">Expense</button>
-          </div>
-        </div>
-        <div class="field"><label>Amount</label><input type="text" inputmode="decimal" id="recAmount" placeholder="0.00"></div>
-        <div class="field"><label>Account</label><select id="recAccount"></select></div>
-        <div class="field" id="recSourceWrap"><label>Income Source</label><select id="recSource"></select></div>
-        <div class="field" id="recJarWrap" style="display:none;"><label>Jar</label><select id="recJar"></select></div>
-        <div class="field" id="recCategoryWrap" style="display:none;"><label>Category</label><select id="recCategory"></select></div>
-        <div class="field"><label>Frequency</label>
-          <select id="recFrequency">
-            <option value="monthly">Monthly</option>
-            <option value="weekly">Weekly</option>
-            <option value="yearly">Yearly</option>
-          </select>
-        </div>
-        <div class="field" id="recDayWrap"><label>Day of month</label><input type="number" id="recDayOfMonth" min="1" max="31" value="1"></div>
-        <div class="field" id="recMonthWrap" style="display:none;">
-          <label>Month</label>
-          <select id="recMonth">
-            <option value="1">January</option><option value="2">February</option><option value="3">March</option>
-            <option value="4">April</option><option value="5">May</option><option value="6">June</option>
-            <option value="7">July</option><option value="8">August</option><option value="9">September</option>
-            <option value="10">October</option><option value="11">November</option><option value="12">December</option>
-          </select>
-        </div>
-        <div class="field" id="recWeekdayWrap" style="display:none;">
-          <label>Day of week</label>
-          <select id="recWeekday">
-            <option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option>
-            <option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option>
-          </select>
-        </div>
-        <div class="field"><label>Note (optional)</label><input type="text" id="recNote"></div>
-        <div class="field"><label>&nbsp;</label><button type="button" class="primary" id="recAddBtn">Add Recurring</button></div>
-      </form>
-      <div id="recurringList"></div>
-      <div class="empty-state" id="recurringEmptyState" style="display:none;">No recurring transactions set up yet.</div>
     </div>
   </section>
 
@@ -757,10 +690,6 @@
           <input type="number" id="liMinPay" min="0" step="0.01" value="0">
         </div>
         <div class="field">
-          <label>Payment due day of month (optional)</label>
-          <input type="number" id="liDueDay" min="1" max="31" step="1" placeholder="e.g. 15">
-        </div>
-        <div class="field">
           <label>&nbsp;</label>
           <button type="button" class="primary" id="liSubmitBtn">Add Liability</button>
         </div>
@@ -832,19 +761,6 @@
         </div>
         <div class="ff-bar-track"><div class="ff-bar-fill" id="ffaBarFill" style="width:0%;"></div></div>
       </div>
-    </div>
-
-    <div class="card">
-      <h2>🎯 Savings Goals</h2>
-      <p class="hint">Give your Long-Term Savings (LTSS) jar named targets — e.g. "New Laptop — Rs 150,000" — and track progress toward each one separately. Allocating funds here is just a way to mentally sub-divide your LTSS jar; it doesn't move any money on its own.</p>
-      <form class="settings-grid" id="goalForm" novalidate style="margin-bottom:12px;">
-        <div class="field"><label>Goal name</label><input type="text" id="goalName" placeholder="e.g. New Laptop"></div>
-        <div class="field"><label>Target amount</label><input type="number" id="goalTarget" min="0" step="0.01"></div>
-        <div class="field"><label>&nbsp;</label><button type="button" class="primary" id="goalAddBtn">Add Goal</button></div>
-      </form>
-      <div id="goalsList"></div>
-      <div class="empty-state" id="goalsEmptyState" style="display:none;">No savings goals yet — add one above.</div>
-      <p class="hint" id="goalsOverAllocatedWarning" style="display:none;margin-top:8px;margin-bottom:0;"></p>
     </div>
 
     <div class="card">
@@ -1282,13 +1198,6 @@
     jarBudgets: {},
     categoryBudgets: {},
     settlement: { extraPayment: 0 },
-    // Named sub-goals within the LTSS jar — { id, name, targetAmount, allocated }.
-    // "allocated" is a manually-set number the user moves up/down themselves; it's
-    // a mental sub-division of the LTSS balance, not a separate pool of real money.
-    savingsGoals: [],
-    // Optional recurring transaction templates — see setupRecurringTransactions /
-    // runDueRecurringTransactions for how these turn into real transactions.
-    recurringTemplates: [],
     isPro: false
   };
 
@@ -1493,53 +1402,6 @@
     return Math.max(0, bal);
   }
 
-  // Liabilities with an optional "payment due day of month" that are due soon or
-  // recently overdue — purely an in-app reminder (this is a client-side app with
-  // no server, so it can only remind when actually opened, not push a real
-  // notification). Overdue items keep showing for a short grace window, then
-  // silently roll forward to next month's due date so the banner doesn't nag forever.
-  function computeUpcomingLiabilityDues(daysAhead, overdueGraceDays) {
-    daysAhead = daysAhead == null ? 7 : daysAhead;
-    overdueGraceDays = overdueGraceDays == null ? 5 : overdueGraceDays;
-    var today = new Date(); today.setHours(0, 0, 0, 0);
-    function makeDate(y, m, day) {
-      var lastDay = new Date(y, m + 1, 0).getDate();
-      return new Date(y, m, Math.min(day, lastDay));
-    }
-    var results = [];
-    state.liabilities.forEach(function (l) {
-      if (!l.dueDayOfMonth) return;
-      var balance = computeLiabilityBalance(l.id);
-      if (balance <= 0) return; // paid off — nothing to remind about
-      var y = today.getFullYear(), m = today.getMonth();
-      var candidate = makeDate(y, m, l.dueDayOfMonth);
-      var diffDays = Math.round((candidate - today) / 86400000);
-      if (diffDays < -overdueGraceDays) {
-        var nm = m === 11 ? 0 : m + 1, ny = m === 11 ? y + 1 : y;
-        candidate = makeDate(ny, nm, l.dueDayOfMonth);
-        diffDays = Math.round((candidate - today) / 86400000);
-      }
-      if (diffDays <= daysAhead) results.push({ liability: l, dueDate: candidate, daysUntil: diffDays, balance: balance });
-    });
-    return results.sort(function (a, b) { return a.daysUntil - b.daysUntil; });
-  }
-
-  function renderBillReminders() {
-    var banner = $("billRemindersBanner");
-    if (!banner) return;
-    var dues = computeUpcomingLiabilityDues();
-    if (dues.length === 0) { banner.style.display = "none"; banner.innerHTML = ""; return; }
-    banner.style.display = "block";
-    banner.innerHTML = dues.map(function (d) {
-      var when = d.daysUntil < 0 ? "was due " + Math.abs(d.daysUntil) + (Math.abs(d.daysUntil) === 1 ? " day ago" : " days ago")
-        : d.daysUntil === 0 ? "is due today" : "due in " + d.daysUntil + (d.daysUntil === 1 ? " day" : " days");
-      var icon = d.daysUntil < 0 ? "🔴" : d.daysUntil <= 2 ? "🟠" : "🟡";
-      return '<div class="banner" style="border-color:' + (d.daysUntil < 0 ? "var(--status-critical)" : "var(--series-4)") + ';">' +
-        '<span>' + icon + ' <strong>' + escapeHtml(d.liability.name) + '</strong> payment ' + when + ' — ' + fmtMoney(d.balance) + ' owed</span>' +
-        '<button class="ghost small" data-goto-tab="liabilities">View</button></div>';
-    }).join("");
-  }
-
   // Home-currency equivalent of an account's own balance (native balance × its exchange rate).
   function accountBalanceHome(accountId) {
     var acc = accountById(accountId);
@@ -1555,290 +1417,6 @@
     });
     state.liabilities.forEach(function (l) { liabilitiesTotal += computeLiabilityBalance(l.id); });
     return { assets: assets, cardDebt: cardDebt, liabilities: liabilitiesTotal, netWorth: assets - cardDebt - liabilitiesTotal };
-  }
-
-  /* ================= Net Worth history (reconstructed, not stored) =================
-     No new persisted state — net worth "as of" any past date is replayed straight
-     from the existing transaction log, the same way computeAccountBalance() replays
-     it for "now". This means it's immediately useful for existing history and never
-     drifts out of sync with edits/deletes of old transactions. */
-  function computeAccountBalanceAsOf(accountId, asOfDate) {
-    var acc = accountById(accountId);
-    if (!acc) return 0;
-    var sinceDate = acc.balanceDate || "0000-01-01";
-    if (asOfDate < sinceDate) return 0; // the opening balance itself wasn't established yet as of this date
-    var bal = acc.openingBalance || 0;
-    state.transactions.forEach(function (t) {
-      var d = t.date || "9999-99-99";
-      if (d < sinceDate || d > asOfDate) return;
-      if (t.type === "income" && t.accountId === accountId) {
-        bal += accountDelta(acc.type, "in", t.amount);
-      } else if (t.type === "expense" && t.accountId === accountId) {
-        bal += accountDelta(acc.type, "out", t.amount);
-      } else if (t.type === "transfer") {
-        if (t.fromAccountId === accountId) bal += accountDelta(acc.type, "out", t.amount + (t.fee || 0));
-        if (t.toAccountId === accountId) bal += accountDelta(acc.type, "in", t.amount);
-      } else if (t.type === "adjustment" && t.accountId === accountId) {
-        bal += t.delta;
-      } else if (t.type === "liabilityPayment" && t.accountId === accountId) {
-        bal += accountDelta(acc.type, "out", t.amount);
-      }
-    });
-    return bal;
-  }
-
-  function computeLiabilityBalanceAsOf(liabilityId, asOfDate) {
-    var l = liabilityById(liabilityId);
-    if (!l) return 0;
-    var bal = l.openingBalance || 0;
-    state.transactions.forEach(function (t) {
-      var d = t.date || "9999-99-99";
-      if (d > asOfDate) return;
-      if (t.type === "liabilityInterest" && t.liabilityId === liabilityId) bal += t.amount;
-      if (t.type === "liabilityPayment" && t.liabilityId === liabilityId) bal -= t.amount;
-    });
-    return Math.max(0, bal);
-  }
-
-  function computeNetWorthAsOf(asOfDate) {
-    var assets = 0, cardDebt = 0, liabilitiesTotal = 0;
-    state.accounts.forEach(function (a) {
-      var bal = toHomeAmount(computeAccountBalanceAsOf(a.id, asOfDate), a);
-      if (a.type === "creditcard") cardDebt += bal; else assets += bal;
-    });
-    state.liabilities.forEach(function (l) { liabilitiesTotal += computeLiabilityBalanceAsOf(l.id, asOfDate); });
-    return assets - cardDebt - liabilitiesTotal;
-  }
-
-  function computeNetWorthHistory(months) {
-    months = months || 6;
-    var pad = function (n) { return (n < 10 ? "0" : "") + n; };
-    var now = new Date();
-    var points = [];
-    for (var i = months - 1; i >= 0; i--) {
-      var d = i === 0 ? now : new Date(now.getFullYear(), now.getMonth() - i + 1, 0); // last day of that month, or today for the most recent point
-      var dateStr = d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
-      var label = i === 0 ? "Today" : d.toLocaleDateString(undefined, { month: "short", year: "2-digit" });
-      points.push({ label: label, value: computeNetWorthAsOf(dateStr) });
-    }
-    return points;
-  }
-
-  function renderLineChart(containerId, data, color) {
-    var container = $(containerId);
-    if (!container) return;
-    var w = 560, h = 220, padL = 54, padB = 26, padT = 14, padR = 14;
-    var innerW = w - padL - padR, innerH = h - padT - padB;
-    var values = data.map(function (d) { return d.value; });
-    var minV = Math.min.apply(null, values.concat([0]));
-    var maxV = Math.max.apply(null, values.concat([0]));
-    if (minV === maxV) { minV -= 1; maxV += 1; }
-    var range = maxV - minV;
-    function xFor(i) { return padL + (data.length === 1 ? innerW / 2 : (i / (data.length - 1)) * innerW); }
-    function yFor(v) { return padT + innerH - ((v - minV) / range) * innerH; }
-    var zeroY = yFor(0);
-    var svg = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '" preserveAspectRatio="xMidYMid meet">';
-    svg += '<text x="' + (padL - 6) + '" y="' + (padT + 4) + '" text-anchor="end" font-size="10" fill="var(--text-muted)">' + fmtMoney(maxV) + '</text>';
-    svg += '<text x="' + (padL - 6) + '" y="' + (padT + innerH) + '" text-anchor="end" font-size="10" fill="var(--text-muted)">' + fmtMoney(minV) + '</text>';
-    svg += '<line x1="' + padL + '" y1="' + zeroY + '" x2="' + (padL + innerW) + '" y2="' + zeroY + '" stroke="var(--baseline)" stroke-width="1"></line>';
-    var points = data.map(function (d, i) { return xFor(i) + "," + yFor(d.value); }).join(" ");
-    var areaPoints = points + " " + xFor(data.length - 1) + "," + zeroY + " " + xFor(0) + "," + zeroY;
-    svg += '<polygon points="' + areaPoints + '" fill="' + color + '" opacity="0.12"></polygon>';
-    svg += '<polyline points="' + points + '" fill="none" stroke="' + color + '" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"></polyline>';
-    data.forEach(function (d, i) {
-      var x = xFor(i), y = yFor(d.value);
-      svg += '<circle cx="' + x + '" cy="' + y + '" r="3.5" fill="' + color + '"></circle>';
-      svg += '<text x="' + x + '" y="' + (h - 6) + '" text-anchor="middle" font-size="10" fill="var(--text-muted)">' + escapeHtml(d.label) + '</text>';
-    });
-    svg += "</svg>";
-    container.innerHTML = svg;
-  }
-
-  function renderNetWorthHistory() {
-    if (!$("netWorthHistoryChart")) return;
-    var history = computeNetWorthHistory(6);
-    if (state.accounts.length === 0) { $("netWorthHistoryChart").innerHTML = '<div class="empty-state">Add an account to start tracking Net Worth over time.</div>'; return; }
-    renderLineChart("netWorthHistoryChart", history, seriesColor("--series-1"));
-  }
-
-  /* ================= Recurring Transactions =================
-     A recurringTemplate turns into a real transaction automatically — but only
-     when the app is actually open, since this is a client-side app with no
-     server to run a schedule in the background. runDueRecurringTemplates() is
-     called once at startup (and again after any cloud/file load) and catches up
-     on everything due since the template's nextDueDate, however long that's been. */
-  function computeNextOccurrence(fromDateStr, frequency, dayOfMonth, month, weekday) {
-    var pad = function (n) { return (n < 10 ? "0" : "") + n; };
-    var from = new Date(fromDateStr + "T00:00:00");
-    if (frequency === "weekly") {
-      var d = new Date(from);
-      do { d.setDate(d.getDate() + 1); } while (d.getDay() !== weekday);
-      return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
-    }
-    if (frequency === "yearly") {
-      var y = from.getFullYear();
-      var candidateFor = function (yy) {
-        var lastDay = new Date(yy, month, 0).getDate();
-        return new Date(yy, month - 1, Math.min(dayOfMonth, lastDay));
-      };
-      var cand = candidateFor(y);
-      if (cand <= from) cand = candidateFor(y + 1);
-      return cand.getFullYear() + "-" + pad(cand.getMonth() + 1) + "-" + pad(cand.getDate());
-    }
-    // monthly (default)
-    var y2 = from.getFullYear(), m2 = from.getMonth();
-    var makeDate = function (yy, mm) {
-      var lastDay = new Date(yy, mm + 1, 0).getDate();
-      return new Date(yy, mm, Math.min(dayOfMonth, lastDay));
-    };
-    var cand2 = makeDate(y2, m2);
-    if (cand2 <= from) {
-      var nm = m2 === 11 ? 0 : m2 + 1, ny = m2 === 11 ? y2 + 1 : y2;
-      cand2 = makeDate(ny, nm);
-    }
-    return cand2.getFullYear() + "-" + pad(cand2.getMonth() + 1) + "-" + pad(cand2.getDate());
-  }
-
-  function runDueRecurringTemplates() {
-    if (!state.recurringTemplates || state.recurringTemplates.length === 0) return;
-    var pad = function (n) { return (n < 10 ? "0" : "") + n; };
-    var today = new Date(); today.setHours(0, 0, 0, 0);
-    var todayStr = today.getFullYear() + "-" + pad(today.getMonth() + 1) + "-" + pad(today.getDate());
-    var createdSummary = [];
-    var anyCreated = false;
-    state.recurringTemplates.forEach(function (tpl) {
-      if (!tpl.active) return;
-      if (!tpl.accountId || !accountById(tpl.accountId)) return; // its account was deleted since — skip safely rather than crash
-      var count = 0, guard = 0;
-      // Capped at 36 catch-up occurrences (3 years of monthly misses) as a backstop —
-      // a template left untouched for a decade shouldn't spawn hundreds of transactions.
-      while (tpl.nextDueDate && tpl.nextDueDate <= todayStr && guard < 36) {
-        var tx = { id: uid(), type: tpl.type, amount: tpl.amount, date: tpl.nextDueDate, accountId: tpl.accountId, note: tpl.note || "", recurringTemplateId: tpl.id };
-        if (tpl.type === "income") tx.source = tpl.source || "Other";
-        else { tx.jar = tpl.jar; tx.category = tpl.category || ""; }
-        state.transactions.push(tx);
-        count++; anyCreated = true;
-        tpl.nextDueDate = computeNextOccurrence(tpl.nextDueDate, tpl.frequency, tpl.dayOfMonth, tpl.month, tpl.weekday);
-        guard++;
-      }
-      if (count > 0) createdSummary.push(tpl.name + (count > 1 ? " ×" + count : ""));
-    });
-    if (anyCreated) toast("🔁 Auto-added recurring: " + createdSummary.join(", "), "good");
-  }
-
-  function recurringScheduleLabel(tpl) {
-    if (tpl.frequency === "weekly") {
-      var days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-      return "Weekly on " + days[tpl.weekday];
-    }
-    if (tpl.frequency === "yearly") {
-      var months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-      return "Yearly on " + months[tpl.month - 1] + " " + tpl.dayOfMonth;
-    }
-    return "Monthly on day " + tpl.dayOfMonth;
-  }
-
-  function renderRecurringList() {
-    if (!$("recurringList")) return;
-    var templates = state.recurringTemplates || [];
-    if (templates.length === 0) {
-      $("recurringList").innerHTML = "";
-      $("recurringEmptyState").style.display = "block";
-      return;
-    }
-    $("recurringEmptyState").style.display = "none";
-    $("recurringList").innerHTML = templates.slice().sort(function (a, b) { return (a.nextDueDate || "").localeCompare(b.nextDueDate || ""); }).map(function (tpl) {
-      var acc = accountById(tpl.accountId);
-      var detail = tpl.type === "income" ? escapeHtml(tpl.source || "") : escapeHtml(tpl.category || "");
-      return '<div class="goal-card"><div class="goal-head"><strong>' + escapeHtml(tpl.name) + '</strong>' +
-        '<div class="goal-actions">' +
-        '<button class="ghost small" data-rec-toggle="' + tpl.id + '">' + (tpl.active ? "Pause" : "Resume") + '</button>' +
-        '<button class="ghost small" data-rec-del="' + tpl.id + '">Delete</button>' +
-        '</div></div>' +
-        '<div style="font-size:12px;color:var(--text-secondary);">' +
-        (tpl.type === "income" ? '<span class="amt-income">+' + fmtMoney(tpl.amount) + '</span>' : '<span class="amt-expense">-' + fmtMoney(tpl.amount) + '</span>') +
-        ' · ' + detail + ' · ' + (acc ? escapeHtml(acc.name) : "—") + ' · ' + recurringScheduleLabel(tpl) +
-        (tpl.active ? ' · next: ' + fmtDate(tpl.nextDueDate) : ' · paused') + '</div></div>';
-    }).join("");
-  }
-
-  function updateRecurringFieldVisibility() {
-    var isIncome = currentRecType === "income";
-    $("recSourceWrap").style.display = isIncome ? "flex" : "none";
-    $("recJarWrap").style.display = isIncome ? "none" : "flex";
-    $("recCategoryWrap").style.display = isIncome ? "none" : "flex";
-    var freq = $("recFrequency").value;
-    $("recDayWrap").style.display = freq === "weekly" ? "none" : "flex";
-    $("recMonthWrap").style.display = freq === "yearly" ? "flex" : "none";
-    $("recWeekdayWrap").style.display = freq === "weekly" ? "flex" : "none";
-  }
-
-  function setupRecurringForm() {
-    if (!$("recAddBtn")) return;
-    document.querySelectorAll("#recTypeToggle button").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        currentRecType = btn.getAttribute("data-rec-type");
-        document.querySelectorAll("#recTypeToggle button").forEach(function (b) { b.classList.toggle("active", b.getAttribute("data-rec-type") === currentRecType); });
-        renderDropdowns();
-        updateRecurringFieldVisibility();
-      });
-    });
-    $("recFrequency").addEventListener("change", updateRecurringFieldVisibility);
-    updateRecurringFieldVisibility();
-
-    function addRecurring() {
-      var name = $("recName").value.trim();
-      if (!name) { toast("Please give this recurring transaction a name.", "error"); $("recName").focus(); return; }
-      var amount = evalAmount($("recAmount").value);
-      if (!amount || isNaN(amount) || amount <= 0) { toast("Please enter an amount greater than 0.", "error"); $("recAmount").focus(); return; }
-      if (!$("recAccount").value) { toast("Add an account first.", "error"); return; }
-      var frequency = $("recFrequency").value;
-      var dayOfMonth = parseInt($("recDayOfMonth").value, 10) || 1;
-      var month = parseInt($("recMonth").value, 10) || 1;
-      var weekday = parseInt($("recWeekday").value, 10) || 0;
-      var pad = function (n) { return (n < 10 ? "0" : "") + n; };
-      var now = new Date(); now.setHours(0, 0, 0, 0);
-      var todayStr = now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate());
-      var tpl = {
-        id: uid(), name: name, type: currentRecType, amount: Math.round(amount * 100) / 100,
-        accountId: $("recAccount").value, frequency: frequency, dayOfMonth: dayOfMonth, month: month, weekday: weekday,
-        note: $("recNote").value.trim(), active: true, createdDate: todayStr
-      };
-      if (currentRecType === "income") tpl.source = $("recSource").value;
-      else { tpl.jar = $("recJar").value; tpl.category = $("recCategory").value; }
-      // First occurrence is always strictly in the future — saving a template never
-      // instantly creates today's transaction as a side effect.
-      tpl.nextDueDate = computeNextOccurrence(todayStr, frequency, dayOfMonth, month, weekday);
-      state.recurringTemplates.push(tpl);
-      $("recurringForm").reset();
-      currentRecType = "income";
-      document.querySelectorAll("#recTypeToggle button").forEach(function (b) { b.classList.toggle("active", b.getAttribute("data-rec-type") === "income"); });
-      renderDropdowns();
-      updateRecurringFieldVisibility();
-      renderRecurringList();
-      toast('Recurring "' + name + '" set up — first one lands ' + fmtDate(tpl.nextDueDate) + '.', "good");
-    }
-    $("recAddBtn").addEventListener("click", addRecurring);
-    bindEnterKey($("recurringForm"), addRecurring);
-
-    document.addEventListener("click", function (evt) {
-      var toggleBtn = evt.target.closest && evt.target.closest("[data-rec-toggle]");
-      var delBtn = evt.target.closest && evt.target.closest("[data-rec-del]");
-      if (toggleBtn) {
-        var tpl1 = state.recurringTemplates.find(function (t) { return t.id === toggleBtn.getAttribute("data-rec-toggle"); });
-        if (!tpl1) return;
-        tpl1.active = !tpl1.active;
-        renderRecurringList();
-      } else if (delBtn) {
-        var tid = delBtn.getAttribute("data-rec-del");
-        var tpl2 = state.recurringTemplates.find(function (t) { return t.id === tid; });
-        if (!tpl2) return;
-        confirmDeleteAction('Delete the recurring transaction "' + tpl2.name + '"? Past transactions it already created stay untouched.', function () {
-          state.recurringTemplates = state.recurringTemplates.filter(function (t) { return t.id !== tid; });
-          renderRecurringList();
-        });
-      }
-    });
   }
 
   function computeMainBalance() {
@@ -2727,89 +2305,6 @@
     $("freedomTarget").value = state.freedomTarget;
   }
 
-  /* ================= Savings Goals (named sub-goals of the LTSS jar) ================= */
-  function renderSavingsGoals() {
-    if (!$("goalsList")) return;
-    var ltssBalance = computeJarBalances().LTSS || 0;
-    var goals = state.savingsGoals || [];
-    if (goals.length === 0) {
-      $("goalsList").innerHTML = "";
-      $("goalsEmptyState").style.display = "block";
-      $("goalsOverAllocatedWarning").style.display = "none";
-      return;
-    }
-    $("goalsEmptyState").style.display = "none";
-    var palette = BREAKDOWN_PALETTE_VARS.map(seriesColor);
-    $("goalsList").innerHTML = goals.map(function (g, i) {
-      var pct = g.targetAmount > 0 ? Math.min(100, (g.allocated / g.targetAmount) * 100) : 0;
-      var color = palette[i % palette.length];
-      return '<div class="goal-card"><div class="goal-head"><strong>' + escapeHtml(g.name) + '</strong>' +
-        '<div class="goal-actions">' +
-        '<button class="ghost small" data-goal-add="' + g.id + '">+ Add funds</button>' +
-        '<button class="ghost small" data-goal-remove="' + g.id + '">− Remove funds</button>' +
-        '<button class="ghost small" data-goal-del="' + g.id + '">Delete</button>' +
-        '</div></div>' +
-        '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px;">' + fmtMoney(g.allocated) + ' of ' + fmtMoney(g.targetAmount) + ' (' + pct.toFixed(0) + '%)' + (pct >= 100 ? " 🎉" : "") + '</div>' +
-        '<div class="budget-bar-track"><div class="budget-bar-fill" style="width:' + pct + '%;background:' + color + ';"></div></div></div>';
-    }).join("");
-
-    var totalAllocated = goals.reduce(function (s, g) { return s + (g.allocated || 0); }, 0);
-    if (totalAllocated > ltssBalance) {
-      $("goalsOverAllocatedWarning").style.display = "block";
-      $("goalsOverAllocatedWarning").textContent = "⚠️ You've allocated " + fmtMoney(totalAllocated) + " across goals, but your LTSS jar only holds " + fmtMoney(ltssBalance) + " right now — some goals aren't fully backed yet.";
-    } else {
-      $("goalsOverAllocatedWarning").style.display = "none";
-    }
-  }
-
-  function setupSavingsGoals() {
-    if (!$("goalAddBtn")) return;
-    function addGoal() {
-      var name = $("goalName").value.trim();
-      var target = parseFloat($("goalTarget").value);
-      if (!name) { toast("Please enter a name for this goal.", "error"); $("goalName").focus(); return; }
-      if (!(target > 0)) { toast("Please enter a target amount greater than 0.", "error"); $("goalTarget").focus(); return; }
-      state.savingsGoals.push({ id: uid(), name: name, targetAmount: target, allocated: 0 });
-      $("goalName").value = ""; $("goalTarget").value = "";
-      renderSavingsGoals();
-      toast('Goal "' + name + '" added.', "good");
-    }
-    $("goalAddBtn").addEventListener("click", addGoal);
-    document.addEventListener("click", function (evt) {
-      var addBtn = evt.target.closest && evt.target.closest("[data-goal-add]");
-      var removeBtn = evt.target.closest && evt.target.closest("[data-goal-remove]");
-      var delBtn = evt.target.closest && evt.target.closest("[data-goal-del]");
-      if (addBtn) {
-        var g1 = state.savingsGoals.find(function (g) { return g.id === addBtn.getAttribute("data-goal-add"); });
-        if (!g1) return;
-        promptDialog("Add how much to \"" + g1.name + "\"?", function (val) {
-          var amt = parseFloat(val);
-          if (!(amt > 0)) return;
-          g1.allocated = (g1.allocated || 0) + amt;
-          renderSavingsGoals();
-        }, "0.00");
-      } else if (removeBtn) {
-        var g2 = state.savingsGoals.find(function (g) { return g.id === removeBtn.getAttribute("data-goal-remove"); });
-        if (!g2) return;
-        promptDialog("Remove how much from \"" + g2.name + "\"?", function (val) {
-          var amt = parseFloat(val);
-          if (!(amt > 0)) return;
-          g2.allocated = Math.max(0, (g2.allocated || 0) - amt);
-          renderSavingsGoals();
-        }, "0.00");
-      } else if (delBtn) {
-        var gid = delBtn.getAttribute("data-goal-del");
-        var g3 = state.savingsGoals.find(function (g) { return g.id === gid; });
-        if (!g3) return;
-        confirmDeleteAction('Delete the goal "' + g3.name + '"? This only removes the goal — it doesn\'t affect your LTSS jar balance.', function () {
-          state.savingsGoals = state.savingsGoals.filter(function (g) { return g.id !== gid; });
-          renderSavingsGoals();
-        });
-      }
-    });
-    bindEnterKey($("goalForm"), addGoal);
-  }
-
   /* ================= Rendering: accounts ================= */
   function accountCardHtml(a, forDashboard) {
     var bal = computeAccountBalance(a.id);
@@ -2916,7 +2411,6 @@
   // never drift out of sync with each other or with the filter dropdowns.
   function getFilteredTransactions() {
     var typeFilter = $("filterType").value, jarFilter = $("filterJar").value, categoryFilter = $("filterCategory").value, accFilter = $("filterAccount").value;
-    var searchQuery = $("txSearchInput") ? $("txSearchInput").value.trim().toLowerCase() : "";
     var rows = state.transactions.filter(function (t) { return t.type === "income" || t.type === "expense"; })
       .slice().sort(function (a, b) { return (b.date || "").localeCompare(a.date || "") || b.id.localeCompare(a.id); });
     return rows.filter(function (t) {
@@ -2928,10 +2422,6 @@
       }
       if (categoryFilter !== "all" && t.type === "expense" && t.category !== categoryFilter) return false;
       if (accFilter !== "all" && t.accountId !== accFilter) return false;
-      if (searchQuery) {
-        var haystack = ((t.note || "") + " " + (t.source || "") + " " + (t.category || "")).toLowerCase();
-        if (haystack.indexOf(searchQuery) === -1) return false;
-      }
       return true;
     });
   }
@@ -3036,14 +2526,6 @@
     $("txSource").innerHTML = state.incomeSources.map(function (s) { return '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>'; }).join("") +
       '<option value="' + ADD_SOURCE_VALUE + '">+ Add new source…</option>';
     if (state.incomeSources.indexOf(prevSource) !== -1) $("txSource").value = prevSource;
-
-    if ($("recAccount")) {
-      $("recAccount").innerHTML = currentRecType === "income" ? incomeAccOpts : accOpts;
-      var sourceOpts = state.incomeSources.map(function (s) { return '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>'; }).join("");
-      $("recSource").innerHTML = sourceOpts;
-      $("recJar").innerHTML = jarOpts;
-      $("recCategory").innerHTML = categoryOpts;
-    }
 
     $("accType").innerHTML = ACCOUNT_TYPES.map(function (t) { return '<option value="' + t.key + '">' + t.icon + ' ' + t.label + '</option>'; }).join("");
     $("liType").innerHTML = LIABILITY_TYPES.map(function (t) { return '<option value="' + t.key + '">' + t.icon + ' ' + t.label + '</option>'; }).join("");
@@ -3151,10 +2633,8 @@
     renderAccounts();
     renderForeignAssets();
     renderLiabilities();
-    renderBillReminders();
     renderHealthScore();
     renderNetWorth();
-    renderNetWorthHistory();
     renderStats();
     renderBusiness();
     renderBarChart();
@@ -3163,9 +2643,7 @@
     renderJarGrid();
     renderBudgetInputs();
     renderFreedomTracker();
-    renderSavingsGoals();
     renderTxTable();
-    renderRecurringList();
     renderTransferTable();
     renderJarPctInputs();
     renderSplitPreview();
@@ -3181,7 +2659,6 @@
 
   /* ================= Transaction form ================= */
   var currentTxType = "income";
-  var currentRecType = "income"; // mirrors currentTxType, but for the separate Recurring Transactions form
 
   function setTxType(type) {
     currentTxType = type;
@@ -3534,7 +3011,6 @@
     $("filterJar").addEventListener("change", renderTxTable);
     $("filterCategory").addEventListener("change", renderTxTable);
     $("filterAccount").addEventListener("change", renderTxTable);
-    $("txSearchInput").addEventListener("input", renderTxTable);
     $("settleExtra").addEventListener("input", renderSettlementPlan);
   }
 
@@ -3600,13 +3076,11 @@
       if (!name) { toast("Please enter a name for this liability before saving.", "error"); $("liName").focus(); return; }
       var openingRaw = $("liOpening").value;
       if (openingRaw === "" || isNaN(parseFloat(openingRaw))) { toast("Please enter the current balance owed.", "error"); $("liOpening").focus(); return; }
-      var dueDayRaw = parseInt($("liDueDay").value, 10);
       state.liabilities.push({
         id: uid(), name: name, type: $("liType").value,
         openingBalance: parseFloat($("liOpening").value) || 0,
         interestRate: parseFloat($("liRate").value) || 0,
-        minPayment: parseFloat($("liMinPay").value) || 0,
-        dueDayOfMonth: (dueDayRaw >= 1 && dueDayRaw <= 31) ? dueDayRaw : null
+        minPayment: parseFloat($("liMinPay").value) || 0
       });
       $("liabilityForm").reset();
       renderAll();
@@ -4016,13 +3490,10 @@
     state.confirmBeforeDelete = incoming.confirmBeforeDelete !== undefined ? incoming.confirmBeforeDelete : true;
     if (incoming.appPassword !== undefined) state.appPassword = incoming.appPassword;
     state.settlement = incoming.settlement || { extraPayment: 0 };
-    state.savingsGoals = incoming.savingsGoals || [];
-    state.recurringTemplates = incoming.recurringTemplates || [];
     state.accounts.forEach(function (a) { if (!a.currency) a.currency = state.homeCurrency; if (!a.exchangeRate) a.exchangeRate = 1; });
     if ($("pyfToggle")) $("pyfToggle").checked = state.pyfEnabled;
     if ($("settleExtra")) $("settleExtra").value = state.settlement.extraPayment || 0;
     renderCurrencySelect();
-    runDueRecurringTemplates();
     renderAll();
     cloudSuppressAutoSave = false;
     syncProStatus();
@@ -4061,8 +3532,7 @@
       jarPct: Object.assign({}, DEFAULT_PCT),
       jarBudgets: {}, categoryBudgets: {},
       homeCurrency: state.homeCurrency, freedomTarget: 0,
-      pyfEnabled: true, confirmBeforeDelete: true, settlement: { extraPayment: 0 },
-      savingsGoals: [], recurringTemplates: []
+      pyfEnabled: true, confirmBeforeDelete: true, settlement: { extraPayment: 0 }
     };
   }
 
@@ -4081,9 +3551,7 @@
       freedomTarget: state.freedomTarget,
       pyfEnabled: state.pyfEnabled,
       confirmBeforeDelete: state.confirmBeforeDelete,
-      settlement: state.settlement,
-      savingsGoals: state.savingsGoals,
-      recurringTemplates: state.recurringTemplates
+      settlement: state.settlement
     };
   }
 
@@ -4785,8 +4253,6 @@
     setupIncomeSourceAdd();
     setupCategoryAdd();
     setupBudgets();
-    setupSavingsGoals();
-    setupRecurringForm();
     setupReports();
     setupReportsAdvanced();
     setupFabButtons();
@@ -4794,7 +4260,6 @@
     setupDriveBackup();
     setupAdsense();
     setupGoogleAnalytics();
-    runDueRecurringTemplates();
     renderAll();
     checkBillingReturn();
   }
