@@ -2041,6 +2041,33 @@
     return Object.keys(map).map(function (k) { return { key: k, label: k, value: map[k] }; });
   }
 
+  // Business Income/Expense broken down by source/category within a date range —
+  // powers the "tap Business Income / Business Expenses to see the detail report"
+  // click-through on the Reports tab (mirrors computeIncomeBreakdownForPeriod but
+  // scoped to isBusiness-flagged transactions only).
+  function computeBusinessIncomeBreakdownForPeriod(startDate, endExclusive) {
+    var map = {};
+    state.transactions.forEach(function (t) {
+      if (t.type !== "income" || !t.isBusiness) return;
+      var d = t.date || "";
+      if (d < startDate || d >= endExclusive) return;
+      var key = t.source || "Other";
+      map[key] = (map[key] || 0) + txAmountInHome(t);
+    });
+    return Object.keys(map).map(function (k) { return { key: k, label: k, value: map[k] }; });
+  }
+  function computeBusinessExpenseBreakdownForPeriod(startDate, endExclusive) {
+    var map = {};
+    state.transactions.forEach(function (t) {
+      if (t.type !== "expense" || !t.isBusiness) return;
+      var d = t.date || "";
+      if (d < startDate || d >= endExclusive) return;
+      var key = t.category || "Uncategorized";
+      map[key] = (map[key] || 0) + txAmountInHome(t);
+    });
+    return Object.keys(map).map(function (k) { return { key: k, label: k, value: map[k] }; });
+  }
+
   // Last 6 monthly or yearly periods' spend for a single expense category, anchored
   // at whatever month/year the Report period selector currently shows.
   function computeCategoryTrend(category, periodType, anchorStart) {
@@ -2605,10 +2632,14 @@
     } else {
       $("reportBusinessCard").style.display = "block";
       $("reportBusinessStatGrid").innerHTML = [
-        { label: "Business Income", value: fmtMoney(current.businessIncome), cls: "good" },
-        { label: "Business Expenses", value: fmtMoney(current.businessExpense), cls: "bad" },
+        { label: "Business Income", value: fmtMoney(current.businessIncome), cls: "good", breakdown: "reportBusinessIncome" },
+        { label: "Business Expenses", value: fmtMoney(current.businessExpense), cls: "bad", breakdown: "reportBusinessExpense" },
         { label: "Business Balance", value: fmtMoney(current.businessIncome - current.businessExpense), cls: (current.businessIncome - current.businessExpense) >= 0 ? "good" : "bad" }
-      ].map(function (s) { return '<div class="stat-tile"><div class="label">' + s.label + '</div><div class="value ' + s.cls + '">' + s.value + '</div></div>'; }).join("");
+      ].map(function (s) {
+        return '<div class="stat-tile' + (s.breakdown ? ' clickable' : '') + '"' + (s.breakdown ? ' data-breakdown="' + s.breakdown + '" tabindex="0" role="button"' : '') +
+          '><div class="label">' + s.label + '</div><div class="value ' + s.cls + '">' + s.value + '</div>' +
+          (s.breakdown ? '<div class="sub" style="color:var(--series-1);">Tap for detail report →</div>' : "") + '</div>';
+      }).join("");
     }
 
     var catEntries = Object.keys(current.categorySpend).map(function (k) { return { key: k, label: k, value: current.categorySpend[k] }; })
@@ -3956,6 +3987,12 @@
         var cs = lastReportContext.current.categorySpend;
         openBreakdownModal("Expense — " + lastReportContext.periodLabel + " — by Category",
           Object.keys(cs).map(function (k) { return { key: k, label: k, value: cs[k] }; }));
+      } else if (kind === "reportBusinessIncome" && lastReportContext) {
+        openBreakdownModal("Business Income — " + lastReportContext.periodLabel + " — by Source",
+          computeBusinessIncomeBreakdownForPeriod(lastReportContext.startDate, lastReportContext.endExclusive));
+      } else if (kind === "reportBusinessExpense" && lastReportContext) {
+        openBreakdownModal("Business Expenses — " + lastReportContext.periodLabel + " — by Category",
+          computeBusinessExpenseBreakdownForPeriod(lastReportContext.startDate, lastReportContext.endExclusive));
       }
     });
     document.addEventListener("keydown", function (evt) {
