@@ -26,6 +26,14 @@
     --series-6:       #008300; /* Give */
     --series-7:       #4a3aa7; /* Liabilities */
     --series-8:       #e34948; /* Expense / Credit card debt */
+    --series-1-tint:  rgba(42,120,214,0.14);
+    --series-2-tint:  rgba(235,104,52,0.14);
+    --series-3-tint:  rgba(27,175,122,0.14);
+    --series-4-tint:  rgba(237,161,0,0.14);
+    --series-5-tint:  rgba(232,123,164,0.14);
+    --series-6-tint:  rgba(0,131,0,0.14);
+    --series-7-tint:  rgba(74,58,167,0.14);
+    --series-8-tint:  rgba(227,73,72,0.14);
     --status-good:    #0ca30c;
     --status-warning: #fab219;
     --status-critical:#d03b3b;
@@ -50,6 +58,14 @@
     --series-6:       #008300;
     --series-7:       #9085e9;
     --series-8:       #e66767;
+    --series-1-tint:  rgba(57,135,229,0.20);
+    --series-2-tint:  rgba(217,89,38,0.20);
+    --series-3-tint:  rgba(25,158,112,0.20);
+    --series-4-tint:  rgba(201,133,0,0.20);
+    --series-5-tint:  rgba(213,81,129,0.20);
+    --series-6-tint:  rgba(0,131,0,0.20);
+    --series-7-tint:  rgba(144,133,233,0.20);
+    --series-8-tint:  rgba(230,103,103,0.20);
     --status-good:    #0ca30c;
     --status-warning: #fab219;
     --status-critical:#d03b3b;
@@ -120,10 +136,32 @@
 
   nav.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--grid); margin-bottom: 20px; flex-wrap: wrap; }
   nav.tabs button {
-    border: none; border-bottom: 2px solid transparent; border-radius: 0;
+    border: none; border-bottom: 2px solid transparent; border-radius: 8px 8px 0 0;
     background: transparent; padding: 10px 14px; color: var(--text-secondary); font-weight: 600; font-size: 13px;
+    transition: background-color .12s, border-bottom-color .12s, color .12s;
   }
-  nav.tabs button.active { color: var(--text-primary); border-bottom-color: var(--series-1); }
+  nav.tabs button.active { color: var(--text-primary); border-bottom-color: var(--series-1); background: var(--series-1-tint); }
+  /* Each tab gets its own accent color (underline + a soft background tint) for a
+     lively, easy-to-scan nav bar — Settings stays neutral since it's a utility tab,
+     not a content section. */
+  nav.tabs button[data-tab="dashboard"].active { border-bottom-color: var(--series-1); background: var(--series-1-tint); }
+  nav.tabs button[data-tab="transactions"].active { border-bottom-color: var(--series-4); background: var(--series-4-tint); }
+  nav.tabs button[data-tab="transfers"].active { border-bottom-color: var(--series-3); background: var(--series-3-tint); }
+  nav.tabs button[data-tab="accounts"].active { border-bottom-color: var(--series-2); background: var(--series-2-tint); }
+  nav.tabs button[data-tab="liabilities"].active { border-bottom-color: var(--series-7); background: var(--series-7-tint); }
+  nav.tabs button[data-tab="jars"].active { border-bottom-color: var(--series-5); background: var(--series-5-tint); }
+  nav.tabs button[data-tab="reports"].active { border-bottom-color: var(--series-6); background: var(--series-6-tint); }
+  nav.tabs button[data-tab="dashboard"]:hover { border-bottom-color: var(--series-1); background: var(--series-1-tint); }
+  nav.tabs button[data-tab="transactions"]:hover { border-bottom-color: var(--series-4); background: var(--series-4-tint); }
+  nav.tabs button[data-tab="transfers"]:hover { border-bottom-color: var(--series-3); background: var(--series-3-tint); }
+  nav.tabs button[data-tab="accounts"]:hover { border-bottom-color: var(--series-2); background: var(--series-2-tint); }
+  nav.tabs button[data-tab="liabilities"]:hover { border-bottom-color: var(--series-7); background: var(--series-7-tint); }
+  nav.tabs button[data-tab="jars"]:hover { border-bottom-color: var(--series-5); background: var(--series-5-tint); }
+  nav.tabs button[data-tab="reports"]:hover { border-bottom-color: var(--series-6); background: var(--series-6-tint); }
+  /* Settings intentionally overrides the generic .active rule above to stay
+     neutral (gray), since it's a utility tab rather than a content section. */
+  nav.tabs button[data-tab="settings"].active { border-bottom-color: var(--text-muted); background: var(--grid); }
+  nav.tabs button[data-tab="settings"]:hover { border-bottom-color: var(--text-muted); background: var(--grid); }
 
   section.tab-panel { display: none; }
   section.tab-panel.active { display: block; }
@@ -143,6 +181,11 @@
   .stat-tile .value.good { color: var(--good); }
   .stat-tile .value.bad { color: var(--status-critical); }
   .stat-tile .sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+  .stat-tile.clickable { cursor: pointer; transition: border-color .12s, transform .12s; }
+  .stat-tile.clickable:hover { border-color: var(--series-1); transform: translateY(-1px); }
+  .breakdown-row { margin-bottom: 10px; }
+  .breakdown-row .row-top { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; gap: 8px; }
+  .breakdown-row .row-top .amt { font-weight: 600; white-space: nowrap; }
   .stat-section-label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); margin: 4px 0 8px; }
 
   .health-score-wrap { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
@@ -236,9 +279,11 @@
   .fab:active { transform: scale(0.96); }
   .fab-income { background: var(--status-good); }
   .fab-expense { background: var(--status-critical); }
+  .fab-transfer { background: var(--series-1); font-size: 22px; }
   @media (max-width: 560px) {
     .fab-stack { right: 14px; bottom: 18px; }
     .fab { width: 50px; height: 50px; font-size: 24px; }
+    .fab-transfer { font-size: 19px; }
   }
 
   .ff-progress-wrap { margin-top: 8px; }
@@ -756,6 +801,47 @@
           <div id="reportSummaryText" style="font-size:13px;line-height:1.9;"></div>
         </div>
       </div>
+
+      <div class="card" id="reportAdvancedCard">
+        <h2>🔬 Advanced Reports <span style="font-weight:400;font-size:12px;color:var(--text-muted);">(Finora Pro)</span></h2>
+        <div id="reportAdvancedLocked" style="display:none;">
+          <p class="hint" style="margin-bottom:0;">Custom date ranges, period comparison, breakdown by account, category trend, and CSV export are Finora Pro features — subscribe under Settings → Finora Pro to unlock them.</p>
+        </div>
+        <div id="reportAdvancedBody" style="display:none;">
+          <label style="font-size:13px;display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" id="reportCustomRangeToggle"> Use a custom date range instead of Monthly/Yearly
+          </label>
+          <div class="settings-grid" id="reportCustomRangeInputs" style="display:none;margin-top:8px;">
+            <div class="field"><label>From</label><input type="date" id="reportCustomStart"></div>
+            <div class="field"><label>To</label><input type="date" id="reportCustomEnd"></div>
+          </div>
+
+          <label style="font-size:13px;display:flex;align-items:center;gap:8px;margin-top:14px;">
+            <input type="checkbox" id="reportCompareToggle"> Compare against another custom period
+          </label>
+          <div class="settings-grid" id="reportCompareInputs" style="display:none;margin-top:8px;">
+            <div class="field"><label>Compare From</label><input type="date" id="reportCompareStart"></div>
+            <div class="field"><label>Compare To</label><input type="date" id="reportCompareEnd"></div>
+          </div>
+          <div id="reportCompareResult" style="display:none;margin-top:12px;"></div>
+
+          <div class="grid-2" style="margin-top:18px;">
+            <div>
+              <h3 style="font-size:13px;margin:0 0 8px;">By Account (net for this period)</h3>
+              <div id="reportAccountBreakdown"></div>
+            </div>
+            <div>
+              <h3 style="font-size:13px;margin:0 0 8px;">Category Deep-Dive</h3>
+              <div class="field" style="margin-bottom:8px;"><select id="reportCategoryFilterSelect"><option value="">Choose a category…</option></select></div>
+              <div id="reportCategoryTrend"></div>
+            </div>
+          </div>
+
+          <div style="margin-top:16px;">
+            <button type="button" class="ghost" id="reportExportCsvBtn">📥 Export Report as CSV</button>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -772,11 +858,17 @@
     <div class="card">
       <h2>✨ Finora Pro</h2>
       <p class="hint" id="proStatusText"></p>
-      <ul style="font-size:12.5px;color:var(--text-secondary);margin:0 0 12px;padding-left:18px;line-height:1.7;">
-        <li>Edit any past income, expense, or transaction entry</li>
-        <li>No ads</li>
-        <li>More Pro features coming later</li>
-      </ul>
+      <details style="margin:0 0 12px;">
+        <summary style="cursor:pointer;font-size:12.5px;font-weight:600;color:var(--series-1);">🔓 See everything included with Finora Pro</summary>
+        <ul style="font-size:12.5px;color:var(--text-secondary);margin:8px 0 0;padding-left:18px;line-height:1.7;">
+          <li>Edit any past income, expense, or transfer entry (Free plan: view only)</li>
+          <li>Turn off the extra "are you sure?" step before deleting entries, if you don't want it</li>
+          <li>Advanced Reports — custom date ranges, compare any two periods, breakdown by account, filter by category, and CSV/Excel export</li>
+          <li>Shared Household — invite family members to view and edit the same synced data</li>
+          <li>No ads</li>
+          <li>More Pro features coming later</li>
+        </ul>
+      </details>
       <div id="proActionBox" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"></div>
       <div id="proDeleteConfirmWrap" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid rgba(11,11,11,0.08);">
         <label style="font-size:12px;display:flex;align-items:center;gap:8px;">
@@ -822,12 +914,18 @@
       <h2>☁️ Cloud Sync</h2>
       <p class="hint" id="cloudSyncHint"></p>
       <div id="cloudSyncSignedOut" style="display:none;">
-        <div class="settings-grid">
+        <div style="margin-bottom:14px;padding:14px;border:1.5px solid var(--series-1);border-radius:10px;">
+          <div style="font-size:13px;font-weight:600;margin-bottom:8px;">⭐ Fastest way to get started</div>
+          <button type="button" class="primary" id="cloudGoogleSignInBtn" style="width:100%;">Continue with Google</button>
+          <p class="hint" style="margin:8px 0 0;">Sign in instantly with your Gmail account — no new password to remember, and your data syncs across every device automatically.</p>
+        </div>
+        <details id="cloudOtherMethods">
+          <summary style="cursor:pointer;font-size:12.5px;color:var(--text-secondary);margin-bottom:8px;">Prefer email + password, or a one-time code instead?</summary>
+        <div class="settings-grid" style="margin-top:10px;">
           <div class="field"><label>Sign-in method</label>
             <select id="cloudAuthMethodSelect">
               <option value="password">Email + Password</option>
               <option value="otp">Email Code (no password)</option>
-              <option value="google">Sign in with Google</option>
             </select>
           </div>
         </div>
@@ -861,10 +959,7 @@
             </div>
           </div>
         </div>
-
-        <div id="cloudAuthGoogle" style="display:none;">
-          <button type="button" class="primary" id="cloudGoogleSignInBtn">Continue with Google</button>
-        </div>
+        </details>
       </div>
 
       <div id="cloudAuthRecovery" style="display:none;">
@@ -974,9 +1069,20 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="breakdownModal">
+  <div class="modal">
+    <h2 id="breakdownModalTitle"></h2>
+    <div id="breakdownModalBody"></div>
+    <div class="modal-actions">
+      <button type="button" class="primary" id="breakdownModalClose">Close</button>
+    </div>
+  </div>
+</div>
+
 <div class="fab-stack" id="fabStack">
   <button type="button" class="fab fab-income" id="fabIncome" title="Quick add Income" aria-label="Quick add Income">+</button>
   <button type="button" class="fab fab-expense" id="fabExpense" title="Quick add Expense" aria-label="Quick add Expense">−</button>
+  <button type="button" class="fab fab-transfer" id="fabTransfer" title="Quick add Transfer" aria-label="Quick add Transfer">⇄</button>
 </div>
 
 <div class="toast" id="toastMsg"></div>
@@ -1316,6 +1422,34 @@
     return total;
   }
 
+  /* ================= Dashboard stat-tile breakdowns (click-to-expand) ================= */
+  function computeBreakdownByAccount() {
+    return state.accounts.filter(function (a) { return !a.hidden; }).map(function (a) {
+      var bal = accountBalanceHome(a.id);
+      return { key: a.id, label: a.name, value: a.type === "creditcard" ? -bal : bal };
+    });
+  }
+
+  function computeBreakdownByIncomeSource() {
+    var map = {};
+    state.transactions.forEach(function (t) {
+      if (t.type !== "income") return;
+      var key = t.source || "Other";
+      map[key] = (map[key] || 0) + txAmountInHome(t);
+    });
+    return Object.keys(map).map(function (k) { return { key: k, label: k, value: map[k] }; });
+  }
+
+  function computeBreakdownByExpenseCategory() {
+    var map = {};
+    state.transactions.forEach(function (t) {
+      if (t.type !== "expense") return;
+      var key = t.category || "Uncategorized";
+      map[key] = (map[key] || 0) + txAmountInHome(t);
+    });
+    return Object.keys(map).map(function (k) { return { key: k, label: k, value: map[k] }; });
+  }
+
   // Foreign-currency accounts (currency different from Home Currency), each with
   // its native balance and Home Currency equivalent — shown as a separate
   // Dashboard breakout so foreign holdings aren't silently blended into the totals.
@@ -1430,6 +1564,211 @@
       savingsRate: income > 0 ? ((income - expense) / income) * 100 : 0,
       categorySpend: categorySpend, businessIncome: businessIncome, businessExpense: businessExpense
     };
+  }
+
+  /* ================= Advanced Reports (Finora Pro) ================= */
+  function addOneDay(dateStr) {
+    var d = new Date(dateStr + "T00:00:00");
+    d.setDate(d.getDate() + 1);
+    var pad = function (n) { return (n < 10 ? "0" : "") + n; };
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  }
+  function fmtDateShort(dateStr) {
+    var d = new Date(dateStr + "T00:00:00");
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  }
+
+  // Per-account income/expense within a date range — used for the "By Account"
+  // breakdown in Advanced Reports. Transfers/adjustments are intentionally left
+  // out here, same as the category breakdown only looking at income/expense.
+  function computeAccountBreakdownForPeriod(startDate, endExclusive) {
+    var map = {};
+    state.transactions.forEach(function (t) {
+      if (t.type !== "income" && t.type !== "expense") return;
+      var d = t.date || "";
+      if (d < startDate || d >= endExclusive) return;
+      if (!t.accountId) return;
+      if (!map[t.accountId]) map[t.accountId] = { income: 0, expense: 0 };
+      map[t.accountId][t.type] += txAmountInHome(t);
+    });
+    return Object.keys(map).map(function (id) {
+      var acc = accountById(id);
+      var m = map[id];
+      return { key: id, label: acc ? acc.name : "Unknown account", income: m.income, expense: m.expense, net: m.income - m.expense };
+    }).sort(function (a, b) { return (Math.abs(b.income) + Math.abs(b.expense)) - (Math.abs(a.income) + Math.abs(a.expense)); });
+  }
+
+  // Last 6 monthly or yearly periods' spend for a single expense category, anchored
+  // at whatever month/year the Report period selector currently shows.
+  function computeCategoryTrend(category, periodType, anchorStart) {
+    var periods = [];
+    var pad = function (n) { return (n < 10 ? "0" : "") + n; };
+    if (periodType === "yearly") {
+      var y = parseInt(anchorStart.slice(0, 4), 10);
+      for (var i = 5; i >= 0; i--) {
+        var yy = y - i;
+        periods.push({ label: String(yy), start: yy + "-01-01", end: (yy + 1) + "-01-01" });
+      }
+    } else {
+      var parts = anchorStart.split("-"), ay = parseInt(parts[0], 10), am = parseInt(parts[1], 10);
+      for (var j = 5; j >= 0; j--) {
+        var d = new Date(ay, am - 1 - j, 1);
+        var ys = d.getFullYear(), ms = d.getMonth();
+        var start = ys + "-" + pad(ms + 1) + "-01";
+        var nm = ms === 11 ? 0 : ms + 1, ny = ms === 11 ? ys + 1 : ys;
+        var end = ny + "-" + pad(nm + 1) + "-01";
+        periods.push({ label: d.toLocaleDateString(undefined, { month: "short", year: "2-digit" }), start: start, end: end });
+      }
+    }
+    return periods.map(function (p) {
+      var total = 0;
+      state.transactions.forEach(function (t) {
+        if (t.type !== "expense" || t.category !== category) return;
+        var dd = t.date || "";
+        if (dd >= p.start && dd < p.end) total += txAmountInHome(t);
+      });
+      return { label: p.label, value: total };
+    });
+  }
+
+  function renderMiniBarChart(containerId, data, color) {
+    var container = $(containerId);
+    if (!container) return;
+    var w = 320, h = 130, padL = 8, padB = 20, padT = 10, padR = 8;
+    var innerW = w - padL - padR, innerH = h - padT - padB;
+    var maxVal = 0; data.forEach(function (d) { maxVal = Math.max(maxVal, d.value); });
+    maxVal = maxVal || 1;
+    var gap = innerW / data.length, barW = gap * 0.55;
+    var svg = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '" preserveAspectRatio="xMidYMid meet">';
+    data.forEach(function (d, i) {
+      var barH = Math.max((d.value / maxVal) * innerH, d.value > 0 ? 2 : 0);
+      var x = padL + i * gap + (gap - barW) / 2;
+      var y = padT + innerH - barH;
+      svg += '<rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + barH + '" fill="' + color + '" rx="2"></rect>';
+      svg += '<text x="' + (x + barW / 2) + '" y="' + (h - 6) + '" text-anchor="middle" font-size="9" fill="var(--text-muted)">' + escapeHtml(d.label) + '</text>';
+    });
+    svg += "</svg>";
+    container.innerHTML = svg;
+  }
+
+  function currentReportAnchorStart() {
+    if (reportPeriodType === "yearly") return ($("reportYear").value || String(new Date().getFullYear())) + "-01-01";
+    return ($("reportMonth").value || new Date().toISOString().slice(0, 7)) + "-01";
+  }
+
+  function renderCategoryTrend() {
+    if (!$("reportCategoryFilterSelect")) return;
+    var cat = $("reportCategoryFilterSelect").value;
+    if (!cat) { $("reportCategoryTrend").innerHTML = '<p class="hint">Pick a category above to see its spend trend over the last 6 periods.</p>'; return; }
+    var data = computeCategoryTrend(cat, reportPeriodType, currentReportAnchorStart());
+    var latest = data.length ? data[data.length - 1].value : 0;
+    $("reportCategoryTrend").innerHTML = '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">Latest period: <strong style="color:var(--text-primary);">' + fmtMoney(latest) + '</strong></div><div id="reportCategoryTrendChart"></div>';
+    renderMiniBarChart("reportCategoryTrendChart", data, seriesColor("--series-1"));
+  }
+
+  function renderReportCompare(labelA, currentA, startB, endB, labelB) {
+    var b = computePeriodTotals(startB, endB);
+    function pctDiff(curV, otherV) {
+      if (otherV === 0) return curV === 0 ? "no change vs " + labelA : "n/a vs " + labelA;
+      var change = ((curV - otherV) / Math.abs(otherV)) * 100;
+      return (change >= 0 ? "+" : "") + change.toFixed(0) + "% vs " + labelA;
+    }
+    function tile(label, value, cls, sub) {
+      return '<div class="stat-tile"><div class="label">' + label + '</div><div class="value ' + cls + '">' + value + '</div>' + (sub ? '<div class="sub">' + sub + '</div>' : "") + '</div>';
+    }
+    $("reportCompareResult").innerHTML =
+      '<div class="grid-2">' +
+        '<div><div style="font-size:12px;font-weight:600;margin-bottom:8px;">📍 ' + escapeHtml(labelA) + '</div><div class="stat-grid">' +
+          tile("Income", fmtMoney(currentA.income), "good") + tile("Expense", fmtMoney(currentA.expense), "bad") + tile("Net", fmtMoney(currentA.net), currentA.net >= 0 ? "good" : "bad") +
+        '</div></div>' +
+        '<div><div style="font-size:12px;font-weight:600;margin-bottom:8px;">🆚 ' + escapeHtml(labelB) + '</div><div class="stat-grid">' +
+          tile("Income", fmtMoney(b.income), "good", pctDiff(b.income, currentA.income)) + tile("Expense", fmtMoney(b.expense), "bad", pctDiff(b.expense, currentA.expense)) + tile("Net", fmtMoney(b.net), b.net >= 0 ? "good" : "bad", pctDiff(b.net, currentA.net)) +
+        '</div></div>' +
+      '</div>';
+  }
+
+  var lastReportContext = null;
+  function renderReportAdvanced(startDate, endExclusive, periodLabel, current) {
+    lastReportContext = { startDate: startDate, endExclusive: endExclusive, periodLabel: periodLabel, current: current };
+    if (!$("reportAdvancedCard")) return;
+    if (!state.isPro) {
+      $("reportAdvancedLocked").style.display = "block";
+      $("reportAdvancedBody").style.display = "none";
+      return;
+    }
+    $("reportAdvancedLocked").style.display = "none";
+    $("reportAdvancedBody").style.display = "block";
+
+    var acctItems = computeAccountBreakdownForPeriod(startDate, endExclusive).map(function (a) { return { key: a.key, label: a.label, value: a.net }; });
+    $("reportAccountBreakdown").innerHTML = acctItems.length ? breakdownRowsHtml(acctItems) : '<p class="hint">No account-tagged entries in this period.</p>';
+
+    var catSel = $("reportCategoryFilterSelect");
+    var prevCat = catSel.value;
+    catSel.innerHTML = '<option value="">Choose a category…</option>' + state.expenseCategories.map(function (c) {
+      return '<option value="' + escapeHtml(c) + '"' + (c === prevCat ? " selected" : "") + '>' + escapeHtml(c) + '</option>';
+    }).join("");
+    renderCategoryTrend();
+
+    if ($("reportCompareToggle").checked) {
+      var cs = $("reportCompareStart").value, ce = $("reportCompareEnd").value;
+      if (cs && ce && cs <= ce) {
+        renderReportCompare(periodLabel, current, cs, addOneDay(ce), fmtDateShort(cs) + " – " + fmtDateShort(ce));
+        $("reportCompareResult").style.display = "block";
+      } else {
+        $("reportCompareResult").style.display = "none";
+      }
+    } else {
+      $("reportCompareResult").style.display = "none";
+    }
+  }
+
+  function exportReportCsv() {
+    if (!lastReportContext) return;
+    var ctx = lastReportContext;
+    var lines = [];
+    lines.push('"Finora Report"');
+    lines.push('"Period","' + ctx.periodLabel.replace(/"/g, '""') + '"');
+    lines.push("");
+    lines.push('"Summary"');
+    lines.push('"Income","' + ctx.current.income.toFixed(2) + '"');
+    lines.push('"Expense","' + ctx.current.expense.toFixed(2) + '"');
+    lines.push('"Net","' + ctx.current.net.toFixed(2) + '"');
+    lines.push('"Savings Rate","' + ctx.current.savingsRate.toFixed(1) + '%"');
+    lines.push("");
+    lines.push('"By Category"');
+    lines.push('"Category","Amount"');
+    Object.keys(ctx.current.categorySpend).forEach(function (k) {
+      lines.push('"' + k.replace(/"/g, '""') + '","' + ctx.current.categorySpend[k].toFixed(2) + '"');
+    });
+    lines.push("");
+    lines.push('"By Account"');
+    lines.push('"Account","Income","Expense","Net"');
+    computeAccountBreakdownForPeriod(ctx.startDate, ctx.endExclusive).forEach(function (a) {
+      lines.push('"' + a.label.replace(/"/g, '""') + '","' + a.income.toFixed(2) + '","' + a.expense.toFixed(2) + '","' + a.net.toFixed(2) + '"');
+    });
+    var blob = new Blob([lines.join("\n")], { type: "text/csv" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = "finora-report-" + ctx.startDate + "-to-" + ctx.endExclusive + ".csv";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  }
+
+  function setupReportsAdvanced() {
+    if (!$("reportCustomRangeToggle")) return;
+    $("reportCustomRangeToggle").addEventListener("change", function () {
+      $("reportCustomRangeInputs").style.display = this.checked ? "grid" : "none";
+      renderReport();
+    });
+    $("reportCustomStart").addEventListener("change", renderReport);
+    $("reportCustomEnd").addEventListener("change", renderReport);
+    $("reportCompareToggle").addEventListener("change", function () {
+      $("reportCompareInputs").style.display = this.checked ? "grid" : "none";
+      renderReport();
+    });
+    $("reportCompareStart").addEventListener("change", renderReport);
+    $("reportCompareEnd").addEventListener("change", renderReport);
+    $("reportCategoryFilterSelect").addEventListener("change", renderCategoryTrend);
+    $("reportExportCsvBtn").addEventListener("click", exportReportCsv);
   }
 
   function computeMonthlySeries() {
@@ -1588,16 +1927,18 @@
     var t = computeTotals();
     var mainBal = computeMainBalance();
     var tiles = [
-      { label: "Main Balance (visible accounts)", value: fmtMoney(mainBal), cls: mainBal >= 0 ? "good" : "bad" },
-      { label: "Total Income", value: fmtMoney(t.income), cls: "good" },
-      { label: "Total Expense", value: fmtMoney(t.expense), cls: "bad" },
+      { label: "Main Balance (visible accounts)", value: fmtMoney(mainBal), cls: mainBal >= 0 ? "good" : "bad", breakdown: "account" },
+      { label: "Total Income", value: fmtMoney(t.income), cls: "good", breakdown: "income" },
+      { label: "Total Expense", value: fmtMoney(t.expense), cls: "bad", breakdown: "expense" },
       { label: "Savings Rate", value: (t.income > 0 ? t.savingsRate.toFixed(1) : "0.0") + "%",
         cls: t.savingsRate >= 20 ? "good" : (t.savingsRate < 0 ? "bad" : ""),
         sub: t.income > 0 ? (t.savingsRate >= 20 ? "Healthy — Eker recommends 20%+" : "Aim for 20%+ (FFA + LTSS)") : "Add income to see this" }
     ];
     $("statGrid").innerHTML = tiles.map(function (s) {
-      return '<div class="stat-tile"><div class="label">' + s.label + '</div><div class="value ' + (s.cls || "") + '">' + s.value + '</div>' +
-        (s.sub ? '<div class="sub">' + s.sub + '</div>' : "") + '</div>';
+      return '<div class="stat-tile' + (s.breakdown ? ' clickable' : '') + '"' + (s.breakdown ? ' data-breakdown="' + s.breakdown + '" tabindex="0" role="button"' : '') +
+        '><div class="label">' + s.label + '</div><div class="value ' + (s.cls || "") + '">' + s.value + '</div>' +
+        (s.sub ? '<div class="sub">' + s.sub + '</div>' : "") +
+        (s.breakdown ? '<div class="sub" style="color:var(--series-1);">Tap for breakdown →</div>' : "") + '</div>';
     }).join("");
   }
 
@@ -1773,6 +2114,18 @@
       periodLabel = new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
     }
 
+    // Finora Pro can override the Monthly/Yearly period above with any custom
+    // date range — silently ignored (falls back to Monthly/Yearly) until both
+    // dates are filled in and valid.
+    if (state.isPro && $("reportCustomRangeToggle") && $("reportCustomRangeToggle").checked) {
+      var customStart = $("reportCustomStart").value, customEnd = $("reportCustomEnd").value;
+      if (customStart && customEnd && customStart <= customEnd) {
+        startDate = customStart;
+        endExclusive = addOneDay(customEnd);
+        periodLabel = fmtDateShort(customStart) + " – " + fmtDateShort(customEnd);
+      }
+    }
+
     var current = computePeriodTotals(startDate, endExclusive);
 
     // Previous period of the same length, purely for a simple trend comparison.
@@ -1830,6 +2183,8 @@
       '<div>Expense: ' + fmtMoney(current.expense) + '</div>' +
       '<div>Savings Rate: ' + (current.income > 0 ? current.savingsRate.toFixed(1) : "0.0") + '%</div>' +
       (top.length ? '<div style="margin-top:8px;">Top category: <strong>' + escapeHtml(top[0].label) + '</strong> (' + fmtMoney(top[0].value) + ')</div>' : "");
+
+    renderReportAdvanced(startDate, endExclusive, periodLabel, current);
   }
 
   /* ================= Rendering: jars ================= */
@@ -2890,9 +3245,23 @@
       $("txAmount").focus();
     }, 60);
   }
+  function quickAddTransfer() {
+    if (state.accounts.length < 2) {
+      toast("Add at least two accounts first.", "error");
+      activateTab("accounts");
+      return;
+    }
+    activateTab("transfers");
+    setTimeout(function () {
+      var card = document.querySelector("#panel-transfers .card");
+      if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+      $("tfAmount").focus();
+    }, 60);
+  }
   function setupFabButtons() {
     $("fabIncome").addEventListener("click", function () { quickAdd("income"); });
     $("fabExpense").addEventListener("click", function () { quickAdd("expense"); });
+    $("fabTransfer").addEventListener("click", quickAddTransfer);
   }
 
   /* ================= Custom confirm dialog =================
@@ -2947,6 +3316,48 @@
     $("promptModalOk").addEventListener("click", doOk);
     $("promptModal").addEventListener("click", function (evt) { if (evt.target === $("promptModal")) doCancel(); });
     $("promptModalInput").addEventListener("keydown", function (evt) { if (evt.key === "Enter") { evt.preventDefault(); doOk(); } });
+  }
+
+  /* ================= Breakdown modal (Dashboard stat tiles → tap for detail) ================= */
+  var BREAKDOWN_PALETTE_VARS = ["--series-1", "--series-2", "--series-3", "--series-4", "--series-5", "--series-6", "--series-7", "--series-8"];
+  // Shared by the Dashboard breakdown modal and the Advanced Reports "By Account"
+  // section — a simple proportional bar per item, sorted by magnitude.
+  function breakdownRowsHtml(items) {
+    items = items.slice().sort(function (a, b) { return Math.abs(b.value) - Math.abs(a.value); });
+    var maxAbs = items.reduce(function (m, i) { return Math.max(m, Math.abs(i.value)); }, 0) || 1;
+    var palette = BREAKDOWN_PALETTE_VARS.map(seriesColor);
+    return items.map(function (it, i) {
+      var color = palette[i % palette.length];
+      var pctWidth = Math.min(100, (Math.abs(it.value) / maxAbs) * 100);
+      return '<div class="breakdown-row"><div class="row-top"><span>' + escapeHtml(it.label) + '</span><span class="amt"' +
+        (it.value < 0 ? ' style="color:var(--status-critical);"' : "") + '>' + fmtMoney(it.value) + '</span></div>' +
+        '<div class="budget-bar-track"><div class="budget-bar-fill" style="width:' + pctWidth + '%;background:' + color + ';"></div></div></div>';
+    }).join("");
+  }
+  function openBreakdownModal(title, items) {
+    var total = items.reduce(function (s, i) { return s + i.value; }, 0);
+    $("breakdownModalTitle").textContent = title;
+    $("breakdownModalBody").innerHTML = items.length === 0
+      ? '<p class="hint">Nothing to show yet — add some entries first.</p>'
+      : '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;">Total: <strong style="color:var(--text-primary);">' + fmtMoney(total) + '</strong></div>' + breakdownRowsHtml(items);
+    $("breakdownModal").classList.add("show");
+  }
+  function setupBreakdownModal() {
+    $("breakdownModalClose").addEventListener("click", function () { $("breakdownModal").classList.remove("show"); });
+    $("breakdownModal").addEventListener("click", function (evt) { if (evt.target === $("breakdownModal")) $("breakdownModal").classList.remove("show"); });
+    document.addEventListener("click", function (evt) {
+      var el = evt.target.closest && evt.target.closest("[data-breakdown]");
+      if (!el) return;
+      var kind = el.getAttribute("data-breakdown");
+      if (kind === "account") openBreakdownModal("Main Balance — by Account", computeBreakdownByAccount());
+      else if (kind === "income") openBreakdownModal("Total Income — by Source", computeBreakdownByIncomeSource());
+      else if (kind === "expense") openBreakdownModal("Total Expense — by Category", computeBreakdownByExpenseCategory());
+    });
+    document.addEventListener("keydown", function (evt) {
+      if (evt.key !== "Enter" && evt.key !== " ") return;
+      var el = document.activeElement;
+      if (el && el.hasAttribute && el.hasAttribute("data-breakdown")) { evt.preventDefault(); el.click(); }
+    });
   }
 
   /* ================= Custom income sources ================= */
@@ -3310,18 +3721,18 @@
       $("cloudSyncHint").textContent = "Not set up yet — this app runs fully offline until a Supabase project is connected. See the setup guide.";
       return;
     }
-    $("cloudSyncHint").textContent = "Sign in to back up your data to the cloud and access it from any device.";
+    $("cloudSyncHint").textContent = "Sign in with your Gmail account to back up your data to the cloud and access it from any device — it only takes a second.";
 
-    // Three interchangeable sign-in methods share this one card — a dropdown swaps
-    // which form is visible. Password and Email Code both hand back a session
-    // directly from their own call; Google's OAuth redirect leaves the page entirely
-    // and comes back later, so it's picked up by the onAuthStateChange listener below
-    // instead of a direct .then() callback.
+    // Google sign-in is the prominent default action; Email + Password and Email
+    // Code are tucked behind a "prefer something else?" <details> disclosure, with
+    // a dropdown swapping which of those two forms is visible. Password and Email
+    // Code both hand back a session directly from their own call; Google's OAuth
+    // redirect leaves the page entirely and comes back later, so it's picked up by
+    // the onAuthStateChange listener below instead of a direct .then() callback.
     $("cloudAuthMethodSelect").addEventListener("change", function () {
       var v = $("cloudAuthMethodSelect").value;
       $("cloudAuthPassword").style.display = v === "password" ? "block" : "none";
       $("cloudAuthOtp").style.display = v === "otp" ? "block" : "none";
-      $("cloudAuthGoogle").style.display = v === "google" ? "block" : "none";
     });
 
     $("cloudSignInBtn").addEventListener("click", function () {
@@ -3423,6 +3834,7 @@
         renderHousehold();
         renderAdSlot();
         renderTxTable();
+        renderReport();
         toast("Signed out.", "good");
       });
     });
@@ -3591,6 +4003,7 @@
       renderProStatus();
       renderAdSlot();
       renderTxTable();
+      renderReport();
       return Promise.resolve();
     }
     if (activeOwnerId === cloudSession.user.id) {
@@ -3600,6 +4013,7 @@
       renderProStatus();
       renderAdSlot();
       renderTxTable();
+      renderReport();
       return Promise.resolve();
     }
     return supaClient.from("subscriptions")
@@ -3613,6 +4027,7 @@
         renderProStatus();
         renderAdSlot();
         renderTxTable();
+        renderReport();
       });
   }
 
@@ -3622,7 +4037,7 @@
   function syncProStatus() {
     if (!billingEnabled) return;
     if (cloudSession) { refreshMySubscription().then(refreshWorkspaceProStatus); }
-    else { state.isPro = false; renderProStatus(); renderAdSlot(); renderTxTable(); }
+    else { state.isPro = false; renderProStatus(); renderAdSlot(); renderTxTable(); renderReport(); }
   }
 
   function startSubscriptionCheckout() {
@@ -3755,10 +4170,12 @@
     setupActionModal();
     setupConfirmModal();
     setupPromptModal();
+    setupBreakdownModal();
     setupIncomeSourceAdd();
     setupCategoryAdd();
     setupBudgets();
     setupReports();
+    setupReportsAdvanced();
     setupFabButtons();
     setupCloudSync();
     setupDriveBackup();
