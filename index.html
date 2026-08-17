@@ -186,6 +186,13 @@
   .breakdown-row { margin-bottom: 10px; }
   .breakdown-row .row-top { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; gap: 8px; }
   .breakdown-row .row-top .amt { font-weight: 600; white-space: nowrap; }
+  .breakdown-row.drillable { cursor: pointer; padding: 6px; margin: 0 -6px 6px; border-radius: 8px; transition: background-color .12s; }
+  .breakdown-row.drillable:hover, .breakdown-row.drillable:focus-visible { background: var(--grid); outline: none; }
+  .breakdown-row.drillable .row-top span:first-child::after { content: " \2192"; opacity: .45; font-weight: 400; }
+  .drill-back-btn { background: none; border: none; color: var(--accent, #2a78d6); font-size: 12.5px; cursor: pointer; padding: 4px 0; margin-bottom: 10px; }
+  .drill-tx-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--grid); font-size: 13px; }
+  .drill-tx-row:last-child { border-bottom: none; }
+  .drill-tx-row .meta { color: var(--text-secondary); font-size: 11.5px; margin-top: 2px; }
   .goal-card { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
   .goal-card .goal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; gap: 8px; flex-wrap: wrap; }
   .goal-card .goal-actions { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -3934,19 +3941,25 @@
   var BREAKDOWN_PALETTE_VARS = ["--series-1", "--series-2", "--series-3", "--series-4", "--series-5", "--series-6", "--series-7", "--series-8"];
   // Shared by the Dashboard breakdown modal and the Advanced Reports "By Account"
   // section — a simple proportional bar per item, sorted by magnitude.
-  function breakdownRowsHtml(items) {
+  function breakdownRowsHtml(items, drillable) {
     items = items.slice().sort(function (a, b) { return Math.abs(b.value) - Math.abs(a.value); });
     var maxAbs = items.reduce(function (m, i) { return Math.max(m, Math.abs(i.value)); }, 0) || 1;
     var palette = BREAKDOWN_PALETTE_VARS.map(seriesColor);
     return items.map(function (it, i) {
       var color = palette[i % palette.length];
       var pctWidth = Math.min(100, (Math.abs(it.value) / maxAbs) * 100);
-      return '<div class="breakdown-row"><div class="row-top"><span>' + escapeHtml(it.label) + '</span><span class="amt"' +
+      var attrs = drillable ? ' data-drill-key="' + escapeHtml(String(it.key)) + '" tabindex="0" role="button"' : "";
+      return '<div class="breakdown-row' + (drillable ? " drillable" : "") + '"' + attrs + '><div class="row-top"><span>' + escapeHtml(it.label) + '</span><span class="amt"' +
         (it.value < 0 ? ' style="color:var(--status-critical);"' : "") + '>' + fmtMoney(it.value) + '</span></div>' +
         '<div class="budget-bar-track"><div class="budget-bar-fill" style="width:' + pctWidth + '%;background:' + color + ';"></div></div></div>';
     }).join("");
   }
-  function openBreakdownModal(title, items) {
+  // Remembers the breakdown currently open (its title/items/drillDown descriptor) so
+  // the drill-down detail view's "Back" button can restore the category/source list
+  // exactly as it was, and so a row click knows what transactions to filter for.
+  var lastBreakdownModal = null;
+  function openBreakdownModal(title, items, drillDown) {
+    lastBreakdownModal = { title: title, items: items, drillDown: drillDown || null };
     var total = items.reduce(function (s, i) { return s + i.value; }, 0);
     $("breakdownModalTitle").textContent = title;
     if (items.length === 0) {
@@ -3959,10 +3972,11 @@
     // the whole — Main Balance can include negative credit-card entries, so that
     // one falls back to the plain bar list instead of a misleading chart.
     var hasNegative = items.some(function (i) { return i.value < 0; });
+    var drillable = !!drillDown;
     if (hasNegative) {
-      $("breakdownModalBody").innerHTML = totalLine + breakdownRowsHtml(items);
+      $("breakdownModalBody").innerHTML = totalLine + breakdownRowsHtml(items, drillable);
     } else {
-      $("breakdownModalBody").innerHTML = totalLine + '<div id="breakdownModalChart" style="margin-bottom:14px;"></div>' + breakdownRowsHtml(items);
+      $("breakdownModalBody").innerHTML = totalLine + '<div id="breakdownModalChart" style="margin-bottom:14px;"></div>' + breakdownRowsHtml(items, drillable);
       var sorted = items.slice().sort(function (a, b) { return b.value - a.value; });
       var palette = BREAKDOWN_PALETTE_VARS.map(seriesColor);
       var segments = sorted.map(function (it, i) { return { key: it.key, label: it.label, value: it.value, color: palette[i % palette.length] }; });
@@ -3970,35 +3984,81 @@
     }
     $("breakdownModal").classList.add("show");
   }
+  // Finds the individual transactions behind one slice of a breakdown (e.g. every
+  // "Education" expense in the period that slice covers) so tapping a row can show
+  // exactly what makes up that number.
+  function computeBreakdownDrillTransactions(drillDown, key) {
+    var isIncome = drillDown.txType === "income";
+    return state.transactions.filter(function (t) {
+      if (t.type !== drillDown.txType) return false;
+      if (drillDown.businessOnly === true && !t.isBusiness) return false;
+      if (drillDown.businessOnly === false && t.isBusiness) return false;
+      var groupKey = isIncome ? (t.source || "Other") : (t.category || "Uncategorized");
+      if (groupKey !== key) return false;
+      if (drillDown.startDate && (t.date || "") < drillDown.startDate) return false;
+      if (drillDown.endExclusive && (t.date || "") >= drillDown.endExclusive) return false;
+      return true;
+    }).sort(function (a, b) { return (b.date || "").localeCompare(a.date || ""); });
+  }
+  function openBreakdownDrillDetail(key, label) {
+    if (!lastBreakdownModal || !lastBreakdownModal.drillDown) return;
+    var txs = computeBreakdownDrillTransactions(lastBreakdownModal.drillDown, key);
+    var total = txs.reduce(function (s, t) { return s + txAmountInHome(t); }, 0);
+    var rowsHtml = txs.length ? txs.map(function (t) {
+      var acc = state.accounts.find(function (a) { return a.id === t.accountId; });
+      var meta = [t.date, acc ? acc.name : null].filter(Boolean).join(" · ");
+      return '<div class="drill-tx-row"><div><div>' + escapeHtml(t.note || label) + '</div><div class="meta">' + escapeHtml(meta) + '</div></div>' +
+        '<div class="amt" style="font-weight:600;white-space:nowrap;">' + fmtMoney(txAmountInHome(t)) + '</div></div>';
+    }).join("") : '<p class="hint">No individual entries found — they may have been edited or removed since.</p>';
+    $("breakdownModalTitle").textContent = label;
+    $("breakdownModalBody").innerHTML =
+      '<button type="button" class="drill-back-btn" id="breakdownDrillBackBtn">← Back to ' + escapeHtml(lastBreakdownModal.title) + '</button>' +
+      '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;">Total: <strong style="color:var(--text-primary);">' + fmtMoney(total) + '</strong> · ' + txs.length + ' ' + (txs.length === 1 ? "entry" : "entries") + '</div>' +
+      rowsHtml;
+  }
   function setupBreakdownModal() {
     $("breakdownModalClose").addEventListener("click", function () { $("breakdownModal").classList.remove("show"); });
     $("breakdownModal").addEventListener("click", function (evt) { if (evt.target === $("breakdownModal")) $("breakdownModal").classList.remove("show"); });
+    $("breakdownModalBody").addEventListener("click", function (evt) {
+      var backBtn = evt.target.closest && evt.target.closest("#breakdownDrillBackBtn");
+      if (backBtn) { openBreakdownModal(lastBreakdownModal.title, lastBreakdownModal.items, lastBreakdownModal.drillDown); return; }
+      var row = evt.target.closest && evt.target.closest(".breakdown-row.drillable");
+      if (!row || !lastBreakdownModal) return;
+      var key = row.getAttribute("data-drill-key");
+      var item = lastBreakdownModal.items.find(function (i) { return String(i.key) === key; });
+      openBreakdownDrillDetail(key, item ? item.label : key);
+    });
     document.addEventListener("click", function (evt) {
       var el = evt.target.closest && evt.target.closest("[data-breakdown]");
       if (!el) return;
       var kind = el.getAttribute("data-breakdown");
       if (kind === "account") openBreakdownModal("Main Balance — by Account", computeBreakdownByAccount());
-      else if (kind === "income") openBreakdownModal("Total Income — by Source", computeBreakdownByIncomeSource());
-      else if (kind === "expense") openBreakdownModal("Total Expense — by Category", computeBreakdownByExpenseCategory());
+      else if (kind === "income") openBreakdownModal("Total Income — by Source", computeBreakdownByIncomeSource(), { txType: "income" });
+      else if (kind === "expense") openBreakdownModal("Total Expense — by Category", computeBreakdownByExpenseCategory(), { txType: "expense" });
       else if (kind === "reportIncome" && lastReportContext) {
         openBreakdownModal("Income — " + lastReportContext.periodLabel + " — by Source",
-          computeIncomeBreakdownForPeriod(lastReportContext.startDate, lastReportContext.endExclusive));
+          computeIncomeBreakdownForPeriod(lastReportContext.startDate, lastReportContext.endExclusive),
+          { txType: "income", startDate: lastReportContext.startDate, endExclusive: lastReportContext.endExclusive });
       } else if (kind === "reportExpense" && lastReportContext) {
         var cs = lastReportContext.current.categorySpend;
         openBreakdownModal("Expense — " + lastReportContext.periodLabel + " — by Category",
-          Object.keys(cs).map(function (k) { return { key: k, label: k, value: cs[k] }; }));
+          Object.keys(cs).map(function (k) { return { key: k, label: k, value: cs[k] }; }),
+          { txType: "expense", startDate: lastReportContext.startDate, endExclusive: lastReportContext.endExclusive });
       } else if (kind === "reportBusinessIncome" && lastReportContext) {
         openBreakdownModal("Business Income — " + lastReportContext.periodLabel + " — by Source",
-          computeBusinessIncomeBreakdownForPeriod(lastReportContext.startDate, lastReportContext.endExclusive));
+          computeBusinessIncomeBreakdownForPeriod(lastReportContext.startDate, lastReportContext.endExclusive),
+          { txType: "income", businessOnly: true, startDate: lastReportContext.startDate, endExclusive: lastReportContext.endExclusive });
       } else if (kind === "reportBusinessExpense" && lastReportContext) {
         openBreakdownModal("Business Expenses — " + lastReportContext.periodLabel + " — by Category",
-          computeBusinessExpenseBreakdownForPeriod(lastReportContext.startDate, lastReportContext.endExclusive));
+          computeBusinessExpenseBreakdownForPeriod(lastReportContext.startDate, lastReportContext.endExclusive),
+          { txType: "expense", businessOnly: true, startDate: lastReportContext.startDate, endExclusive: lastReportContext.endExclusive });
       }
     });
     document.addEventListener("keydown", function (evt) {
       if (evt.key !== "Enter" && evt.key !== " ") return;
       var el = document.activeElement;
-      if (el && el.hasAttribute && el.hasAttribute("data-breakdown")) { evt.preventDefault(); el.click(); }
+      if (!el) return;
+      if ((el.hasAttribute && el.hasAttribute("data-breakdown")) || (el.classList && el.classList.contains("drillable"))) { evt.preventDefault(); el.click(); }
     });
   }
 
@@ -4124,8 +4184,22 @@
     };
   }
 
+  // Swaps the top "Save Data / Load Data" hint banner depending on whether Cloud Sync
+  // is signed in — signed-in users don't need to manually back up, so tell them that
+  // instead of nudging them toward Save/Load Data every time they open the app.
+  function updatePersistenceNote() {
+    var el = $("persistenceNote");
+    if (!el) return;
+    if (cloudEnabled && cloudSession) {
+      el.innerHTML = 'Signed in with <strong>Cloud Sync</strong> — your data backs up automatically, no manual backup needed. (You can still use <strong>Save Data</strong> for an extra local copy anytime.)';
+    } else {
+      el.innerHTML = 'This app runs entirely in your browser and keeps data only for this session. Use <strong>Save Data</strong> anytime to download a backup, and <strong>Load Data</strong> to restore it next time you open this file.';
+    }
+  }
+
   function updateCloudUi() {
     updateTopSignInBtn();
+    updatePersistenceNote();
     if (!cloudEnabled) return;
     var signedOut = $("cloudSyncSignedOut"), signedIn = $("cloudSyncSignedIn"), recovery = $("cloudAuthRecovery");
     if (inPasswordRecovery) {
