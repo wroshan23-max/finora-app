@@ -510,6 +510,12 @@
             <span id="businessFieldLabel">This is Business Income (kept separate from the 6 Jars)</span>
           </label>
         </div>
+        <div class="field wide" id="skipJarsFieldWrap" style="display:none;">
+          <label style="font-size:12px;display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" id="txSkipJars">
+            <span>Don't split this into the 6 Jars (e.g. a one-off amount you don't want budgeted)</span>
+          </label>
+        </div>
         <div class="field">
           <label>Amount <span id="txAmountCurrencyLabel" style="color:var(--text-muted);font-weight:400;"></span></label>
           <div style="display:flex;gap:6px;">
@@ -1911,10 +1917,13 @@
 
   // Business-flagged income/expense is intentionally excluded from the 6 Jars —
   // it's tracked as its own separate pool instead (see computeBusinessTotals).
+  // Income marked skipJars is a third case: still ordinary (non-business) income,
+  // it still counts toward Total Income, but the person opted this specific entry
+  // out of the automatic 6-Jars split (e.g. a one-off amount they don't want budgeted).
   function computeJarBalances() {
     var bal = {}; JARS.forEach(function (j) { bal[j.key] = 0; });
     state.transactions.forEach(function (t) {
-      if (t.type === "income" && !t.isBusiness) {
+      if (t.type === "income" && !t.isBusiness && !t.skipJars) {
         var homeAmt = txAmountInHome(t);
         JARS.forEach(function (j) { bal[j.key] += homeAmt * ((state.jarPct[j.key] || 0) / 100); });
       } else if (t.type === "expense" && t.jar && !t.isBusiness) {
@@ -3008,7 +3017,7 @@
       $("txEmptyState").style.display = "none";
       $("txTableBody").innerHTML = rows.map(function (t) {
         var jarCell = t.isBusiness ? '<span class="tag">💼 Business</span>' :
-          t.type === "income" ? '<span class="tag">Split × 6</span>' :
+          t.type === "income" ? (t.skipJars ? '<span class="tag">🚫 Not split</span>' : '<span class="tag">Split × 6</span>') :
           (jarByKey(t.jar) ? '<span class="tag"><span class="dot" style="background:' + jarColor(t.jar) + ';"></span>' + jarByKey(t.jar).name + '</span>' : "—");
         var acc = accountById(t.accountId);
         var accCell = acc ? escapeHtml(acc.name) : '<span style="color:var(--text-muted)">—</span>';
@@ -3177,6 +3186,10 @@
       $("splitPreview").innerHTML = fxNote + "<strong>💼 This will be tracked as Business Income</strong><div class=\"hint\" style=\"margin-top:4px;\">Not split into the 6 Jars — see the Business Income card on the Dashboard.</div>";
       return;
     }
+    if ($("txSkipJars") && $("txSkipJars").checked) {
+      $("splitPreview").innerHTML = fxNote + "<strong>🚫 This will NOT be split into the 6 Jars</strong><div class=\"hint\" style=\"margin-top:4px;\">It still counts toward your Total Income, just not toward any Jar's balance.</div>";
+      return;
+    }
     $("splitPreview").innerHTML = "<strong>This income will split into:</strong><br>" + fxNote + JARS.map(function (j) {
       var pct = state.jarPct[j.key] || 0; var share = homeAmt * (pct / 100);
       return '<div class="row"><span><span class="swatch" style="background:' + jarColor(j.key) + ';"></span>' + j.name + ' (' + pct + '%)</span><span>' + fmtMoney(share) + '</span></div>';
@@ -3225,6 +3238,7 @@
     currentTxType = type;
     document.querySelectorAll(".type-toggle button").forEach(function (b) { b.classList.toggle("active", b.getAttribute("data-type") === type); });
     $("txIsBusiness").checked = false;
+    if ($("txSkipJars")) $("txSkipJars").checked = false;
     renderDropdowns();
     updateJarFieldVisibility();
     renderSplitPreview();
@@ -3241,6 +3255,7 @@
     attachCalculator("txAmount", "txCalcBtn", renderSplitPreview);
     $("txAccount").addEventListener("change", updateTxAmountCurrencyLabel);
     $("txIsBusiness").addEventListener("change", function () { updateJarFieldVisibility(); renderSplitPreview(); });
+    if ($("txSkipJars")) $("txSkipJars").addEventListener("change", renderSplitPreview);
 
     function submitTxForm() {
       var amount = evalAmount($("txAmount").value);
@@ -3252,6 +3267,7 @@
       var date = $("txDate").value || new Date().toISOString().slice(0, 10);
       var note = $("txNote").value.trim();
       var isBusiness = $("txIsBusiness").checked;
+      var skipJars = currentTxType === "income" && !isBusiness && !!($("txSkipJars") && $("txSkipJars").checked);
       if (currentTxType === "income" && $("txSource").value === ADD_SOURCE_VALUE) { toast("Please finish adding the new source, or pick an existing one.", "error"); return; }
       if (currentTxType === "expense" && $("txCategory").value === ADD_CATEGORY_VALUE) { toast("Please finish adding the new category, or pick an existing one.", "error"); return; }
       var tx = { id: uid(), type: currentTxType, amount: amount, date: date, note: note, accountId: accountId, isBusiness: isBusiness };
@@ -3260,12 +3276,13 @@
         if (!isBusiness) tx.jar = $("txJar").value;
       } else {
         tx.source = $("txSource").value;
+        if (skipJars) tx.skipJars = true;
       }
 
       state.transactions.push(tx);
       $("txAmount").value = ""; $("txNote").value = "";
       renderAll();
-      if (currentTxType === "income" && state.pyfEnabled && !isBusiness) openPyfModal(tx);
+      if (currentTxType === "income" && state.pyfEnabled && !isBusiness && !skipJars) openPyfModal(tx);
       checkBudgetAlerts(tx);
     }
     // Use plain button clicks (not native form submission) — some embedded/artifact
@@ -3281,14 +3298,22 @@
   function updateJarFieldVisibility() {
     var jarWrap = $("jarFieldWrap"), sourceWrap = $("sourceFieldWrap"), categoryWrap = $("categoryFieldWrap");
     var isBusiness = $("txIsBusiness").checked;
+    var skipJarsWrap = $("skipJarsFieldWrap");
     if (currentTxType === "income") {
       jarWrap.style.display = "none"; sourceWrap.style.display = "flex"; categoryWrap.style.display = "none";
       $("accountFieldLabel").textContent = "Account (receives income)";
       $("businessFieldLabel").textContent = "This is Business Income (kept separate from the 6 Jars)";
+      // The skip-jars checkbox only makes sense for non-business income — Business
+      // Income is already kept out of the 6 Jars entirely, so showing both would be confusing.
+      if (skipJarsWrap) {
+        skipJarsWrap.style.display = isBusiness ? "none" : "flex";
+        if (isBusiness) $("txSkipJars").checked = false;
+      }
     } else {
       jarWrap.style.display = isBusiness ? "none" : "flex"; sourceWrap.style.display = "none"; categoryWrap.style.display = "flex";
       $("accountFieldLabel").textContent = "Account (pays for this)";
       $("businessFieldLabel").textContent = "This is a Business Expense (deducts from Business Income instead of a Jar)";
+      if (skipJarsWrap) { skipJarsWrap.style.display = "none"; $("txSkipJars").checked = false; }
     }
   }
 
@@ -3365,8 +3390,11 @@
       var businessLabel = tx.type === "income" ? "This is Business Income (kept separate from the 6 Jars)" : "This is a Business Expense (deducts from Business Income instead of a Jar)";
       var businessField = '<div class="field wide"><label style="font-size:12px;display:flex;align-items:center;gap:8px;">' +
         '<input type="checkbox" id="m_isBusiness"' + (tx.isBusiness ? " checked" : "") + '><span>' + businessLabel + '</span></label></div>';
+      var skipJarsField = (tx.type === "income" && !tx.isBusiness) ?
+        '<div class="field wide" id="m_skipJarsWrap"><label style="font-size:12px;display:flex;align-items:center;gap:8px;">' +
+        '<input type="checkbox" id="m_skipJars"' + (tx.skipJars ? " checked" : "") + '><span>Don\'t split this into the 6 Jars (e.g. a one-off amount you don\'t want budgeted)</span></label></div>' : "";
       body = '<div class="form-grid">' +
-        businessField +
+        businessField + skipJarsField +
         '<div class="field"><label>Amount</label><input type="text" inputmode="decimal" id="m_amount" value="' + tx.amount + '" required></div>' +
         '<div class="field"><label>Account</label><select id="m_account">' + mAccOpts + '</select></div>' +
         jarField + categoryField + sourceField +
@@ -3404,6 +3432,12 @@
         $("m_jar").closest(".field").style.display = $("m_isBusiness").checked ? "none" : "flex";
       });
       if ($("m_isBusiness").checked) $("m_jar").closest(".field").style.display = "none";
+    }
+    if (mode === "editTransaction" && $("m_isBusiness") && $("m_skipJarsWrap")) {
+      $("m_isBusiness").addEventListener("change", function () {
+        $("m_skipJarsWrap").style.display = $("m_isBusiness").checked ? "none" : "flex";
+        if ($("m_isBusiness").checked && $("m_skipJars")) $("m_skipJars").checked = false;
+      });
     }
     ["m_opening", "m_target", "m_amount", "m_rate", "m_fee"].forEach(function (fid) {
       if ($(fid)) attachCalculator(fid, null);
@@ -3468,6 +3502,10 @@
             else editTxObj.jar = $("m_jar").value;
           }
           if (editTxObj.type === "income" && $("m_source")) editTxObj.source = $("m_source").value;
+          if (editTxObj.type === "income") {
+            if (!editTxObj.isBusiness && $("m_skipJars") && $("m_skipJars").checked) editTxObj.skipJars = true;
+            else delete editTxObj.skipJars;
+          }
           toast("Entry updated.", "good");
         }
       } else if (mode === "editTransfer") {
@@ -3821,7 +3859,7 @@
     state.transactions.filter(function (t) { return t.type === "income" || t.type === "expense"; })
       .slice().sort(function (a, b) { return (a.date || "").localeCompare(b.date || ""); })
       .forEach(function (t) {
-        var jar = t.isBusiness ? "" : (t.type === "income" ? "Split x6" : (jarByKey(t.jar) ? jarByKey(t.jar).name : ""));
+        var jar = t.isBusiness ? "" : (t.type === "income" ? (t.skipJars ? "Not split" : "Split x6") : (jarByKey(t.jar) ? jarByKey(t.jar).name : ""));
         var category = t.type === "expense" ? (t.category || "") : "";
         var acc = accountById(t.accountId); var accName = acc ? acc.name : "";
         var cur = acc ? accountCurrency(acc) : state.homeCurrency;
