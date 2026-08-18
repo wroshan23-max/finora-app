@@ -649,7 +649,7 @@
   <section class="tab-panel" id="panel-transfers">
     <div class="card">
       <h2>Transfer Between Accounts</h2>
-      <p class="hint">Transfers move money between your own accounts — they don't count as income or expense and don't touch your jar budgets. Paying off a credit card is just a transfer into that card account. Add a fee if your bank charges for the transfer.</p>
+      <p class="hint">Transfers move money between your own accounts — the transfer amount itself doesn't count as income or expense and doesn't touch your jar budgets. Paying off a credit card is just a transfer into that card account. If your bank charges a fee for the transfer, add it below — the fee is real money spent, so it's counted under Total Expense as "Bank Charges" (jars stay untouched).</p>
       <form class="form-grid" id="transferForm" novalidate>
         <div class="field">
           <label>From account</label>
@@ -1243,12 +1243,19 @@
     SUPABASE_URL: "https://jpebyrslmzhdgwjbvkod.supabase.co",
     SUPABASE_ANON_KEY: "sb_publishable_jtaWHayi1JCaqZY5M1rOsQ_PahQO326",
     GOOGLE_CLIENT_ID: "951813628489-hk6h7j6i8i947ju624af32os3atqrv1a.apps.googleusercontent.com",
-    // Flip to true once PayHere + the Netlify Functions + the subscriptions table are
-    // all set up (see the setup guide). Must match the PRICE_LKR set in
-    // netlify/functions/payhere-start.js — that server-side value is what's actually
-    // charged; this one is only used to show the price on the button.
+    // Flip to true once PayHere + the Cloudflare Pages Functions (functions/api/) +
+    // the subscriptions table are all set up (see the setup guide). Must match the
+    // PRICE_LKR set in functions/api/payhere-start.js — that server-side value is
+    // what's actually charged; this one is only used to show the price on the button.
     BILLING_ENABLED: true,
     SUBSCRIPTION_PRICE_LKR: "500",
+    // International subscribers pay via Dodo Payments (a Merchant of Record — handles
+    // global cards, Apple Pay/Google Pay, currency conversion and tax/VAT compliance).
+    // Flip to true once functions/api/dodo-checkout.js + dodo-webhook.js are set up
+    // with real Dodo API credentials. The real price is whatever's configured on the
+    // DODO_PRODUCT_ID product in the Dodo dashboard; this is only used for display.
+    DODO_ENABLED: true,
+    SUBSCRIPTION_PRICE_USD: "5",
     // From your Google AdSense account, e.g. "ca-pub-1234567890123456" / "1234567890".
     ADSENSE_CLIENT_ID: "ca-pub-2768304069617672",
     ADSENSE_SLOT_ID: "8456213669",
@@ -1258,6 +1265,7 @@
   };
   var cloudEnabled = !!(CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY && window.supabase);
   var driveEnabled = !!CONFIG.GOOGLE_CLIENT_ID;
+  var dodoEnabled = !!CONFIG.DODO_ENABLED;
   var supaClient = cloudEnabled ? window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY) : null;
   // Billing requires Cloud Sync (a signed-in Supabase user) so a subscription can be
   // tied to an actual account rather than just a browser tab.
@@ -1352,6 +1360,16 @@
     var acc = accountById(t.accountId);
     if (!acc) return t.amount;
     return toHomeAmount(t.amount, acc);
+  }
+
+  // A transfer's bank fee is deducted from the "from" account (see
+  // computeAccountBalance), so it's converted using that account's exchange
+  // rate — same idea as txAmountInHome, just for the fee field on transfers.
+  function transferFeeInHome(t) {
+    if (!t.fee) return 0;
+    var acc = accountById(t.fromAccountId);
+    if (!acc) return t.fee;
+    return toHomeAmount(t.fee, acc);
   }
 
   function fmtDate(d) {
@@ -1885,9 +1903,12 @@
   function computeBreakdownByExpenseCategory() {
     var map = {};
     state.transactions.forEach(function (t) {
-      if (t.type !== "expense") return;
-      var key = t.category || "Uncategorized";
-      map[key] = (map[key] || 0) + txAmountInHome(t);
+      if (t.type === "expense") {
+        var key = t.category || "Uncategorized";
+        map[key] = (map[key] || 0) + txAmountInHome(t);
+      } else if (t.type === "transfer" && t.fee) {
+        map["Bank Charges"] = (map["Bank Charges"] || 0) + transferFeeInHome(t);
+      }
     });
     return Object.keys(map).map(function (k) { return { key: k, label: k, value: map[k] }; });
   }
@@ -1911,6 +1932,10 @@
     state.transactions.forEach(function (t) {
       if (t.type === "income") income += txAmountInHome(t);
       else if (t.type === "expense") expense += txAmountInHome(t);
+      // Transfer amounts move money between the user's own accounts and stay
+      // out of Total Expense — but a bank fee on that transfer is real money
+      // gone, so it counts as an (unbudgeted, "Bank Charges") expense.
+      else if (t.type === "transfer" && t.fee) expense += transferFeeInHome(t);
     });
     return { income: income, expense: expense, balance: income - expense, savingsRate: income > 0 ? ((income - expense) / income) * 100 : 0 };
   }
@@ -1991,9 +2016,19 @@
   function computePeriodTotals(startDate, endExclusive) {
     var income = 0, expense = 0, categorySpend = {}, businessIncome = 0, businessExpense = 0;
     state.transactions.forEach(function (t) {
-      if (t.type !== "income" && t.type !== "expense") return;
+      if (t.type !== "income" && t.type !== "expense" && t.type !== "transfer") return;
       var d = t.date || "";
       if (d < startDate || d >= endExclusive) return;
+      if (t.type === "transfer") {
+        // Bank fee on a transfer counts as an unbudgeted "Bank Charges" expense
+        // (the transfer amount itself still doesn't — see computeTotals).
+        if (t.fee) {
+          var feeAmt = transferFeeInHome(t);
+          expense += feeAmt;
+          categorySpend["Bank Charges"] = (categorySpend["Bank Charges"] || 0) + feeAmt;
+        }
+        return;
+      }
       var amt = txAmountInHome(t);
       if (t.type === "income") {
         income += amt;
@@ -3159,20 +3194,36 @@
     var myIsPro = !!(currentSubscription && currentSubscription.is_pro);
     var viewingShared = activeOwnerId && activeOwnerId !== cloudSession.user.id;
 
+    // Two subscribe buttons: PayHere for Sri Lankan Rupee payers, Dodo Payments
+    // (a Merchant of Record) for everyone else — global cards, Apple Pay/Google Pay,
+    // in their own currency. Shown side by side; the person picks whichever fits them.
+    function subscribeButtonsHtml(prefix) {
+      var html = '<button type="button" class="primary" id="proSubscribePayhereBtn">' + prefix + '🇱🇰 Pay with PayHere — Rs ' + CONFIG.SUBSCRIPTION_PRICE_LKR + '/month</button>';
+      if (dodoEnabled) {
+        html += ' <button type="button" class="primary" id="proSubscribeDodoBtn">' + prefix + '🌍 Pay with Card — $' + CONFIG.SUBSCRIPTION_PRICE_USD + '/month</button>';
+      }
+      return html;
+    }
+    function wireSubscribeButtons() {
+      $("proSubscribePayhereBtn").addEventListener("click", function () { startSubscriptionCheckout("payhere"); });
+      if ($("proSubscribeDodoBtn")) $("proSubscribeDodoBtn").addEventListener("click", function () { startSubscriptionCheckout("dodo"); });
+    }
+
     if (myIsPro) {
-      statusEl.innerHTML = '<span class="badge-good">PRO</span> You\'re subscribed to Finora Pro.';
-      box.innerHTML = '<button type="button" class="ghost" id="proCancelBtn">Cancel Subscription</button>' +
+      var isDodo = currentSubscription.provider === "dodo";
+      statusEl.innerHTML = '<span class="badge-good">PRO</span> You\'re subscribed to Finora Pro' + (isDodo ? " (via card)" : " (via PayHere)") + '.';
+      box.innerHTML = '<button type="button" class="ghost" id="proCancelBtn">' + (isDodo ? "Manage Subscription" : "Cancel Subscription") + '</button>' +
         '<button type="button" class="ghost" id="proRefreshBtn">Refresh Status</button>';
       $("proCancelBtn").addEventListener("click", cancelSubscription);
       $("proRefreshBtn").addEventListener("click", function () { toast("Checking…", "good"); refreshMySubscription().then(refreshWorkspaceProStatus); });
     } else if (viewingShared && state.isPro) {
       statusEl.innerHTML = "You're on the Free plan yourself, but you're currently working inside <strong>" + escapeHtml(activeOwnerEmail || "a shared") + "</strong>'s Pro household, so Pro features are unlocked here.";
-      box.innerHTML = '<button type="button" class="primary" id="proSubscribeBtn">Subscribe for my own account — Rs ' + CONFIG.SUBSCRIPTION_PRICE_LKR + '/month</button>';
-      $("proSubscribeBtn").addEventListener("click", startSubscriptionCheckout);
+      box.innerHTML = subscribeButtonsHtml("Subscribe for my own account — ");
+      wireSubscribeButtons();
     } else {
       statusEl.textContent = "You're on the Free plan. Editing past entries is a Pro feature.";
-      box.innerHTML = '<button type="button" class="primary" id="proSubscribeBtn">Subscribe — Rs ' + CONFIG.SUBSCRIPTION_PRICE_LKR + '/month</button>';
-      $("proSubscribeBtn").addEventListener("click", startSubscriptionCheckout);
+      box.innerHTML = subscribeButtonsHtml("");
+      wireSubscribeButtons();
     }
   }
 
@@ -4027,6 +4078,17 @@
   // exactly what makes up that number.
   function computeBreakdownDrillTransactions(drillDown, key) {
     var isIncome = drillDown.txType === "income";
+    // "Bank Charges" is a synthetic category made up of transfer fees, not
+    // actual expense-type transactions — so it needs its own filter instead
+    // of the normal type/category match below.
+    if (drillDown.txType === "expense" && key === "Bank Charges") {
+      return state.transactions.filter(function (t) {
+        if (t.type !== "transfer" || !t.fee) return false;
+        if (drillDown.startDate && (t.date || "") < drillDown.startDate) return false;
+        if (drillDown.endExclusive && (t.date || "") >= drillDown.endExclusive) return false;
+        return true;
+      }).sort(function (a, b) { return (b.date || "").localeCompare(a.date || ""); });
+    }
     return state.transactions.filter(function (t) {
       if (t.type !== drillDown.txType) return false;
       if (drillDown.businessOnly === true && !t.isBusiness) return false;
@@ -4038,15 +4100,22 @@
       return true;
     }).sort(function (a, b) { return (b.date || "").localeCompare(a.date || ""); });
   }
+  // A drilled-in row's amount: for a real income/expense transaction that's
+  // its full amount, but for a transfer shown under "Bank Charges" it's just
+  // the fee — the transfer's principal amount was never part of this total.
+  function breakdownDrillAmount(t) {
+    return t.type === "transfer" ? transferFeeInHome(t) : txAmountInHome(t);
+  }
   function openBreakdownDrillDetail(key, label) {
     if (!lastBreakdownModal || !lastBreakdownModal.drillDown) return;
     var txs = computeBreakdownDrillTransactions(lastBreakdownModal.drillDown, key);
-    var total = txs.reduce(function (s, t) { return s + txAmountInHome(t); }, 0);
+    var total = txs.reduce(function (s, t) { return s + breakdownDrillAmount(t); }, 0);
     var rowsHtml = txs.length ? txs.map(function (t) {
-      var acc = state.accounts.find(function (a) { return a.id === t.accountId; });
+      var acc = state.accounts.find(function (a) { return a.id === (t.type === "transfer" ? t.fromAccountId : t.accountId); });
       var meta = [t.date, acc ? acc.name : null].filter(Boolean).join(" · ");
-      return '<div class="drill-tx-row"><div><div>' + escapeHtml(t.note || label) + '</div><div class="meta">' + escapeHtml(meta) + '</div></div>' +
-        '<div class="amt" style="font-weight:600;white-space:nowrap;">' + fmtMoney(txAmountInHome(t)) + '</div></div>';
+      var rowLabel = t.type === "transfer" ? (t.note || "Bank charge / fee") : (t.note || label);
+      return '<div class="drill-tx-row"><div><div>' + escapeHtml(rowLabel) + '</div><div class="meta">' + escapeHtml(meta) + '</div></div>' +
+        '<div class="amt" style="font-weight:600;white-space:nowrap;">' + fmtMoney(breakdownDrillAmount(t)) + '</div></div>';
     }).join("") : '<p class="hint">No individual entries found — they may have been edited or removed since.</p>';
     $("breakdownModalTitle").textContent = label;
     $("breakdownModalBody").innerHTML =
@@ -4746,7 +4815,7 @@
   function refreshMySubscription() {
     if (!billingEnabled || !cloudSession) return Promise.resolve();
     return supaClient.from("subscriptions")
-      .select("is_pro,status,payhere_subscription_id,updated_at")
+      .select("is_pro,status,provider,payhere_subscription_id,dodo_subscription_id,updated_at")
       .eq("user_id", cloudSession.user.id)
       .maybeSingle()
       .then(function (res) {
@@ -4800,10 +4869,25 @@
     else { state.isPro = false; renderProStatus(); renderAdSlot(); renderTxTable(); renderReport(); }
   }
 
-  function startSubscriptionCheckout() {
+  // provider is "payhere" (Sri Lanka, LKR, via PayHere) or "dodo" (international,
+  // any currency/card/wallet, via Dodo Payments' hosted checkout).
+  function startSubscriptionCheckout(provider) {
     if (!billingEnabled || !cloudSession) return;
+    if (provider === "dodo") {
+      if (!dodoEnabled) return;
+      toast("Opening checkout…", "good");
+      fetch("/api/dodo-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cloudSession.access_token }
+      }).then(function (r) { return r.json().then(function (body) { return { ok: r.ok, body: body }; }); })
+        .then(function (res) {
+          if (!res.ok || res.body.error || !res.body.checkoutUrl) { toast("Couldn't start checkout: " + (res.body.error || "server error"), "error"); return; }
+          window.location.href = res.body.checkoutUrl;
+        }).catch(function (e) { toast("Couldn't start checkout: " + e.message, "error"); });
+      return;
+    }
     toast("Opening PayHere checkout…", "good");
-    fetch("/.netlify/functions/payhere-start", {
+    fetch("/api/payhere-start", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cloudSession.access_token }
     }).then(function (r) { return r.json().then(function (body) { return { ok: r.ok, body: body }; }); })
@@ -4824,10 +4908,30 @@
       }).catch(function (e) { toast("Couldn't start checkout: " + e.message, "error"); });
   }
 
+  // Dodo subscribers manage/cancel their own subscription on Dodo's hosted Customer
+  // Portal (payment-method changes, invoices, and cancellation all happen there) —
+  // this just opens a fresh, time-bound link to it. The is_pro flag only ever changes
+  // once Dodo's webhook confirms the cancellation server-to-server.
+  function openDodoPortal() {
+    if (!billingEnabled || !cloudSession) return;
+    toast("Opening subscription management…", "good");
+    fetch("/api/dodo-portal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cloudSession.access_token }
+    }).then(function (r) { return r.json().then(function (body) { return { ok: r.ok, body: body }; }); })
+      .then(function (res) {
+        if (!res.ok || res.body.error || !res.body.link) { toast("Couldn't open subscription management: " + (res.body.error || "server error"), "error"); return; }
+        window.location.href = res.body.link;
+      }).catch(function (e) { toast("Couldn't open subscription management: " + e.message, "error"); });
+  }
+
   function cancelSubscription() {
     if (!billingEnabled || !cloudSession) return;
+    // Dodo subscriptions are cancelled by the customer themselves on Dodo's portal —
+    // there's no in-app confirm step for those, since Dodo shows its own.
+    if (currentSubscription && currentSubscription.provider === "dodo") { openDodoPortal(); return; }
     confirmDialog("Cancel your Finora Pro subscription? You'll keep Pro access until the current billing period ends.", function () {
-      fetch("/.netlify/functions/payhere-cancel", {
+      fetch("/api/payhere-cancel", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cloudSession.access_token }
       }).then(function (r) { return r.json().then(function (body) { return { ok: r.ok, body: body }; }); })
