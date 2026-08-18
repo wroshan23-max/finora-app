@@ -417,8 +417,6 @@
     This app runs entirely in your browser and keeps data only for this session. Use <strong>Save Data</strong> anytime to download a backup, and <strong>Load Data</strong> to restore it next time you open this file.
   </div>
 
-  <div id="adSlotContainer" class="card" style="display:none;margin-bottom:16px;text-align:center;overflow:hidden;"></div>
-
   <div id="workspaceBanner" class="card" style="display:none;margin-bottom:16px;background:#eef6ff;border:1px solid rgba(42,120,214,0.25);font-size:13px;"></div>
 
   <nav class="tabs">
@@ -431,6 +429,11 @@
     <button data-tab="reports">Reports</button>
     <button data-tab="settings">Settings</button>
   </nav>
+
+  <!-- Moved below the tab bar so people can navigate straight away instead of
+       having the ad slot (which reserves its box even before a real ad fills
+       it in) be the first thing between the header and the tabs. -->
+  <div id="adSlotContainer" class="card" style="display:none;margin:16px 0;text-align:center;overflow:hidden;"></div>
 
   <!-- DASHBOARD -->
   <section class="tab-panel active" id="panel-dashboard">
