@@ -1272,11 +1272,28 @@
     ADSENSE_SLOT_ID: "8456213669",
     // From your Google Analytics 4 property's Data Stream, e.g. "G-XXXXXXXXXX".
     // Leave blank to run with no page-view analytics at all.
-    GA_MEASUREMENT_ID: "G-S1MXMHE9WG"
+    GA_MEASUREMENT_ID: "G-S1MXMHE9WG",
+    // Emails (lowercase) that always get Finora Pro unlocked, free, with no
+    // subscription needed — meant for the app's own owner/developer account(s).
+    // This bypasses the PayHere/Dodo subscription check entirely (see
+    // isOwnerAccount / refreshWorkspaceProStatus), so it works even before
+    // billing is configured. Add more emails here if there's ever more than
+    // one owner.
+    OWNER_EMAILS: ["wroshan23@gmail.com"]
   };
   var cloudEnabled = !!(CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY && window.supabase);
   var driveEnabled = !!CONFIG.GOOGLE_CLIENT_ID;
   var dodoEnabled = !!CONFIG.DODO_ENABLED;
+
+  // True when the signed-in Cloud Sync user is one of CONFIG.OWNER_EMAILS —
+  // used to unlock Finora Pro for the app's own owner without a real
+  // subscription. cloudSession is declared further below but this function is
+  // only ever called after sign-in has happened, so it's fine that its
+  // declaration comes first (var hoisting).
+  function isOwnerAccount() {
+    return !!(cloudSession && cloudSession.user && cloudSession.user.email &&
+      CONFIG.OWNER_EMAILS.indexOf(cloudSession.user.email.toLowerCase()) !== -1);
+  }
   var supaClient = cloudEnabled ? window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY) : null;
   // Billing requires Cloud Sync (a signed-in Supabase user) so a subscription can be
   // tied to an actual account rather than just a browser tab.
@@ -3258,6 +3275,14 @@
       if ($("deleteConfirmToggle")) $("deleteConfirmToggle").checked = state.confirmBeforeDelete !== false;
     }
 
+    // App owner: Pro is permanently on, no real subscription behind it — so
+    // there's nothing to subscribe to or cancel, just say so plainly.
+    if (isOwnerAccount()) {
+      statusEl.innerHTML = '<span class="badge-good">PRO</span> Owner account — Finora Pro is always on here, free.';
+      box.innerHTML = "";
+      return;
+    }
+
     if (!billingEnabled) {
       statusEl.textContent = "You're on the Free plan. Subscriptions aren't set up yet — see the setup guide to turn Finora Pro on.";
       box.innerHTML = "";
@@ -4907,6 +4932,16 @@
   }
 
   function refreshWorkspaceProStatus() {
+    // App owner's own account: Pro is always on, no subscription needed at
+    // all — skip the billing/subscription checks entirely.
+    if (isOwnerAccount()) {
+      state.isPro = true;
+      renderProStatus();
+      renderAdSlot();
+      renderTxTable();
+      renderReport();
+      return Promise.resolve();
+    }
     if (!billingEnabled || !cloudSession || !activeOwnerId) {
       state.isPro = false;
       renderProStatus();
