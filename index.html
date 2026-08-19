@@ -1000,6 +1000,22 @@
       </div>
     </div>
 
+    <div class="card" id="referralCard">
+      <h2>🎁 Refer a Friend</h2>
+      <p class="hint">Share Finora with a friend using your link below. Once they've signed up and actually used the app for a few days, <strong>you both get 5 bonus days of Finora Pro, free</strong> — no strings attached, up to 60 bonus days a year.</p>
+      <div id="referralSignedOut" style="display:none;">
+        <p class="hint" style="margin-bottom:0;">Sign in under Cloud Sync below to get your own referral link.</p>
+      </div>
+      <div id="referralSignedIn" style="display:none;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+          <input type="text" id="referralLinkInput" readonly style="flex:1;min-width:220px;font-size:12.5px;">
+          <button type="button" class="ghost" id="referralCopyBtn">Copy Link</button>
+          <button type="button" class="primary" id="referralShareBtn">📤 Share</button>
+        </div>
+        <p class="hint" id="referralStats" style="margin-bottom:0;"></p>
+      </div>
+    </div>
+
     <div class="card">
       <h2>Jar Percentages</h2>
       <p class="hint">Defaults follow Eker's recommended split. Adjust to fit your life — they must add up to 100%.</p>
@@ -1311,6 +1327,27 @@
   // to verify/connect a new site under "Sites" before an ad unit (slot) even exists.
   var adsScriptEnabled = !!CONFIG.ADSENSE_CLIENT_ID;
   var gaEnabled = !!CONFIG.GA_MEASUREMENT_ID;
+
+  // ================= Referral link capture =================
+  // Anyone opening finora.com.lk/?ref=<some user's id> — from a share link, see
+  // the "Refer a Friend" card in Settings — has that id stashed in localStorage
+  // (small operational bookkeeping, not financial data, so this doesn't conflict
+  // with `state` staying in-memory-only above). It's picked up later if/when they
+  // actually create a NEW account (see the sign-up handler), then cleared either
+  // way. The query param itself is stripped from the address bar immediately so
+  // it doesn't linger or get bookmarked with someone else's id in it.
+  (function captureReferralLink() {
+    try {
+      var params = new URLSearchParams(window.location.search);
+      var ref = (params.get("ref") || "").trim();
+      if (!ref) return;
+      localStorage.setItem("finora_pending_referral", ref);
+      params.delete("ref");
+      var rest = params.toString();
+      var newUrl = window.location.pathname + (rest ? "?" + rest : "") + window.location.hash;
+      window.history.replaceState({}, "", newUrl);
+    } catch (e) { /* localStorage/history blocked — referral just won't be attributed */ }
+  })();
 
   /* ================= State (in-memory only, no browser storage) ================= */
   var state = {
@@ -3304,6 +3341,7 @@
     // The Subscribe/Cancel button always reflects MY OWN subscription — you can only
     // ever manage your own billing, even while viewing a shared household below.
     var myIsPro = !!(currentSubscription && currentSubscription.is_pro);
+    var myBonusActive = hasBonusPro(currentSubscription);
     var viewingShared = activeOwnerId && activeOwnerId !== cloudSession.user.id;
 
     // Two subscribe buttons: PayHere for Sri Lankan Rupee payers, Dodo Payments
@@ -3328,6 +3366,14 @@
         '<button type="button" class="ghost" id="proRefreshBtn">Refresh Status</button>';
       $("proCancelBtn").addEventListener("click", cancelSubscription);
       $("proRefreshBtn").addEventListener("click", function () { toast("Checking…", "good"); refreshMySubscription().then(refreshWorkspaceProStatus); });
+    } else if (myBonusActive) {
+      // Bonus Pro from a referral, no real subscription behind it — still show
+      // the subscribe buttons (as an upsell to make it permanent before the
+      // bonus runs out), just no Cancel button since there's nothing to cancel.
+      var bonusUntilStr = new Date(currentSubscription.bonus_pro_until).toLocaleDateString();
+      statusEl.innerHTML = '<span class="badge-good">PRO</span> You have bonus Finora Pro from a referral, active until <strong>' + escapeHtml(bonusUntilStr) + '</strong>.';
+      box.innerHTML = subscribeButtonsHtml("Make it permanent — ");
+      wireSubscribeButtons();
     } else if (viewingShared && state.isPro) {
       statusEl.innerHTML = "You're on the Free plan yourself, but you're currently working inside <strong>" + escapeHtml(activeOwnerEmail || "a shared") + "</strong>'s Pro household, so Pro features are unlocked here.";
       box.innerHTML = subscribeButtonsHtml("Subscribe for my own account — ");
@@ -4441,6 +4487,69 @@
       signedIn.style.display = "none";
     }
     renderWorkspaceBanner();
+    renderReferralCard();
+  }
+
+  // The referral link is just the app's own URL with ?ref=<my user id> — no
+  // separate short-code system needed. Sharing the app IS sharing a referral
+  // link, so this one card/button covers both "let me tell a friend about this
+  // app" and "get credit for it" at once.
+  function referralLink() {
+    if (!cloudSession) return "";
+    return window.location.origin + window.location.pathname + "?ref=" + cloudSession.user.id;
+  }
+
+  function renderReferralCard() {
+    var card = $("referralCard");
+    if (!card) return;
+    var signedOutBox = $("referralSignedOut"), signedInBox = $("referralSignedIn");
+    if (!cloudSession) {
+      signedOutBox.style.display = "block";
+      signedInBox.style.display = "none";
+      return;
+    }
+    signedOutBox.style.display = "none";
+    signedInBox.style.display = "block";
+    $("referralLinkInput").value = referralLink();
+
+    if (!billingEnabled) { $("referralStats").textContent = ""; return; }
+    supaClient.from("referrals").select("status").eq("referrer_user_id", cloudSession.user.id)
+      .then(function (res) {
+        if (res.error || !res.data) return;
+        var total = res.data.length;
+        var rewarded = res.data.filter(function (r) { return r.status === "rewarded"; }).length;
+        var pending = total - rewarded;
+        var bits = [];
+        if (total === 0) bits.push("No one has signed up with your link yet.");
+        else {
+          bits.push(total + (total === 1 ? " friend" : " friends") + " signed up via your link");
+          if (rewarded > 0) bits.push(rewarded + " earned you bonus Pro days");
+          if (pending > 0) bits.push(pending + " still settling in");
+        }
+        $("referralStats").textContent = bits.join(" — ") + ".";
+      });
+  }
+
+  function setupReferralCard() {
+    if (!$("referralCard")) return;
+    $("referralCopyBtn").addEventListener("click", function () {
+      var link = referralLink();
+      if (!link) return;
+      (navigator.clipboard ? navigator.clipboard.writeText(link) : Promise.reject())
+        .then(function () { toast("Referral link copied.", "good"); })
+        .catch(function () { $("referralLinkInput").select(); toast("Select-and-copy the link above.", "good"); });
+    });
+    $("referralShareBtn").addEventListener("click", function () {
+      var link = referralLink();
+      if (!link) return;
+      var shareData = { title: "Finora — Manage Money. Grow Wealth.", text: "I've been using Finora to manage my money with the 6 Jars system — try it out:", url: link };
+      if (navigator.share) {
+        navigator.share(shareData).catch(function () { /* user cancelled the share sheet — not an error */ });
+      } else {
+        var waText = encodeURIComponent(shareData.text + " " + link);
+        window.open("https://wa.me/?text=" + waText, "_blank", "noopener");
+      }
+    });
   }
 
   // Shared by every sign-in path (password, OTP, Google OAuth redirect, and finishing
@@ -4452,6 +4561,48 @@
     cloudLoadNow();
     refreshMySubscription().then(refreshWorkspaceProStatus);
     loadHouseholdData();
+    maybeCheckReferralQualification();
+  }
+
+  // Opportunistic, throttled to once a day per browser — asks the server "has my
+  // pending referral (if any) earned its reward yet?" (see referral-check.js for
+  // the actual qualification rules). Same architectural pattern as
+  // runDueRecurringTemplates(): there's no server-side cron on a static site, so
+  // this only ever runs when someone actually has the app open.
+  function maybeCheckReferralQualification() {
+    if (!billingEnabled || !cloudSession) return;
+    var THROTTLE_MS = 24 * 60 * 60 * 1000;
+    var key = "finora_last_referral_check";
+    try {
+      var last = parseInt(localStorage.getItem(key) || "0", 10);
+      if (Date.now() - last < THROTTLE_MS) return;
+      localStorage.setItem(key, String(Date.now()));
+    } catch (e) { return; } // can't throttle safely — skip rather than risk hammering the endpoint
+    fetch("/api/referral-check", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + cloudSession.access_token }
+    }).then(function (res) { return res.json(); }).then(function (data) {
+      if (data && data.qualified) {
+        toast("🎉 Referral reward unlocked — bonus Finora Pro days added to your account!", "good");
+        refreshMySubscription().then(refreshWorkspaceProStatus);
+      }
+    }).catch(function () { /* best-effort — try again tomorrow */ });
+  }
+
+  // Called once, right after a brand-new Cloud Sync account is created — sends
+  // whatever referral id was stashed by captureReferralLink() (if any) to the
+  // server to create a 'pending' referral attribution. Cleared from localStorage
+  // either way, so it's never accidentally re-sent on a later sign-up/sign-in.
+  function attributeReferralIfPending() {
+    var referrerUserId = null;
+    try { referrerUserId = localStorage.getItem("finora_pending_referral"); } catch (e) { return; }
+    if (!referrerUserId || !cloudSession) return;
+    fetch("/api/referral-signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + cloudSession.access_token },
+      body: JSON.stringify({ referrerUserId: referrerUserId })
+    }).catch(function () { /* best-effort — a missed attribution just means no bonus, nothing breaks */ })
+      .then(function () { try { localStorage.removeItem("finora_pending_referral"); } catch (e) {} });
   }
 
   function cloudSaveNow() {
@@ -4698,6 +4849,7 @@
           bootstrapSignedInSession();
           toast("Account created — signed in.", "good");
           cloudSaveNow();
+          attributeReferralIfPending();
         } else {
           toast("Account created — check your email to confirm it, then sign in.", "good");
         }
@@ -4925,10 +5077,18 @@
   var currentSubscription = null;
   var workspaceSubscription = null;
 
+  // True when a subscription row's bonus_pro_until (a referral reward — see
+  // refreshWorkspaceProStatus / referral-check.js) is set and still in the future.
+  // Checked alongside is_pro everywhere Pro status is decided, so bonus days from
+  // referrals unlock Pro exactly like a real subscription would, temporarily.
+  function hasBonusPro(sub) {
+    return !!(sub && sub.bonus_pro_until && new Date(sub.bonus_pro_until).getTime() > Date.now());
+  }
+
   function refreshMySubscription() {
     if (!billingEnabled || !cloudSession) return Promise.resolve();
     return supaClient.from("subscriptions")
-      .select("is_pro,status,provider,payhere_subscription_id,dodo_subscription_id,updated_at")
+      .select("is_pro,status,provider,payhere_subscription_id,dodo_subscription_id,bonus_pro_until,updated_at")
       .eq("user_id", cloudSession.user.id)
       .maybeSingle()
       .then(function (res) {
@@ -4961,7 +5121,7 @@
     if (activeOwnerId === cloudSession.user.id) {
       // Own workspace — reuse currentSubscription instead of an identical second query.
       workspaceSubscription = currentSubscription;
-      state.isPro = !!(currentSubscription && currentSubscription.is_pro);
+      state.isPro = !!(currentSubscription && (currentSubscription.is_pro || hasBonusPro(currentSubscription)));
       renderProStatus();
       renderAdSlot();
       renderTxTable();
@@ -4969,13 +5129,13 @@
       return Promise.resolve();
     }
     return supaClient.from("subscriptions")
-      .select("is_pro,status,updated_at")
+      .select("is_pro,status,bonus_pro_until,updated_at")
       .eq("user_id", activeOwnerId)
       .maybeSingle()
       .then(function (res) {
         if (res.error) { console.error("refreshWorkspaceProStatus:", res.error.message); return; }
         workspaceSubscription = res.data || null;
-        state.isPro = !!(workspaceSubscription && workspaceSubscription.is_pro);
+        state.isPro = !!(workspaceSubscription && (workspaceSubscription.is_pro || hasBonusPro(workspaceSubscription)));
         renderProStatus();
         renderAdSlot();
         renderTxTable();
@@ -5167,6 +5327,7 @@
     setupReportsAdvanced();
     setupFabButtons();
     setupCloudSync();
+    setupReferralCard();
     setupDriveBackup();
     setupAdsense();
     setupGoogleAnalytics();

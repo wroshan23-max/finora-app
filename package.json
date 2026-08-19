@@ -2,8 +2,5 @@
   "name": "finora-site",
   "private": true,
   "version": "1.0.0",
-  "description": "Finora — personal finance app with Cloud Sync, Google Drive backup, and PayHere-powered Pro subscriptions.",
-  "dependencies": {
-    "@supabase/supabase-js": "^2.45.0"
-  }
+  "description": "Finora — personal finance app with Cloud Sync, Google Drive backup, and PayHere + Dodo Payments-powered Pro subscriptions. The functions/ directory (Cloudflare Pages Functions) is dependency-free — plain fetch() against Supabase's HTTP API, no npm packages required at runtime."
 }

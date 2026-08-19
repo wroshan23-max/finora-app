@@ -38,9 +38,30 @@ create table if not exists public.subscriptions (
   user_id                 uuid references auth.users(id) on delete cascade primary key,
   is_pro                  boolean not null default false,
   status                  text,   -- e.g. "active", "cancelled"
+  provider                text,   -- "payhere" (Sri Lanka, LKR) or "dodo" (international, Merchant of Record)
   payhere_subscription_id text,
+  dodo_subscription_id    text,
+  dodo_customer_id        text,   -- needed to open Dodo's self-service Customer Portal
   updated_at              timestamptz not null default now()
 );
+
+-- Safe to re-run on a database that already has this table from before the "provider"
+-- columns existed (e.g. before Dodo Payments support was added) — adds them without
+-- touching existing rows.
+alter table public.subscriptions add column if not exists provider text;
+alter table public.subscriptions add column if not exists dodo_subscription_id text;
+alter table public.subscriptions add column if not exists dodo_customer_id text;
+
+-- Referral rewards (see the "referrals" table below): temporary Pro access granted
+-- for free, independent of any real PayHere/Dodo subscription. bonus_pro_until is
+-- checked client-side alongside is_pro — either one being "active" unlocks Pro.
+-- bonus_days_used_this_year / bonus_year track how many bonus days a person has
+-- already claimed in the current calendar year, so referral-check.js can enforce
+-- the annual cap (see ANNUAL_CAP_DAYS there) — nobody can stack unlimited free Pro
+-- purely by inviting enough people.
+alter table public.subscriptions add column if not exists bonus_pro_until timestamptz;
+alter table public.subscriptions add column if not exists bonus_days_used_this_year integer not null default 0;
+alter table public.subscriptions add column if not exists bonus_year integer;
 
 alter table public.subscriptions enable row level security;
 
@@ -178,3 +199,41 @@ create policy "Members can view the household owner's subscription"
         and sa.status = 'active'
     )
   );
+
+
+-- ================= Referral program =================
+-- "Refer a friend" — invite ("referrer_user_id") shares their personal link
+-- (finora.com.lk/?ref=<their own user id>); when someone new signs up through it
+-- ("referee_user_id"), a 'pending' row is created here by referral-signup.js.
+-- Once the new person has actually used the app for a few days (checked by
+-- referral-check.js, never trusted from the client), BOTH people get bonus Pro
+-- days — status moves pending -> qualified -> rewarded.
+--
+-- Same trust model as subscriptions above: users can only ever SELECT their own
+-- rows (as either side of the referral) — there is deliberately no insert/update
+-- policy, so only server-side code with the service-role key can create or
+-- progress a referral. That's what makes "rewarded" trustworthy.
+create table if not exists public.referrals (
+  id                   uuid primary key default gen_random_uuid(),
+  referrer_user_id     uuid references auth.users(id) on delete cascade not null,
+  referee_user_id      uuid references auth.users(id) on delete cascade not null unique,
+  referee_email        text,
+  status               text not null default 'pending',  -- 'pending' | 'qualified' | 'rewarded'
+  created_at           timestamptz not null default now(),
+  qualified_at         timestamptz,
+  rewarded_at          timestamptz,
+  referrer_days_granted integer,
+  referee_days_granted  integer
+);
+
+create index if not exists referrals_referrer_idx on public.referrals (referrer_user_id);
+
+alter table public.referrals enable row level security;
+
+create policy "Referrer can view their own referrals"
+  on public.referrals for select
+  using (auth.uid() = referrer_user_id);
+
+create policy "Referee can view their own referral"
+  on public.referrals for select
+  using (auth.uid() = referee_user_id);
