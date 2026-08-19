@@ -4795,7 +4795,13 @@
     if (!billingEnabled || !cloudSession) { card.style.display = "none"; return; }
     card.style.display = "block";
 
-    var myIsPro = !!(currentSubscription && currentSubscription.is_pro);
+    // Same "am I actually Pro" check used everywhere else (refreshWorkspaceProStatus)
+    // — not just a real paid subscription, but also the owner-account bypass and
+    // any active referral bonus Pro. Using currentSubscription.is_pro alone here
+    // was a bug: it left Shared Household showing as locked for the owner account
+    // (and for anyone Pro only via a referral bonus) even though every other Pro
+    // gate in the app correctly recognised them as Pro.
+    var myIsPro = isOwnerAccount() || !!(currentSubscription && (currentSubscription.is_pro || hasBonusPro(currentSubscription)));
     var html = "";
 
     if (myIsPro) {
