@@ -74,6 +74,17 @@
 
   h2.section-title { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin: 32px 0 14px; }
 
+  .preview-scroll {
+    display: flex; gap: 14px; overflow-x: auto; padding: 4px 4px 14px; margin: 0 -4px 10px;
+    scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
+  }
+  .preview-frame {
+    flex: 0 0 auto; width: 190px; scroll-snap-align: start;
+    border-radius: 18px; overflow: hidden; border: 6px solid #111; background: #111;
+    box-shadow: 0 10px 24px rgba(11,11,11,0.18);
+  }
+  .preview-frame img { display: block; width: 100%; height: auto; }
+
   .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   @media (max-width: 480px) { .feature-grid { grid-template-columns: 1fr; } }
   .feature {
@@ -105,6 +116,13 @@
   <div class="jar-strip">
     <span style="background:var(--s1)"></span><span style="background:var(--s2)"></span><span style="background:var(--s3)"></span>
     <span style="background:var(--s4)"></span><span style="background:var(--s5)"></span><span style="background:var(--s6)"></span>
+  </div>
+
+  <h2 class="section-title">See it in action</h2>
+  <div class="preview-scroll">
+    <div class="preview-frame"><img src="/assets/preview-dashboard.png" alt="Finora dashboard — Financial Health Score and Net Worth" loading="lazy"></div>
+    <div class="preview-frame"><img src="/assets/preview-jars.png" alt="Finora 6 Jars allocation chart" loading="lazy"></div>
+    <div class="preview-frame"><img src="/assets/preview-breakdown.png" alt="Finora spending breakdown by category" loading="lazy"></div>
   </div>
 
   <div class="reward-card">
