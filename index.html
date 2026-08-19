@@ -124,6 +124,17 @@
     #topSignInBtn.show { animation: none; }
   }
 
+  /* Draws attention to the Cloud Sync card for someone who just arrived via
+     the refer.html "Get Started Free" link — see maybeShowSignupPrompt(). */
+  .referral-welcome-highlight { animation: referralWelcomePulse 1.2s ease-in-out 3; }
+  @keyframes referralWelcomePulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(42,120,214,0.45); }
+    50% { box-shadow: 0 0 0 8px rgba(42,120,214,0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .referral-welcome-highlight { animation: none; }
+  }
+
   select, input[type="number"], input[type="text"], input[type="date"], input[type="password"], input[type="email"] {
     font: inherit; padding: 7px 10px; border-radius: 8px;
     border: 1px solid var(--border); background: var(--surface-2); color: var(--text-primary);
@@ -1336,13 +1347,20 @@
   // actually create a NEW account (see the sign-up handler), then cleared either
   // way. The query param itself is stripped from the address bar immediately so
   // it doesn't linger or get bookmarked with someone else's id in it.
+  // `welcomeFlow` is set when someone arrived via the refer.html landing page
+  // (its "Get Started Free" button links to /?ref=...&welcome=1) — used later,
+  // once init() has rendered the page, to jump straight to the sign-up form
+  // instead of leaving a first-time visitor to find Settings on their own.
+  var welcomeFlow = false;
   (function captureReferralLink() {
     try {
       var params = new URLSearchParams(window.location.search);
       var ref = (params.get("ref") || "").trim();
-      if (!ref) return;
-      localStorage.setItem("finora_pending_referral", ref);
+      welcomeFlow = params.get("welcome") === "1";
+      if (!ref && !welcomeFlow) return;
+      if (ref) localStorage.setItem("finora_pending_referral", ref);
       params.delete("ref");
+      params.delete("welcome");
       var rest = params.toString();
       var newUrl = window.location.pathname + (rest ? "?" + rest : "") + window.location.hash;
       window.history.replaceState({}, "", newUrl);
@@ -4496,7 +4514,11 @@
   // app" and "get credit for it" at once.
   function referralLink() {
     if (!cloudSession) return "";
-    return window.location.origin + window.location.pathname + "?ref=" + cloudSession.user.id;
+    // Points to the refer.html landing page (not straight into the app) so
+    // whoever opens the link sees a short pitch for Finora and the referral
+    // reward first, with a clear "Get Started Free" button — rather than
+    // landing cold inside someone else's app with no context.
+    return window.location.origin + "/refer.html?ref=" + cloudSession.user.id;
   }
 
   function renderReferralCard() {
@@ -4550,6 +4572,23 @@
         window.open("https://wa.me/?text=" + waText, "_blank", "noopener");
       }
     });
+  }
+
+  // Called once from init() for anyone who arrived via the refer.html landing
+  // page ("Get Started Free" -> /?ref=...&welcome=1). Jumps straight to the
+  // Settings tab and highlights the Cloud Sync sign-up card, so a first-time
+  // visitor doesn't have to go hunting for where to actually create an account.
+  function maybeShowSignupPrompt() {
+    if (!welcomeFlow || cloudSession) return;
+    activateTab("settings");
+    var card = $("cloudSyncCard");
+    if (!card) return;
+    setTimeout(function () {
+      card.scrollIntoView({ behavior: "smooth", block: "center" });
+      card.classList.add("referral-welcome-highlight");
+      setTimeout(function () { card.classList.remove("referral-welcome-highlight"); }, 3600);
+      toast("Welcome! Create your free account below to get started.", "good");
+    }, 400);
   }
 
   // Shared by every sign-in path (password, OTP, Google OAuth redirect, and finishing
@@ -5334,6 +5373,7 @@
     runDueRecurringTemplates();
     renderAll();
     checkBillingReturn();
+    maybeShowSignupPrompt();
   }
 
   document.addEventListener("DOMContentLoaded", init);
