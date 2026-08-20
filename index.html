@@ -269,6 +269,8 @@
 
   .jar-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
   .jar-card { border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: var(--surface-1); }
+  .jar-card.clickable { cursor: pointer; transition: border-color .12s, transform .12s; }
+  .jar-card.clickable:hover { border-color: var(--series-1); transform: translateY(-1px); }
   .jar-card .jar-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
   .jar-card .jar-name { font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 7px; }
   .jar-card .jar-target { font-size: 11px; color: var(--text-muted); }
@@ -874,7 +876,7 @@
       </div>
       <div class="ff-progress-wrap">
         <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
-          <span id="ffaBalanceLabel"></span>
+          <span id="ffaBalanceLabel" data-breakdown="jar:FFA" tabindex="0" role="button" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;"></span>
           <span id="ffaPctLabel"></span>
         </div>
         <div class="ff-bar-track"><div class="ff-bar-fill" id="ffaBarFill" style="width:0%;"></div></div>
@@ -2064,6 +2066,46 @@
   }
 
   /* ================= Dashboard stat-tile breakdowns (click-to-expand) ================= */
+  // All-time Business Income/Expenses by source/category, for the Dashboard's
+  // Business card (mirrors computeBusinessIncomeBreakdownForPeriod /
+  // computeBusinessExpenseBreakdownForPeriod on the Reports tab, just unscoped by date).
+  function computeBusinessIncomeBreakdown() {
+    var map = {};
+    state.transactions.forEach(function (t) {
+      if (t.type !== "income" || !t.isBusiness) return;
+      var key = t.source || "Other";
+      map[key] = (map[key] || 0) + txAmountInHome(t);
+    });
+    return Object.keys(map).map(function (k) { return { key: k, label: k, value: map[k] }; });
+  }
+  function computeBusinessExpenseBreakdown() {
+    var map = {};
+    state.transactions.forEach(function (t) {
+      if (t.type !== "expense" || !t.isBusiness) return;
+      var key = t.category || "Uncategorized";
+      map[key] = (map[key] || 0) + txAmountInHome(t);
+    });
+    return Object.keys(map).map(function (k) { return { key: k, label: k, value: map[k] }; });
+  }
+  // A jar's balance = income allocated to it (jarPct% of every non-business,
+  // non-skipped income transaction) minus whatever's been spent from it — shown as
+  // one "Allocated from income" line plus a line per expense category, so tapping a
+  // jar explains its number instead of just restating it.
+  function computeJarBreakdown(jarKey) {
+    var allocated = 0;
+    var catMap = {};
+    state.transactions.forEach(function (t) {
+      if (t.type === "income" && !t.isBusiness && !t.skipJars) {
+        allocated += txAmountInHome(t) * ((state.jarPct[jarKey] || 0) / 100);
+      } else if (t.type === "expense" && t.jar === jarKey && !t.isBusiness) {
+        var key = t.category || "Uncategorized";
+        catMap[key] = (catMap[key] || 0) - txAmountInHome(t);
+      }
+    });
+    var items = [{ key: "_allocated", label: "Allocated from income", value: allocated }];
+    Object.keys(catMap).forEach(function (k) { items.push({ key: k, label: k, value: catMap[k] }); });
+    return items;
+  }
   function computeBreakdownByAccount() {
     return state.accounts.filter(function (a) { return !a.hidden; }).map(function (a) {
       var bal = accountBalanceHome(a.id);
@@ -2804,12 +2846,14 @@
     if (b.income === 0 && b.expense === 0) { card.style.display = "none"; return; }
     card.style.display = "block";
     var tiles = [
-      { label: "Business Income", value: fmtMoney(b.income), cls: "good" },
-      { label: "Business Expenses", value: fmtMoney(b.expense), cls: "bad" },
+      { label: "Business Income", value: fmtMoney(b.income), cls: "good", breakdown: "businessIncome" },
+      { label: "Business Expenses", value: fmtMoney(b.expense), cls: "bad", breakdown: "businessExpense" },
       { label: "Business Balance", value: fmtMoney(b.balance), cls: b.balance >= 0 ? "good" : "bad" }
     ];
     $("businessStatGrid").innerHTML = tiles.map(function (s) {
-      return '<div class="stat-tile"><div class="label">' + s.label + '</div><div class="value ' + (s.cls || "") + '">' + s.value + '</div></div>';
+      return '<div class="stat-tile' + (s.breakdown ? ' clickable' : '') + '"' + (s.breakdown ? ' data-breakdown="' + s.breakdown + '" tabindex="0" role="button"' : '') +
+        '><div class="label">' + s.label + '</div><div class="value ' + (s.cls || "") + '">' + s.value + '</div>' +
+        (s.breakdown ? '<div class="sub" style="color:var(--series-1);">Tap for breakdown →</div>' : "") + '</div>';
     }).join("");
   }
 
@@ -3054,11 +3098,12 @@
     var maxAbs = Math.max.apply(null, JARS.map(function (j) { return Math.abs(bal[j.key]); }).concat([1]));
     $("jarGrid").innerHTML = JARS.map(function (j) {
       var b = bal[j.key]; var pctWidth = Math.min(100, (Math.abs(b) / maxAbs) * 100); var color = jarColor(j.key);
-      return '<div class="jar-card"><div class="jar-head"><span class="jar-name"><span class="swatch-dot" style="background:' + color + ';"></span>' + j.name + '</span>' +
+      return '<div class="jar-card clickable" data-breakdown="jar:' + j.key + '" tabindex="0" role="button"><div class="jar-head"><span class="jar-name"><span class="swatch-dot" style="background:' + color + ';"></span>' + j.name + '</span>' +
         '<span class="jar-target">' + (state.jarPct[j.key] || 0) + '%</span></div>' +
         '<div class="jar-balance" style="color:' + (b < 0 ? "var(--status-critical)" : "inherit") + ';">' + fmtMoney(b) + '</div>' +
         '<div class="bar-track"><div class="bar-fill" style="width:' + pctWidth + '%;background:' + color + ';"></div></div>' +
-        '<div class="jar-desc">' + j.desc + '</div></div>';
+        '<div class="jar-desc">' + j.desc + '</div>' +
+        '<div class="sub" style="color:var(--series-1);font-size:11px;margin-top:6px;">Tap for breakdown →</div></div>';
     }).join("");
   }
 
@@ -4631,6 +4676,12 @@
       var el = evt.target.closest && evt.target.closest("[data-breakdown]");
       if (!el) return;
       var kind = el.getAttribute("data-breakdown");
+      if (kind.indexOf("jar:") === 0) {
+        var jarKeyClicked = kind.slice(4);
+        var jarMetaClicked = jarByKey(jarKeyClicked);
+        openBreakdownModal((jarMetaClicked ? jarMetaClicked.name : jarKeyClicked) + " — Breakdown", computeJarBreakdown(jarKeyClicked));
+        return;
+      }
       if (kind === "account") openBreakdownModal("Main Balance — by Account", computeBreakdownByAccount());
       else if (kind === "income") openBreakdownModal("Total Income — by Source", computeBreakdownByIncomeSource(), { txType: "income" });
       else if (kind === "expense") openBreakdownModal("Total Expense — by Category", computeBreakdownByExpenseCategory(), { txType: "expense" });
@@ -4638,6 +4689,8 @@
       else if (kind === "cardDebt") openBreakdownModal("Credit Card Debt — by Card", computeBreakdownByCardDebt());
       else if (kind === "liabilities") openBreakdownModal("Other Liabilities — by Liability", computeBreakdownByLiability());
       else if (kind === "netWorth") openBreakdownModal("Net Worth — Breakdown", computeNetWorthBreakdown());
+      else if (kind === "businessIncome") openBreakdownModal("Business Income — by Source", computeBusinessIncomeBreakdown(), { txType: "income", businessOnly: true });
+      else if (kind === "businessExpense") openBreakdownModal("Business Expenses — by Category", computeBusinessExpenseBreakdown(), { txType: "expense", businessOnly: true });
       else if (kind === "reportIncome" && lastReportContext) {
         openBreakdownModal("Income — " + lastReportContext.periodLabel + " — by Source",
           computeIncomeBreakdownForPeriod(lastReportContext.startDate, lastReportContext.endExclusive),
