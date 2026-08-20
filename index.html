@@ -588,37 +588,6 @@
 
   <!-- TRANSACTIONS -->
   <section class="tab-panel" id="panel-transactions">
-    <div class="card">
-      <h2>Income &amp; Expense History</h2>
-      <div class="filters">
-        <input type="text" id="txSearchInput" placeholder="🔎 Search notes, source, category…" style="min-width:180px;">
-        <select id="filterType">
-          <option value="all">All types</option>
-          <option value="income">Income only</option>
-          <option value="expense">Expense only</option>
-        </select>
-        <select id="filterJar">
-          <option value="all">All jars</option>
-        </select>
-        <select id="filterCategory">
-          <option value="all">All categories</option>
-        </select>
-        <select id="filterAccount">
-          <option value="all">All accounts</option>
-        </select>
-        <button id="exportCsvBtn" class="ghost">Export CSV</button>
-      </div>
-      <div style="overflow-x:auto;">
-        <table id="txTable">
-          <thead>
-            <tr><th>Date</th><th>Type</th><th>Jar</th><th>Account</th><th>Source / Note</th><th>Amount</th><th></th></tr>
-          </thead>
-          <tbody id="txTableBody"></tbody>
-        </table>
-      </div>
-      <div class="empty-state" id="txEmptyState" style="display:none;">No transactions yet — add your first one from the Dashboard tab.</div>
-    </div>
-
     <div class="card" id="txFilterSummaryCard">
       <h2>📊 Filtered Summary</h2>
       <p class="hint" style="margin-top:-6px;">Updates automatically with the filters above.</p>
@@ -672,6 +641,37 @@
       </form>
       <div id="recurringList"></div>
       <div class="empty-state" id="recurringEmptyState" style="display:none;">No recurring transactions set up yet.</div>
+    </div>
+
+    <div class="card">
+      <h2>Income &amp; Expense History</h2>
+      <div class="filters">
+        <input type="text" id="txSearchInput" placeholder="🔎 Search notes, source, category…" style="min-width:180px;">
+        <select id="filterType">
+          <option value="all">All types</option>
+          <option value="income">Income only</option>
+          <option value="expense">Expense only</option>
+        </select>
+        <select id="filterJar">
+          <option value="all">All jars</option>
+        </select>
+        <select id="filterCategory">
+          <option value="all">All categories</option>
+        </select>
+        <select id="filterAccount">
+          <option value="all">All accounts</option>
+        </select>
+        <button id="exportCsvBtn" class="ghost">Export CSV</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table id="txTable">
+          <thead>
+            <tr><th>Date</th><th>Type</th><th>Jar</th><th>Account</th><th>Source / Note</th><th>Amount</th><th></th></tr>
+          </thead>
+          <tbody id="txTableBody"></tbody>
+        </table>
+      </div>
+      <div class="empty-state" id="txEmptyState" style="display:none;">No transactions yet — add your first one from the Dashboard tab.</div>
     </div>
   </section>
 
@@ -805,7 +805,6 @@
         </div>
         <div class="field wide">
           <label style="font-weight:600;">Just received cash for this? (optional)</label>
-          <p class="hint" style="margin-top:2px;">e.g. you pawned gold or took a loan and got cash in hand — pick where it went and Finora adds it for you, so you don't have to log a separate transaction. Leave as "Don't add a transaction" if this liability is old debt you're just entering, or you already recorded the cash yourself.</p>
         </div>
         <div class="field">
           <label>Add the cash into account</label>
@@ -3238,7 +3237,10 @@
       if (!(target > 0)) { toast("Please enter a target amount greater than 0.", "error"); $("goalTarget").focus(); return; }
       state.savingsGoals.push({ id: uid(), name: name, targetAmount: target, allocated: 0 });
       $("goalName").value = ""; $("goalTarget").value = "";
-      renderSavingsGoals();
+      // renderAll() (not just renderSavingsGoals()) so this also schedules a Cloud
+      // Sync save — otherwise a signed-in user who refreshes before their next
+      // unrelated edit loses the goal, since nothing ever pushed it to Supabase.
+      renderAll();
       toast('Goal "' + name + '" added.', "good");
     }
     $("goalAddBtn").addEventListener("click", addGoal);
@@ -3249,20 +3251,20 @@
       if (addBtn) {
         var g1 = state.savingsGoals.find(function (g) { return g.id === addBtn.getAttribute("data-goal-add"); });
         if (!g1) return;
-        promptDialog("Add how much to \"" + g1.name + "\"?", function (val) {
+        promptDialog("Add how much to \"" + g1.name + "\"? (This just labels part of your LTSS jar — no account is touched.)", function (val) {
           var amt = parseFloat(val);
           if (!(amt > 0)) return;
           g1.allocated = (g1.allocated || 0) + amt;
-          renderSavingsGoals();
+          renderAll();
         }, "0.00");
       } else if (removeBtn) {
         var g2 = state.savingsGoals.find(function (g) { return g.id === removeBtn.getAttribute("data-goal-remove"); });
         if (!g2) return;
-        promptDialog("Remove how much from \"" + g2.name + "\"?", function (val) {
+        promptDialog("Remove how much from \"" + g2.name + "\"? (This just relabels part of your LTSS jar — no account is touched.)", function (val) {
           var amt = parseFloat(val);
           if (!(amt > 0)) return;
           g2.allocated = Math.max(0, (g2.allocated || 0) - amt);
-          renderSavingsGoals();
+          renderAll();
         }, "0.00");
       } else if (delBtn) {
         var gid = delBtn.getAttribute("data-goal-del");
@@ -3270,7 +3272,7 @@
         if (!g3) return;
         confirmDeleteAction('Delete the goal "' + g3.name + '"? This only removes the goal — it doesn\'t affect your LTSS jar balance.', function () {
           state.savingsGoals = state.savingsGoals.filter(function (g) { return g.id !== gid; });
-          renderSavingsGoals();
+          renderAll();
         });
       }
     });
@@ -3404,6 +3406,36 @@
     });
   }
 
+  // Breakdown for the Filtered Summary tiles — scoped to whatever rows are
+  // currently passing the Transactions tab filters, not all-time totals, so the
+  // breakdown always reconciles with the tile it was opened from.
+  function computeFilteredIncomeBreakdown(rows) {
+    var map = {};
+    rows.forEach(function (t) {
+      if (t.type !== "income") return;
+      var key = t.source || "Other";
+      map[key] = (map[key] || 0) + txAmountInHome(t);
+    });
+    return Object.keys(map).map(function (k) { return { key: k, label: k, value: map[k] }; });
+  }
+  function computeFilteredExpenseBreakdown(rows) {
+    var map = {};
+    rows.forEach(function (t) {
+      if (t.type !== "expense") return;
+      var key = t.category || "Uncategorized";
+      map[key] = (map[key] || 0) + txAmountInHome(t);
+    });
+    return Object.keys(map).map(function (k) { return { key: k, label: k, value: map[k] }; });
+  }
+  function computeFilteredNetBreakdown(rows) {
+    var income = 0, expense = 0;
+    rows.forEach(function (t) { if (t.type === "income") income += txAmountInHome(t); else expense += txAmountInHome(t); });
+    return [
+      { key: "income", label: "Filtered Income", value: income },
+      { key: "expense", label: "Filtered Expense", value: -expense }
+    ];
+  }
+
   // A small live stat row + donut showing Income vs Expense for whatever the
   // Transactions tab filters currently narrow the table down to.
   function renderTxFilterSummary(rows) {
@@ -3412,12 +3444,14 @@
     rows.forEach(function (t) { if (t.type === "income") income += txAmountInHome(t); else expense += txAmountInHome(t); });
     var net = income - expense;
     var tiles = [
-      { label: "Filtered Income", value: fmtMoney(income), cls: "good" },
-      { label: "Filtered Expense", value: fmtMoney(expense), cls: "bad" },
-      { label: "Net", value: fmtMoney(net), cls: net >= 0 ? "good" : "bad" }
+      { label: "Filtered Income", value: fmtMoney(income), cls: "good", breakdown: "filteredIncome" },
+      { label: "Filtered Expense", value: fmtMoney(expense), cls: "bad", breakdown: "filteredExpense" },
+      { label: "Net", value: fmtMoney(net), cls: net >= 0 ? "good" : "bad", breakdown: "filteredNet" }
     ];
     $("txFilterStatGrid").innerHTML = tiles.map(function (s) {
-      return '<div class="stat-tile"><div class="label">' + s.label + '</div><div class="value ' + s.cls + '">' + s.value + '</div></div>';
+      return '<div class="stat-tile clickable" data-breakdown="' + s.breakdown + '" tabindex="0" role="button"' +
+        '><div class="label">' + s.label + '</div><div class="value ' + s.cls + '">' + s.value + '</div>' +
+        '<div class="sub" style="color:var(--series-1);">Tap for breakdown →</div></div>';
     }).join("");
     if (income === 0 && expense === 0) {
       $("txFilterDonut").innerHTML = '<div class="empty-state">No transactions match this filter yet.</div>';
@@ -4706,6 +4740,9 @@
       else if (kind === "netWorth") openBreakdownModal("Net Worth — Breakdown", computeNetWorthBreakdown());
       else if (kind === "businessIncome") openBreakdownModal("Business Income — by Source", computeBusinessIncomeBreakdown(), { txType: "income", businessOnly: true });
       else if (kind === "businessExpense") openBreakdownModal("Business Expenses — by Category", computeBusinessExpenseBreakdown(), { txType: "expense", businessOnly: true });
+      else if (kind === "filteredIncome") openBreakdownModal("Filtered Income — by Source", computeFilteredIncomeBreakdown(getFilteredTransactions()));
+      else if (kind === "filteredExpense") openBreakdownModal("Filtered Expense — by Category", computeFilteredExpenseBreakdown(getFilteredTransactions()));
+      else if (kind === "filteredNet") openBreakdownModal("Net — Breakdown", computeFilteredNetBreakdown(getFilteredTransactions()));
       else if (kind === "reportIncome" && lastReportContext) {
         openBreakdownModal("Income — " + lastReportContext.periodLabel + " — by Source",
           computeIncomeBreakdownForPeriod(lastReportContext.startDate, lastReportContext.endExclusive),
