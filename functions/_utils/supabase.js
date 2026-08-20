@@ -5,23 +5,27 @@
  * guaranteed to run in the Workers runtime with no bundling surprises.
  */
 
-/** Verifies a user's access token against Supabase Auth and returns the user object, or null. */
+/** Verifies a user's access token against Supabase Auth and returns the user object, or null.
+ *  Deliberately never throws — every caller in functions/api/*.js calls this without wrapping
+ *  it in its own try/catch, so a network hiccup or unexpected response here must degrade to
+ *  "not signed in" (null) rather than an unhandled exception, which Cloudflare Pages turns into
+ *  a raw HTML 502 page instead of the function's own JSON error response. */
 export async function getUserFromToken(env, token) {
   if (!token) return null;
-try {
-  const res = await fetch(env.SUPABASE_URL + "/auth/v1/user", {
-    headers: {
-      Authorization: "Bearer " + token,
-      apikey: env.SUPABASE_ANON_KEY
-    }
-  });
-  if (!res.ok) return null;
-  const user = await res.json();
-  return user && user.id ? user : null;
-} catch (e) {
-  console.error("getUserFromToken: unexpected error:", e.message);
-  return null;
-}
+  try {
+    const res = await fetch(env.SUPABASE_URL + "/auth/v1/user", {
+      headers: {
+        Authorization: "Bearer " + token,
+        apikey: env.SUPABASE_ANON_KEY
+      }
+    });
+    if (!res.ok) return null;
+    const user = await res.json();
+    return user && user.id ? user : null;
+  } catch (e) {
+    console.error("getUserFromToken: unexpected error:", e.message);
+    return null;
+  }
 }
 
 /** Reads a Bearer token out of a Request's Authorization header. */
@@ -60,6 +64,27 @@ export async function upsertSubscription(env, row) {
     const text = await res.text().catch(function () { return ""; });
     throw new Error("Supabase upsert failed (" + res.status + "): " + text);
   }
+}
+
+/** Looks up a Supabase Auth user by email using the service-role key's admin API.
+ *  Used only by admin-pro.js (granting/revoking Pro for an arbitrary user by email) —
+ *  never exposed to a regular user-facing endpoint. Returns null if no user has that
+ *  email (Cloud Sync account doesn't exist) or the admin API call fails. */
+export async function getUserByEmail(env, email) {
+  const url = env.SUPABASE_URL + "/auth/v1/admin/users?email=" + encodeURIComponent(email);
+  const res = await fetch(url, {
+    headers: {
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: "Bearer " + env.SUPABASE_SERVICE_ROLE_KEY
+    }
+  });
+  if (!res.ok) return null;
+  const body = await res.json().catch(function () { return null; });
+  // Supabase's admin list-users endpoint has returned either a bare array or
+  // { users: [...] } across versions — handle both defensively.
+  const list = Array.isArray(body) ? body : (body && body.users) || [];
+  const wanted = email.toLowerCase();
+  return list.find(function (u) { return u && u.email && u.email.toLowerCase() === wanted; }) || null;
 }
 
 export function json(body, status) {
