@@ -124,6 +124,9 @@
     #topSignInBtn.show { animation: none; }
   }
 
+  #topSignOutBtn { display: none; }
+  #topSignOutBtn.show { display: inline-flex; align-items: center; gap: 6px; }
+
   /* Draws attention to the Cloud Sync card for someone who just arrived via
      the refer.html "Get Started Free" link — see maybeShowSignupPrompt(). */
   .referral-welcome-highlight { animation: referralWelcomePulse 1.2s ease-in-out 3; }
@@ -148,6 +151,8 @@
   button.ghost { background: transparent; }
   button.small { padding: 4px 9px; font-size: 12px; }
   button.danger { color: var(--status-critical); }
+  button.dangerFilled { background: var(--status-critical); color: #fff; border-color: var(--status-critical); }
+  button.dangerFilled:hover { filter: brightness(1.08); }
   button:hover { filter: brightness(0.97); }
   button:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -429,6 +434,7 @@
       <button id="exportBtn" class="ghost" title="Download a backup of your data">⬇ Save Data</button>
       <button id="importBtn" class="ghost" title="Restore data from a backup file">⬆ Load Data</button>
       <input type="file" id="importFile" class="file-input-hidden" accept="application/json">
+      <button id="topSignOutBtn" class="dangerFilled" title="Sign out of Cloud Sync">🚪 Sign Out</button>
     </div>
   </header>
 
@@ -4323,6 +4329,15 @@
     btn.classList.toggle("show", needsSignIn);
   }
 
+  // Mirror of updateTopSignInBtn() — a quick-access Sign Out button so a signed-in
+  // user doesn't have to dig into Settings just to sign out.
+  function updateTopSignOutBtn() {
+    var btn = $("topSignOutBtn");
+    if (!btn) return;
+    var canSignOut = cloudEnabled && !!cloudSession && !inPasswordRecovery;
+    btn.classList.toggle("show", canSignOut);
+  }
+
   /* ================= Settings ================= */
   function setupSettings() {
     $("jarPctInputs").addEventListener("input", function (evt) {
@@ -4855,6 +4870,7 @@
 
   function updateCloudUi() {
     updateTopSignInBtn();
+    updateTopSignOutBtn();
     updatePersistenceNote();
     if (!cloudEnabled) return;
     var signedOut = $("cloudSyncSignedOut"), signedIn = $("cloudSyncSignedIn"), recovery = $("cloudAuthRecovery");
@@ -5329,7 +5345,7 @@
       });
     });
 
-    $("cloudSignOutBtn").addEventListener("click", function () {
+    function performCloudSignOut() {
       supaClient.auth.signOut().then(function () {
         cloudSession = null;
         activeOwnerId = null;
@@ -5348,7 +5364,9 @@
         renderReport();
         toast("Signed out.", "good");
       });
-    });
+    }
+    $("cloudSignOutBtn").addEventListener("click", performCloudSignOut);
+    $("topSignOutBtn").addEventListener("click", performCloudSignOut);
     $("cloudSyncNowBtn").addEventListener("click", function () { toast("Syncing…", "good"); cloudSaveNow(); });
     updateCloudUi();
 

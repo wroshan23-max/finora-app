@@ -158,7 +158,7 @@ set search_path = public
 as $$
 declare
   my_email text := lower(coalesce(auth.jwt() ->> 'email', ''));
-  matched boolean;
+  affected_rows int;
 begin
   update public.shared_access
     set member_user_id = auth.uid(), status = 'active'
@@ -167,8 +167,8 @@ begin
       and member_user_id is null
       and lower(member_email) = my_email
       and my_email <> '';
-  get diagnostics matched = row_count;
-  return matched > 0;
+  get diagnostics affected_rows = row_count;
+  return affected_rows > 0;
 end;
 $$;
 
