@@ -63,6 +63,15 @@ alter table public.subscriptions add column if not exists bonus_pro_until timest
 alter table public.subscriptions add column if not exists bonus_days_used_this_year integer not null default 0;
 alter table public.subscriptions add column if not exists bonus_year integer;
 
+-- Admin-granted Pro (see functions/api/admin-pro.js): lets an admin (ADMIN_EMAILS env
+-- var, checked server-side) give any account Finora Pro for a fixed period — reusing
+-- bonus_pro_until above, same field the referral program uses — or permanently, via
+-- provider = 'admin' + is_pro = true. admin_note/admin_granted_at are purely an audit
+-- trail (who granted or revoked what, and when) shown back in the admin panel; nothing
+-- reads them to decide Pro status.
+alter table public.subscriptions add column if not exists admin_note text;
+alter table public.subscriptions add column if not exists admin_granted_at timestamptz;
+
 alter table public.subscriptions enable row level security;
 
 -- A user can read their own subscription status (so the app can show it) —

@@ -1036,6 +1036,28 @@
       </div>
     </div>
 
+    <div class="card" id="adminProCard" style="display:none;">
+      <h2>🛠️ Admin — Grant Finora Pro</h2>
+      <p class="hint">Give any Finora account Pro access without a real subscription — a fixed period, or permanently. Only visible to admin accounts; the server independently checks your email against <code>ADMIN_EMAILS</code> on every request, so this section being hidden or shown never affects security.</p>
+      <div class="settings-grid" style="margin-bottom:10px;">
+        <div class="field"><label>User's email</label><input type="email" id="adminProEmail" placeholder="someone@example.com" autocomplete="off"></div>
+        <div class="field"><label>Duration</label>
+          <select id="adminProDuration">
+            <option value="week">1 week</option>
+            <option value="month" selected>1 month</option>
+            <option value="year">1 year</option>
+            <option value="lifetime">Lifetime</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="ghost" id="adminProLookupBtn">Look Up</button>
+        <button type="button" class="primary" id="adminProGrantBtn">Grant Pro</button>
+        <button type="button" class="ghost" id="adminProRevokeBtn">Revoke</button>
+      </div>
+      <p class="hint" id="adminProResult" style="margin-top:10px;"></p>
+    </div>
+
     <div class="card" id="referralCard">
       <h2>🎁 Refer a Friend</h2>
       <p class="hint">Share Finora with a friend using your link below. Once they've signed up and actually used the app for a few days, <strong>you both get 5 bonus days of Finora Pro, free</strong> — no strings attached, up to 60 bonus days a year.</p>
@@ -3441,6 +3463,13 @@
     var statusEl = $("proStatusText"), box = $("proActionBox");
     if (!statusEl || !box) return;
 
+    // The admin panel is only ever shown to CONFIG.OWNER_EMAILS — this is purely a
+    // UI convenience so other people never even see the section. It's not the real
+    // access control: admin-pro.js independently checks the caller's email against
+    // the server-side ADMIN_EMAILS env var on every request, so nothing hinges on
+    // this client-side check being tamper-proof.
+    if ($("adminProCard")) $("adminProCard").style.display = isOwnerAccount() ? "block" : "none";
+
     var deleteConfirmWrap = $("proDeleteConfirmWrap");
     if (deleteConfirmWrap) {
       deleteConfirmWrap.style.display = state.isPro ? "block" : "none";
@@ -3486,7 +3515,14 @@
       if ($("proSubscribeDodoBtn")) $("proSubscribeDodoBtn").addEventListener("click", function () { startSubscriptionCheckout("dodo"); });
     }
 
-    if (myIsPro) {
+    if (myIsPro && currentSubscription.provider === "admin") {
+      // Lifetime Pro granted through the admin panel (admin-pro.js) — no real
+      // PayHere/Dodo subscription behind it, so there's nothing for the person
+      // themselves to cancel here (only an admin can revoke it).
+      statusEl.innerHTML = '<span class="badge-good">PRO</span> You have Finora Pro (granted by the Finora team).';
+      box.innerHTML = '<button type="button" class="ghost" id="proRefreshBtn">Refresh Status</button>';
+      $("proRefreshBtn").addEventListener("click", function () { toast("Checking…", "good"); refreshMySubscription().then(refreshWorkspaceProStatus); });
+    } else if (myIsPro) {
       var isDodo = currentSubscription.provider === "dodo";
       statusEl.innerHTML = '<span class="badge-good">PRO</span> You\'re subscribed to Finora Pro' + (isDodo ? " (via card)" : " (via PayHere)") + '.';
       box.innerHTML = '<button type="button" class="ghost" id="proCancelBtn">' + (isDodo ? "Manage Subscription" : "Cancel Subscription") + '</button>' +
@@ -3494,11 +3530,12 @@
       $("proCancelBtn").addEventListener("click", cancelSubscription);
       $("proRefreshBtn").addEventListener("click", function () { toast("Checking…", "good"); refreshMySubscription().then(refreshWorkspaceProStatus); });
     } else if (myBonusActive) {
-      // Bonus Pro from a referral, no real subscription behind it — still show
-      // the subscribe buttons (as an upsell to make it permanent before the
-      // bonus runs out), just no Cancel button since there's nothing to cancel.
+      // Bonus Pro (from a referral, or a fixed-period admin grant) — no real
+      // subscription behind it — still show the subscribe buttons (as an upsell
+      // to make it permanent before the bonus runs out), no Cancel button since
+      // there's nothing to cancel.
       var bonusUntilStr = new Date(currentSubscription.bonus_pro_until).toLocaleDateString();
-      statusEl.innerHTML = '<span class="badge-good">PRO</span> You have bonus Finora Pro from a referral, active until <strong>' + escapeHtml(bonusUntilStr) + '</strong>.';
+      statusEl.innerHTML = '<span class="badge-good">PRO</span> You have bonus Finora Pro active until <strong>' + escapeHtml(bonusUntilStr) + '</strong>.';
       box.innerHTML = subscribeButtonsHtml("Make it permanent — ");
       wireSubscribeButtons();
     } else if (viewingShared && state.isPro) {
@@ -3510,6 +3547,60 @@
       box.innerHTML = subscribeButtonsHtml("");
       wireSubscribeButtons();
     }
+  }
+
+  // Admin panel (Settings → Admin — Grant Finora Pro): look up / grant / revoke Pro
+  // for any account by email, via functions/api/admin-pro.js. The server independently
+  // re-checks the caller's email against ADMIN_EMAILS — this UI being visible is not
+  // what makes a request authorized, so there's no client-side trust placed in it.
+  function adminProAction(action) {
+    if (!cloudSession) { toast("Sign in first.", "error"); return; }
+    var email = ($("adminProEmail").value || "").trim();
+    if (!email) { toast("Enter the user's email first.", "error"); return; }
+    var resultEl = $("adminProResult");
+    var body = { action: action, email: email };
+    if (action === "grant") body.duration = $("adminProDuration").value;
+
+    if (action === "grant" && body.duration === "lifetime") {
+      confirmDialog("Grant LIFETIME Finora Pro to " + email + "? This never expires until revoked.", function () {
+        runAdminProRequest(body, resultEl);
+      });
+      return;
+    }
+    if (action === "revoke") {
+      confirmDialog("Revoke Finora Pro (or any active bonus) for " + email + "? This never touches a real PayHere/Dodo subscription.", function () {
+        runAdminProRequest(body, resultEl);
+      });
+      return;
+    }
+    runAdminProRequest(body, resultEl);
+  }
+
+  function runAdminProRequest(body, resultEl) {
+    resultEl.textContent = "Working…";
+    fetch("/api/admin-pro", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cloudSession.access_token },
+      body: JSON.stringify(body)
+    }).then(function (r) { return r.json().then(function (respBody) { return { ok: r.ok, body: respBody }; }); })
+      .then(function (res) {
+        if (!res.ok || res.body.error) { resultEl.textContent = ""; toast(res.body.error || "Request failed.", "error"); return; }
+        var r = res.body.result;
+        var summary;
+        if (!r.found) {
+          summary = r.email + " — no Finora account found, or no subscription row yet (still Free).";
+        } else if (r.provider === "admin" && r.is_pro) {
+          summary = r.email + " — Pro (lifetime, granted by admin).";
+        } else if (r.bonusActive) {
+          summary = r.email + " — Pro (bonus active until " + new Date(r.bonusProUntil).toLocaleString() + ").";
+        } else if (r.is_pro) {
+          summary = r.email + " — Pro (real " + (r.provider || "") + " subscription).";
+        } else {
+          summary = r.email + " — Free plan.";
+        }
+        resultEl.textContent = summary;
+        toast("Done.", "good");
+      }).catch(function (e) { resultEl.textContent = ""; toast("Request failed: " + e.message, "error"); });
   }
 
   function renderSplitPreview() {
@@ -4094,6 +4185,12 @@
     $("freedomTarget").addEventListener("input", function () { state.freedomTarget = parseFloat($("freedomTarget").value) || 0; renderFreedomTracker(); });
     $("pyfToggle").addEventListener("change", function () { state.pyfEnabled = $("pyfToggle").checked; });
     $("deleteConfirmToggle").addEventListener("change", function () { state.confirmBeforeDelete = $("deleteConfirmToggle").checked; });
+
+    if ($("adminProLookupBtn")) {
+      $("adminProLookupBtn").addEventListener("click", function () { adminProAction("lookup"); });
+      $("adminProGrantBtn").addEventListener("click", function () { adminProAction("grant"); });
+      $("adminProRevokeBtn").addEventListener("click", function () { adminProAction("revoke"); });
+    }
 
     $("appPasswordSaveBtn").addEventListener("click", function () {
       var val = $("appPasswordInput").value;
