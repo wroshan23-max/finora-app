@@ -8,6 +8,7 @@
 /** Verifies a user's access token against Supabase Auth and returns the user object, or null. */
 export async function getUserFromToken(env, token) {
   if (!token) return null;
+try {
   const res = await fetch(env.SUPABASE_URL + "/auth/v1/user", {
     headers: {
       Authorization: "Bearer " + token,
@@ -17,6 +18,10 @@ export async function getUserFromToken(env, token) {
   if (!res.ok) return null;
   const user = await res.json();
   return user && user.id ? user : null;
+} catch (e) {
+  console.error("getUserFromToken: unexpected error:", e.message);
+  return null;
+}
 }
 
 /** Reads a Bearer token out of a Request's Authorization header. */
