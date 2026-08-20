@@ -795,6 +795,18 @@
           <label>Payment due day of month (optional)</label>
           <input type="number" id="liDueDay" min="1" max="31" step="1" placeholder="e.g. 15">
         </div>
+        <div class="field wide">
+          <label style="font-weight:600;">Just received cash for this? (optional)</label>
+          <p class="hint" style="margin-top:2px;">e.g. you pawned gold or took a loan and got cash in hand — pick where it went and Finora adds it for you, so you don't have to log a separate transaction. Leave as "Don't add a transaction" if this liability is old debt you're just entering, or you already recorded the cash yourself.</p>
+        </div>
+        <div class="field">
+          <label>Add the cash into account</label>
+          <select id="liDepositAccount"><option value="">— Don't add a transaction —</option></select>
+        </div>
+        <div class="field">
+          <label>Amount received</label>
+          <input type="number" id="liDepositAmount" min="0" step="0.01" placeholder="Defaults to balance owed above">
+        </div>
         <div class="field">
           <label>&nbsp;</label>
           <button type="button" class="primary" id="liSubmitBtn">Add Liability</button>
@@ -2059,6 +2071,36 @@
     });
   }
 
+  // Net Worth tiles (renderNetWorth) get the same "Tap for breakdown" treatment as
+  // the Cash Flow tiles above — one breakdown source per tile, all account/liability
+  // balances rather than transaction drill-downs, so none of these pass a drillDown.
+  function computeBreakdownByAssetAccount() {
+    return state.accounts.filter(function (a) { return a.type !== "creditcard"; }).map(function (a) {
+      return { key: a.id, label: a.name, value: accountBalanceHome(a.id) };
+    });
+  }
+  function computeBreakdownByCardDebt() {
+    return state.accounts.filter(function (a) { return a.type === "creditcard"; }).map(function (a) {
+      return { key: a.id, label: a.name, value: accountBalanceHome(a.id) };
+    });
+  }
+  function computeBreakdownByLiability() {
+    return state.liabilities.map(function (l) {
+      return { key: l.id, label: l.name, value: computeLiabilityBalance(l.id) };
+    });
+  }
+  // Net Worth = assets − card debt − other liabilities; shown as three signed line
+  // items (debt shown negative) so the modal's own total line reconciles exactly
+  // with the Net Worth figure on the dashboard.
+  function computeNetWorthBreakdown() {
+    var nw = computeNetWorth();
+    return [
+      { key: "assets", label: "Total Assets (Cash + Bank)", value: nw.assets },
+      { key: "cardDebt", label: "Credit Card Debt", value: -nw.cardDebt },
+      { key: "liabilities", label: "Other Liabilities", value: -nw.liabilities }
+    ];
+  }
+
   function computeBreakdownByIncomeSource() {
     var map = {};
     state.transactions.forEach(function (t) {
@@ -2724,13 +2766,15 @@
   function renderNetWorth() {
     var nw = computeNetWorth();
     var tiles = [
-      { label: "Total Assets (Cash + Bank)", value: fmtMoney(nw.assets), cls: "good" },
-      { label: "Credit Card Debt", value: fmtMoney(nw.cardDebt), cls: nw.cardDebt > 0 ? "bad" : "" },
-      { label: "Other Liabilities", value: fmtMoney(nw.liabilities), cls: nw.liabilities > 0 ? "bad" : "" },
-      { label: "Net Worth", value: fmtMoney(nw.netWorth), cls: nw.netWorth >= 0 ? "good" : "bad" }
+      { label: "Total Assets (Cash + Bank)", value: fmtMoney(nw.assets), cls: "good", breakdown: "assets" },
+      { label: "Credit Card Debt", value: fmtMoney(nw.cardDebt), cls: nw.cardDebt > 0 ? "bad" : "", breakdown: "cardDebt" },
+      { label: "Other Liabilities", value: fmtMoney(nw.liabilities), cls: nw.liabilities > 0 ? "bad" : "", breakdown: "liabilities" },
+      { label: "Net Worth", value: fmtMoney(nw.netWorth), cls: nw.netWorth >= 0 ? "good" : "bad", breakdown: "netWorth" }
     ];
     $("netWorthGrid").innerHTML = tiles.map(function (s) {
-      return '<div class="stat-tile"><div class="label">' + s.label + '</div><div class="value ' + (s.cls || "") + '">' + s.value + '</div></div>';
+      return '<div class="stat-tile clickable" data-breakdown="' + s.breakdown + '" tabindex="0" role="button"' +
+        '><div class="label">' + s.label + '</div><div class="value ' + (s.cls || "") + '">' + s.value + '</div>' +
+        '<div class="sub" style="color:var(--series-1);">Tap for breakdown →</div></div>';
     }).join("");
   }
 
@@ -3248,6 +3292,7 @@
       '<div class="card-actions">' +
       '<button type="button" class="ghost small" data-record-interest="' + l.id + '">Record Interest</button>' +
       '<button type="button" class="ghost small" data-record-payment="' + l.id + '">Record Payment</button>' +
+      '<button type="button" class="ghost small" data-edit-liability="' + l.id + '">Edit' + (state.isPro ? "" : " 🔒") + '</button>' +
       '<button type="button" class="ghost small danger" data-delete-liability="' + l.id + '">Delete</button>' +
       '</div></div>';
   }
@@ -3403,6 +3448,11 @@
     $("txAccount").innerHTML = currentTxType === "income" ? incomeAccOpts : accOpts;
     $("filterAccount").innerHTML = '<option value="all">All accounts</option>' + accOpts;
     $("tfFrom").innerHTML = accOpts; $("tfTo").innerHTML = accOpts;
+    if ($("liDepositAccount")) {
+      var prevDeposit = $("liDepositAccount").value;
+      $("liDepositAccount").innerHTML = '<option value="">— Don\'t add a transaction —</option>' + incomeAccOpts;
+      if (prevDeposit && state.accounts.some(function (a) { return a.id === prevDeposit; })) $("liDepositAccount").value = prevDeposit;
+    }
 
     var prevSource = $("txSource").value;
     $("txSource").innerHTML = state.incomeSources.map(function (s) { return '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>'; }).join("") +
@@ -3803,6 +3853,17 @@
         '<div class="field"><label>Pay from account</label><select id="m_account">' + accOpts + '</select></div>' +
         '<div class="field"><label>Date</label><input type="date" id="m_date" value="' + new Date().toISOString().slice(0, 10) + '"></div></div>';
       if (state.accounts.length === 0) body += '<p style="color:var(--status-critical);font-size:12px;">Add an account first.</p>';
+    } else if (mode === "editLiability") {
+      var l3 = liabilityById(contextId);
+      title = "Edit Liability — Pro ✨";
+      body = '<div class="form-grid">' +
+        '<div class="field"><label>Name</label><input type="text" id="m_name" value="' + escapeHtml(l3.name) + '" required></div>' +
+        '<div class="field"><label>Type</label><select id="m_liType">' + LIABILITY_TYPES.map(function (t) { return '<option value="' + t.key + '"' + (t.key === l3.type ? " selected" : "") + '>' + t.icon + ' ' + t.label + '</option>'; }).join("") + '</select></div>' +
+        '<div class="field"><label>Current balance owed</label><input type="text" inputmode="decimal" id="m_opening" value="' + l3.openingBalance + '" required></div>' +
+        '<div class="field"><label>Annual interest rate (%)</label><input type="text" inputmode="decimal" id="m_rate" value="' + (l3.interestRate || 0) + '"></div>' +
+        '<div class="field"><label>Minimum monthly payment</label><input type="text" inputmode="decimal" id="m_minPay" value="' + (l3.minPayment || 0) + '"></div>' +
+        '<div class="field"><label>Payment due day of month (optional)</label><input type="number" id="m_dueDay" min="1" max="31" step="1" value="' + (l3.dueDayOfMonth || "") + '"></div>' +
+        '</div>';
     } else if (mode === "editTransaction") {
       var tx = state.transactions.filter(function (x) { return x.id === contextId; })[0];
       title = "Edit " + (tx.type === "income" ? "Income" : "Expense") + " — Pro ✨";
@@ -3911,6 +3972,21 @@
         if (!payAmt || isNaN(payAmt) || payAmt <= 0) { toast("Please enter a payment amount greater than 0.", "error"); return; }
         if (!accId) { toast("Add an account first so you can pay from it.", "error"); return; }
         state.transactions.push({ id: uid(), type: "liabilityPayment", liabilityId: id, accountId: accId, amount: payAmt, date: $("m_date").value || new Date().toISOString().slice(0, 10) });
+      } else if (mode === "editLiability") {
+        if (!state.isPro) { toast("Editing liabilities requires Pro.", "error"); return; }
+        var liNameVal = $("m_name").value.trim();
+        if (!liNameVal) { toast("Please enter a liability name.", "error"); return; }
+        var openingVal = evalAmount($("m_opening").value);
+        if (isNaN(openingVal)) { toast("Please enter a valid balance owed.", "error"); return; }
+        var lEdit = liabilityById(id);
+        lEdit.name = liNameVal;
+        lEdit.type = $("m_liType").value;
+        lEdit.openingBalance = openingVal;
+        lEdit.interestRate = evalAmount($("m_rate").value) || 0;
+        lEdit.minPayment = evalAmount($("m_minPay").value) || 0;
+        var dueDayEditRaw = parseInt($("m_dueDay").value, 10);
+        lEdit.dueDayOfMonth = (dueDayEditRaw >= 1 && dueDayEditRaw <= 31) ? dueDayEditRaw : null;
+        toast("Liability updated.", "good");
       } else if (mode === "editTransaction") {
         if (!state.isPro) { toast("Editing entries requires Pro.", "error"); return; }
         var editAmt = evalAmount($("m_amount").value);
@@ -4023,6 +4099,15 @@
       if (recInt) { openActionModal("recordInterest", recInt); return; }
       var recPay = evt.target.getAttribute && evt.target.getAttribute("data-record-payment");
       if (recPay) { openActionModal("recordPayment", recPay); return; }
+      var editLi = evt.target.getAttribute && evt.target.getAttribute("data-edit-liability");
+      if (editLi) {
+        if (!state.isPro) {
+          confirmDialog("Editing liabilities is a Finora Pro feature. Open Settings to enable Pro?", function () { activateTab("settings"); });
+        } else {
+          openActionModal("editLiability", editLi);
+        }
+        return;
+      }
       var delLi = evt.target.getAttribute && evt.target.getAttribute("data-delete-liability");
       if (delLi) {
         confirmDeleteAction("Delete this liability and its history?", function () {
@@ -4105,16 +4190,40 @@
       var openingRaw = $("liOpening").value;
       if (openingRaw === "" || isNaN(parseFloat(openingRaw))) { toast("Please enter the current balance owed.", "error"); $("liOpening").focus(); return; }
       var dueDayRaw = parseInt($("liDueDay").value, 10);
+      var openingBal = parseFloat($("liOpening").value) || 0;
       state.liabilities.push({
         id: uid(), name: name, type: $("liType").value,
-        openingBalance: parseFloat($("liOpening").value) || 0,
+        openingBalance: openingBal,
         interestRate: parseFloat($("liRate").value) || 0,
         minPayment: parseFloat($("liMinPay").value) || 0,
         dueDayOfMonth: (dueDayRaw >= 1 && dueDayRaw <= 31) ? dueDayRaw : null
       });
+      // Optional: if cash actually landed in an account (e.g. gold pawning, a loan
+      // paid out as cash), add it as an "adjustment" — not "income" — so it bumps
+      // the account balance (and Net Worth's assets) without inflating Total Income,
+      // Savings Rate, or the 6 Jars split. Net Worth is unaffected overall since the
+      // liability recorded above offsets it exactly, which is the correct picture:
+      // pawning/borrowing converts collateral or future repayment into cash today,
+      // it doesn't create wealth.
+      var depositAccId = $("liDepositAccount") ? $("liDepositAccount").value : "";
+      if (depositAccId) {
+        var depositRaw = $("liDepositAmount").value;
+        var depositAmt = depositRaw === "" ? openingBal : (parseFloat(depositRaw) || 0);
+        if (depositAmt > 0) {
+          var depAcc = accountById(depositAccId);
+          if (depAcc) {
+            state.transactions.push({
+              id: uid(), type: "adjustment", accountId: depositAccId,
+              delta: accountDelta(depAcc.type, "in", depositAmt),
+              date: new Date().toISOString().slice(0, 10),
+              note: "Cash received — " + name
+            });
+          }
+        }
+      }
       $("liabilityForm").reset();
       renderAll();
-      toast('Liability "' + name + '" added.', "good");
+      toast('Liability "' + name + '" added.' + (depositAccId ? " Cash added to your account too." : ""), "good");
     }
     $("liSubmitBtn").addEventListener("click", submitLiabilityForm);
     bindEnterKey($("liabilityForm"), submitLiabilityForm);
@@ -4525,6 +4634,10 @@
       if (kind === "account") openBreakdownModal("Main Balance — by Account", computeBreakdownByAccount());
       else if (kind === "income") openBreakdownModal("Total Income — by Source", computeBreakdownByIncomeSource(), { txType: "income" });
       else if (kind === "expense") openBreakdownModal("Total Expense — by Category", computeBreakdownByExpenseCategory(), { txType: "expense" });
+      else if (kind === "assets") openBreakdownModal("Total Assets — by Account", computeBreakdownByAssetAccount());
+      else if (kind === "cardDebt") openBreakdownModal("Credit Card Debt — by Card", computeBreakdownByCardDebt());
+      else if (kind === "liabilities") openBreakdownModal("Other Liabilities — by Liability", computeBreakdownByLiability());
+      else if (kind === "netWorth") openBreakdownModal("Net Worth — Breakdown", computeNetWorthBreakdown());
       else if (kind === "reportIncome" && lastReportContext) {
         openBreakdownModal("Income — " + lastReportContext.periodLabel + " — by Source",
           computeIncomeBreakdownForPeriod(lastReportContext.startDate, lastReportContext.endExclusive),
