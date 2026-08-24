@@ -162,6 +162,24 @@
     background: transparent; padding: 10px 14px; color: var(--text-secondary); font-weight: 600; font-size: 13px;
     transition: background-color .12s, border-bottom-color .12s, color .12s;
   }
+  .tab-ic { display: none; }
+  /* On narrow screens, 8 text tabs wrapping into several rows ate a lot of
+     vertical space before any real content — switch to a single horizontally
+     scrollable row of compact icon+label buttons instead (see Aug 2026 UX
+     audit). Swiping sideways to find a tab is a well-established mobile
+     pattern and needed no changes to the tab-switching logic itself. */
+  @media (max-width: 640px) {
+    nav.tabs {
+      flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+      scrollbar-width: none; margin-left: -4px; margin-right: -4px; padding: 0 4px;
+    }
+    nav.tabs::-webkit-scrollbar { display: none; }
+    nav.tabs button {
+      flex: 0 0 auto; white-space: nowrap; padding: 9px 10px; font-size: 12px;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .tab-ic { display: inline-block; font-size: 14px; }
+  }
   nav.tabs button.active { color: var(--text-primary); border-bottom-color: var(--series-1); background: var(--series-1-tint); }
   /* Each tab gets its own accent color (underline + a soft background tint) for a
      lively, easy-to-scan nav bar — Settings stays neutral since it's a utility tab,
@@ -445,14 +463,14 @@
   <div id="workspaceBanner" class="card" style="display:none;margin-bottom:16px;background:#eef6ff;border:1px solid rgba(42,120,214,0.25);font-size:13px;"></div>
 
   <nav class="tabs">
-    <button data-tab="dashboard" class="active">Dashboard</button>
-    <button data-tab="transactions">Transactions</button>
-    <button data-tab="transfers">Transfers</button>
-    <button data-tab="accounts">Accounts</button>
-    <button data-tab="liabilities">Liabilities</button>
-    <button data-tab="jars">6 Jars &amp; Freedom</button>
-    <button data-tab="reports">Reports</button>
-    <button data-tab="settings">Settings</button>
+    <button data-tab="dashboard" class="active"><span class="tab-ic">🏠</span> Dashboard</button>
+    <button data-tab="transactions"><span class="tab-ic">💳</span> Transactions</button>
+    <button data-tab="transfers"><span class="tab-ic">⇄</span> Transfers</button>
+    <button data-tab="accounts"><span class="tab-ic">🏦</span> Accounts</button>
+    <button data-tab="liabilities"><span class="tab-ic">📉</span> Liabilities</button>
+    <button data-tab="jars"><span class="tab-ic">🏺</span> 6 Jars &amp; Freedom</button>
+    <button data-tab="reports"><span class="tab-ic">📊</span> Reports</button>
+    <button data-tab="settings"><span class="tab-ic">⚙️</span> Settings</button>
   </nav>
 
   <!-- Moved below the tab bar so people can navigate straight away instead of
@@ -473,14 +491,17 @@
 
     <div class="card" id="healthScoreCard">
       <h2>🏆 Financial Health Score</h2>
-      <div class="health-score-wrap">
+      <div id="healthScoreEmpty" style="display:none;">
+        <p class="hint" style="margin:0;">✨ Add your first account to see your Financial Health Score here — it checks in on your savings rate, net worth, and debt payoff progress once there's something to measure. Nothing to worry about yet!</p>
+      </div>
+      <div class="health-score-wrap" id="healthScoreWrap">
         <div class="health-score-num" id="healthScoreNum">—</div>
         <div>
           <div class="health-score-band" id="healthScoreBand"></div>
           <div id="healthScoreBreakdown" style="font-size:12px;color:var(--text-secondary);line-height:1.7;"></div>
         </div>
       </div>
-      <p class="hint" style="margin-top:10px;margin-bottom:0;">A general indicator based on your savings rate, net worth, and debt payoff progress — not financial advice.</p>
+      <p class="hint" id="healthScoreDisclaimer" style="margin-top:10px;margin-bottom:0;">A general indicator based on your savings rate, net worth, and debt payoff progress — not financial advice.</p>
     </div>
 
     <div class="stat-section-label">Net Worth</div>
@@ -662,7 +683,11 @@
           <option value="all">All accounts</option>
         </select>
         <button id="exportCsvBtn" class="ghost">Export CSV</button>
+        <button id="importCsvBtn" class="ghost">📥 Import CSV</button>
+        <button id="pasteSmsBtn" class="ghost">💬 Paste SMS / message</button>
+        <input type="file" id="csvImportFile" accept=".csv,text/csv" class="file-input-hidden">
       </div>
+      <p class="hint" style="margin-top:8px;">Got a statement from your bank? <strong>Import CSV</strong> reads a downloaded statement in bulk. Got a single transaction SMS/notification? <strong>Paste SMS</strong> fills in one transaction from the text — Finora can't read your phone's messages directly (browsers don't allow that), but pasting the text in is nearly as fast.</p>
       <div style="overflow-x:auto;">
         <table id="txTable">
           <thead>
@@ -1032,6 +1057,16 @@
     </div>
 
     <div class="card">
+      <h2>🔔 Reminders</h2>
+      <p class="hint">Nudge yourself to log expenses and stay on top of upcoming bill payments, right from your browser — no app install needed. <strong>Note:</strong> these use your browser's Notification permission, so they only arrive while this browser is running (not if it's fully closed) — a heads up rather than a guarantee.</p>
+      <label style="font-size:12px;display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <input type="checkbox" id="reminderToggle">
+        Remind me if I haven't logged anything today, and about upcoming bill due dates
+      </label>
+      <p class="hint" id="reminderStatusText" style="margin:0;"></p>
+    </div>
+
+    <div class="card">
       <h2>✨ Finora Pro</h2>
       <p class="hint" id="proStatusText"></p>
       <details style="margin:0 0 12px;">
@@ -1295,6 +1330,82 @@
   </div>
 </div>
 
+<!-- First-run walkthrough — shown once to a brand-new visitor with no accounts
+     yet, dismissed permanently (locally) once seen. See Aug 2026 UX audit. -->
+<div class="modal-overlay" id="onboardingModal">
+  <div class="modal" style="max-width:460px;">
+    <div style="font-size:36px;text-align:center;margin-bottom:4px;" id="onboardingEmoji"></div>
+    <h2 id="onboardingTitle" style="text-align:center;"></h2>
+    <p id="onboardingBody" style="text-align:center;"></p>
+    <div style="display:flex;justify-content:center;gap:6px;margin:14px 0 2px;" id="onboardingDots"></div>
+    <div class="modal-actions" style="justify-content:space-between;align-items:center;">
+      <button type="button" class="ghost small" id="onboardingSkip">Skip</button>
+      <div style="display:flex;gap:8px;">
+        <button type="button" class="ghost" id="onboardingBack">Back</button>
+        <button type="button" class="primary" id="onboardingNext">Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CSV bank-statement import — see Aug 2026 UX audit: manual-only entry was
+     flagged as the biggest single retention risk vs. apps with any automation. -->
+<div class="modal-overlay" id="csvImportModal">
+  <div class="modal" style="max-width:640px;">
+    <h2>📥 Import from CSV</h2>
+    <div id="csvImportStep1">
+      <p class="hint">Map the columns from your bank/card statement export, choose some defaults, then preview before anything is added.</p>
+      <div class="settings-grid">
+        <div class="field"><label>Date column</label><select id="csvColDate"></select></div>
+        <div class="field"><label>Amount column</label><select id="csvColAmount"></select></div>
+        <div class="field"><label>Description / note column (optional)</label><select id="csvColNote"></select></div>
+        <div class="field"><label>How to read the amount column</label>
+          <select id="csvAmountMode">
+            <option value="sign">Negative = expense, positive = income</option>
+            <option value="allExpense">Every row is an Expense</option>
+            <option value="allIncome">Every row is Income</option>
+          </select>
+        </div>
+        <div class="field"><label>Import into account</label><select id="csvAccount"></select></div>
+        <div class="field"><label>Default expense category</label><select id="csvCategory"></select></div>
+        <div class="field"><label>Default expense jar</label><select id="csvJar"></select></div>
+        <div class="field"><label>Default income source</label><select id="csvSource"></select></div>
+      </div>
+      <p class="hint" id="csvImportStep1Hint" style="margin-top:10px;"></p>
+      <div class="modal-actions">
+        <button type="button" class="ghost" id="csvImportCancel1">Cancel</button>
+        <button type="button" class="primary" id="csvImportPreviewBtn">Preview →</button>
+      </div>
+    </div>
+    <div id="csvImportStep2" style="display:none;">
+      <p class="hint" id="csvImportSummary"></p>
+      <div style="max-height:320px;overflow:auto;border:1px solid var(--border);border-radius:10px;">
+        <table style="width:100%;font-size:12px;border-collapse:collapse;" id="csvPreviewTable"></table>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="ghost" id="csvImportBackBtn">← Back</button>
+        <button type="button" class="primary" id="csvImportConfirmBtn">Import</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Paste-a-message quick add — the honest, feasible substitute for automatic
+     SMS reading: browsers give web pages no access to a phone's SMS inbox, so
+     this parses whatever text you paste in instead of typing amount/date by
+     hand. See Aug 2026 UX audit. -->
+<div class="modal-overlay" id="smsPasteModal">
+  <div class="modal" style="max-width:440px;">
+    <h2>💬 Paste SMS / message</h2>
+    <p class="hint">Paste a bank SMS or payment notification below — Finora will try to pull out the amount, date, and a short note, and fill in the <strong>Add a Transaction</strong> form on your Dashboard so you can check it and add it.</p>
+    <div class="field"><textarea id="smsPasteInput" rows="4" style="width:100%;font-family:inherit;" placeholder="e.g. Your a/c ...1234 debited LKR 2,500.00 on 24-08-2026 at FOOD CITY. Avl bal Rs 45,000.00"></textarea></div>
+    <div class="modal-actions">
+      <button type="button" class="ghost" id="smsPasteCancel">Cancel</button>
+      <button type="button" class="primary" id="smsPasteParseBtn">Fill in the form →</button>
+    </div>
+  </div>
+</div>
+
 <div class="fab-stack" id="fabStack">
   <button type="button" class="fab fab-income" id="fabIncome" title="Quick add Income" aria-label="Quick add Income">+</button>
   <button type="button" class="fab fab-expense" id="fabExpense" title="Quick add Expense" aria-label="Quick add Expense">−</button>
@@ -1433,6 +1544,25 @@
     } catch (e) { /* localStorage/history blocked — referral just won't be attributed */ }
   })();
 
+  // Best-effort guess at a new visitor's home currency from their browser locale/
+  // timezone, so Sri Lankan visitors (Finora's current primary market — see the
+  // Aug 2026 UX audit) see Rs amounts from the very first screen instead of $,
+  // without having to find the currency dropdown themselves. Anyone can still
+  // change it any time from the header. Falls back to USD, same as before, for
+  // everyone else.
+  function guessDefaultCurrency() {
+    try {
+      var tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+      if (tz === "Asia/Colombo") return "LKR";
+      var langs = (navigator.languages || [navigator.language || navigator.userLanguage || ""]);
+      for (var i = 0; i < langs.length; i++) {
+        var l = (langs[i] || "").toLowerCase();
+        if (l.indexOf("-lk") !== -1 || l === "si" || l.indexOf("si-") === 0) return "LKR";
+      }
+    } catch (e) { /* Intl/navigator unavailable — fall back below */ }
+    return "USD";
+  }
+
   /* ================= State (in-memory only, no browser storage) ================= */
   var state = {
     transactions: [],
@@ -1441,7 +1571,7 @@
     incomeSources: DEFAULT_INCOME_SOURCES.slice(),
     expenseCategories: DEFAULT_EXPENSE_CATEGORIES.slice(),
     jarPct: Object.assign({}, DEFAULT_PCT),
-    homeCurrency: "USD",
+    homeCurrency: guessDefaultCurrency(),
     freedomTarget: 100000,
     theme: "light",
     pyfEnabled: true,
@@ -1726,6 +1856,68 @@
         '<span>' + icon + ' <strong>' + escapeHtml(d.liability.name) + '</strong> payment ' + when + ' — ' + fmtMoney(d.balance) + ' owed</span>' +
         '<button class="ghost small" data-goto-tab="liabilities">View</button></div>';
     }).join("");
+  }
+
+  /* ================= Opt-in reminder notifications =================
+     A best-effort answer to "nothing ever brings a lapsed user back" from
+     the Aug 2026 UX audit. Uses the plain browser Notification API — no new
+     backend needed — so it can only fire while this browser is actually
+     running (a real "push while fully closed" system needs a server pushing
+     via VAPID + a service worker, which is a bigger follow-up, not this).
+     Preference is per-browser (localStorage), not synced — Notification
+     permission itself is per-browser too, so syncing the toggle wouldn't help. */
+  function reminderPrefEnabled() {
+    try { return localStorage.getItem("finora_reminders_enabled") === "1"; } catch (e) { return false; }
+  }
+
+  function updateReminderUi() {
+    var toggle = $("reminderToggle"), status = $("reminderStatusText");
+    if (!toggle || !status) return;
+    if (!("Notification" in window)) { status.textContent = "Your browser doesn't support notifications."; toggle.disabled = true; return; }
+    var enabled = reminderPrefEnabled();
+    toggle.checked = enabled;
+    if (Notification.permission === "denied") status.textContent = "Blocked in your browser's site settings — allow notifications for this site to turn this on.";
+    else if (enabled && Notification.permission === "granted") status.textContent = "On — you'll get a reminder at most once a day, only while this browser is open.";
+    else if (enabled) status.textContent = "Almost — allow the notification permission prompt to finish turning this on.";
+    else status.textContent = "Off.";
+  }
+
+  function setupReminders() {
+    if (!$("reminderToggle")) return;
+    updateReminderUi();
+    $("reminderToggle").addEventListener("change", function () {
+      var toggle = this;
+      if (toggle.checked) {
+        if (!("Notification" in window)) { toast("Notifications aren't supported in this browser.", "error"); toggle.checked = false; return; }
+        Notification.requestPermission().then(function (perm) {
+          try { localStorage.setItem("finora_reminders_enabled", perm === "granted" ? "1" : "0"); } catch (e) { /* private mode */ }
+          toast(perm === "granted" ? "Reminders on." : "Notification permission wasn't granted.", perm === "granted" ? "good" : "error");
+          updateReminderUi();
+        });
+      } else {
+        try { localStorage.setItem("finora_reminders_enabled", "0"); } catch (e) { /* private mode */ }
+        updateReminderUi();
+      }
+    });
+  }
+
+  // Checked once per app load; throttled to at most once a day per browser via
+  // localStorage so it's a gentle nudge, not spam.
+  function maybeFireReminder() {
+    if (!("Notification" in window) || Notification.permission !== "granted" || !reminderPrefEnabled()) return;
+    if (state.accounts.length === 0) return; // nothing to remind a brand-new visitor about yet
+    var todayStr = new Date().toISOString().slice(0, 10);
+    try { if (localStorage.getItem("finora_last_reminder_at") === todayStr) return; } catch (e) { return; }
+    var dues = computeUpcomingLiabilityDues(2, 0);
+    var loggedToday = state.transactions.some(function (t) { return (t.type === "income" || t.type === "expense") && t.date === todayStr; });
+    var lines = [];
+    if (dues.length) lines.push(dues.length + (dues.length === 1 ? " bill payment" : " bill payments") + " due soon.");
+    if (!loggedToday) lines.push("Nothing logged today yet.");
+    if (!lines.length) return;
+    try {
+      new Notification("Finora", { body: lines.join(" "), icon: "/icons/icon-192.png" });
+      localStorage.setItem("finora_last_reminder_at", todayStr);
+    } catch (e) { /* some browsers require a service worker registration for this — fail quietly */ }
   }
 
   // Home-currency equivalent of an account's own balance (native balance × its exchange rate).
@@ -2797,9 +2989,19 @@
 
   /* ================= Rendering: stats ================= */
   function renderHealthScore() {
-    var h = computeHealthScore();
     var numEl = $("healthScoreNum"), bandEl = $("healthScoreBand"), breakdownEl = $("healthScoreBreakdown");
+    var emptyEl = $("healthScoreEmpty"), wrapEl = $("healthScoreWrap"), disclaimerEl = $("healthScoreDisclaimer");
     if (!numEl) return;
+    // A brand-new account with nothing added yet would otherwise score a flat 45
+    // ("Needs Attention") purely from the neutral-midpoint fallbacks below — that
+    // reads as "something's wrong" to someone who's done nothing wrong yet. Show
+    // an inviting empty state instead until there's at least one account.
+    var hasAccounts = state.accounts.length > 0;
+    if (emptyEl) emptyEl.style.display = hasAccounts ? "none" : "block";
+    if (wrapEl) wrapEl.style.display = hasAccounts ? "flex" : "none";
+    if (disclaimerEl) disclaimerEl.style.display = hasAccounts ? "block" : "none";
+    if (!hasAccounts) return;
+    var h = computeHealthScore();
     numEl.textContent = h.score;
     numEl.style.color = h.bandColor;
     bandEl.textContent = h.band;
@@ -4462,7 +4664,7 @@
         state.jarPct = Object.assign({}, DEFAULT_PCT, incoming.jarPct || {});
         state.jarBudgets = incoming.jarBudgets || {};
         state.categoryBudgets = incoming.categoryBudgets || {};
-        state.homeCurrency = incoming.homeCurrency || incoming.currency || "USD";
+        state.homeCurrency = incoming.homeCurrency || incoming.currency || guessDefaultCurrency();
         state.freedomTarget = incoming.freedomTarget || 0;
         state.pyfEnabled = incoming.pyfEnabled !== undefined ? incoming.pyfEnabled : true;
         state.confirmBeforeDelete = incoming.confirmBeforeDelete !== undefined ? incoming.confirmBeforeDelete : true;
@@ -4770,6 +4972,316 @@
     });
   }
 
+  /* ================= First-run onboarding walkthrough =================
+     A short, skippable 4-step tour shown once to a brand-new visitor who has
+     no accounts yet — added after the Aug 2026 UX audit found first-timers
+     got nothing but a single hint line. Never shown again once dismissed
+     (Skip or finishing the last step), tracked locally per browser. */
+  var ONBOARDING_STEPS = [
+    {
+      emoji: "👋",
+      title: "Welcome to Finora!",
+      body: "Finora helps you manage money using the <strong>6 Jars</strong> method — a simple system where every rupee you earn is automatically split across six purposes, so nothing falls through the cracks."
+    },
+    {
+      emoji: "🏺",
+      title: "Meet your 6 Jars",
+      body: "<strong>Necessities</strong>, <strong>Financial Freedom</strong>, <strong>Long-Term Savings</strong>, <strong>Education</strong>, <strong>Play</strong>, and <strong>Give</strong>. Every time you log income, Finora splits it across these automatically — you can adjust the percentages anytime in Settings."
+    },
+    {
+      emoji: "🏦",
+      title: "Start with your accounts",
+      body: "Add your cash and bank accounts first — that's what Finora uses to calculate your Net Worth and lets you start logging income and expenses. Takes a few seconds."
+    },
+    {
+      emoji: "📊",
+      title: "Everything else follows",
+      body: "Once you're logging transactions, Finora tracks your Net Worth, savings goals, and liabilities automatically — and you can sign in anytime to back everything up to the cloud, free."
+    }
+  ];
+  var onboardingStepIndex = 0;
+  var onboardingAlreadyChecked = false;
+
+  function renderOnboardingStep() {
+    var step = ONBOARDING_STEPS[onboardingStepIndex];
+    $("onboardingEmoji").textContent = step.emoji;
+    $("onboardingTitle").textContent = step.title;
+    $("onboardingBody").innerHTML = step.body;
+    $("onboardingDots").innerHTML = ONBOARDING_STEPS.map(function (s, i) {
+      return '<span style="width:7px;height:7px;border-radius:50%;background:' +
+        (i === onboardingStepIndex ? "var(--series-1)" : "var(--grid)") + ';display:inline-block;"></span>';
+    }).join("");
+    $("onboardingBack").style.visibility = onboardingStepIndex === 0 ? "hidden" : "visible";
+    var isLast = onboardingStepIndex === ONBOARDING_STEPS.length - 1;
+    $("onboardingNext").textContent = isLast ? "Add my first account →" : "Next";
+  }
+
+  function dismissOnboarding() {
+    $("onboardingModal").classList.remove("show");
+    try { localStorage.setItem("finora_onboarding_dismissed", "1"); } catch (e) { /* private mode — will just show again next visit */ }
+  }
+
+  function openOnboardingModal() {
+    onboardingStepIndex = 0;
+    renderOnboardingStep();
+    $("onboardingModal").classList.add("show");
+  }
+
+  // Called after we know for certain whether this visitor has real data —
+  // both the fully-offline path (no Cloud Sync configured) and every Cloud
+  // Sync outcome (anonymous, first-ever sync, or existing cloud data loaded)
+  // funnel through here so the tour is checked exactly once, with accurate
+  // state, regardless of which path a given visitor took.
+  function maybeShowOnboarding() {
+    if (onboardingAlreadyChecked) return;
+    if (state.accounts.length > 0) return; // real user with real data — never interrupt them
+    if (typeof welcomeFlow !== "undefined" && welcomeFlow) return; // referral/welcome links get their own guided prompt
+    if (typeof inPasswordRecovery !== "undefined" && inPasswordRecovery) return;
+    var dismissed = false;
+    try { dismissed = localStorage.getItem("finora_onboarding_dismissed") === "1"; } catch (e) { /* private mode — treat as not dismissed */ }
+    if (dismissed) return;
+    onboardingAlreadyChecked = true;
+    openOnboardingModal();
+  }
+
+  function setupOnboardingModal() {
+    $("onboardingNext").addEventListener("click", function () {
+      if (onboardingStepIndex < ONBOARDING_STEPS.length - 1) {
+        onboardingStepIndex++;
+        renderOnboardingStep();
+      } else {
+        dismissOnboarding();
+        activateTab("accounts");
+      }
+    });
+    $("onboardingBack").addEventListener("click", function () {
+      if (onboardingStepIndex > 0) { onboardingStepIndex--; renderOnboardingStep(); }
+    });
+    $("onboardingSkip").addEventListener("click", dismissOnboarding);
+    $("onboardingModal").addEventListener("click", function (evt) {
+      if (evt.target === $("onboardingModal")) dismissOnboarding();
+    });
+  }
+
+  /* ================= CSV bank-statement import =================
+     Added after the Aug 2026 UX audit flagged fully-manual entry as the
+     single biggest retention risk vs. apps with any kind of automated
+     import. Two-step flow: map columns + pick defaults, preview the parsed
+     result, then confirm — nothing is added to state.transactions until the
+     final confirm click. */
+  function pad2(n) { n = String(n); return n.length < 2 ? "0" + n : n; }
+
+  // Minimal RFC4180-ish CSV parser — handles quoted fields, embedded commas,
+  // escaped ("") quotes, and both \n and \r\n line endings. No dependency needed
+  // for the row counts a personal bank statement export realistically has.
+  function parseCsvText(text) {
+    var rows = [], row = [], field = "", inQuotes = false;
+    for (var i = 0; i < text.length; i++) {
+      var c = text[i];
+      if (inQuotes) {
+        if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQuotes = false; }
+        else field += c;
+      } else if (c === '"') inQuotes = true;
+      else if (c === ",") { row.push(field); field = ""; }
+      else if (c === "\n" || c === "\r") {
+        if (c === "\r" && text[i + 1] === "\n") i++;
+        row.push(field); field = "";
+        if (row.length > 1 || row[0] !== "") rows.push(row);
+        row = [];
+      } else field += c;
+    }
+    if (field !== "" || row.length) { row.push(field); rows.push(row); }
+    return rows;
+  }
+
+  // Tries a handful of common statement date formats (ISO, DD/MM/YYYY,
+  // DD-MMM-YY like bank SMS use, and falls back to the browser's own parser)
+  // and normalizes to Finora's internal YYYY-MM-DD. Returns null if nothing worked.
+  function parseFlexibleDate(str) {
+    if (!str) return null;
+    str = String(str).trim();
+    var m;
+    if ((m = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/))) return m[1] + "-" + pad2(m[2]) + "-" + pad2(m[3]);
+    if ((m = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/))) return m[3] + "-" + pad2(m[2]) + "-" + pad2(m[1]);
+    var months = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+    if ((m = str.match(/^(\d{1,2})[-\s]([A-Za-z]{3,})[-\s](\d{2,4})/))) {
+      var mo = months[m[2].toLowerCase().slice(0, 3)];
+      if (mo) { var yr = m[3].length === 2 ? (2000 + parseInt(m[3], 10)) : parseInt(m[3], 10); return yr + "-" + pad2(mo) + "-" + pad2(m[1]); }
+    }
+    var d = new Date(str);
+    if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+    return null;
+  }
+
+  function parseCsvAmount(str) {
+    if (str === undefined || str === null) return NaN;
+    var cleaned = String(str).replace(/[^0-9.\-]/g, "");
+    return cleaned === "" ? NaN : parseFloat(cleaned);
+  }
+
+  var csvImportRows = null; // array of raw data rows (header row excluded)
+  var csvImportHeaders = null;
+  var csvPreviewParsed = null; // filled in at preview time
+
+  function openCsvImportModal() {
+    if (state.accounts.length === 0) { toast("Add an account first.", "error"); return; }
+    var dateSel = $("csvColDate"), amtSel = $("csvColAmount"), noteSel = $("csvColNote");
+    var opts = csvImportHeaders.map(function (h, i) { return '<option value="' + i + '">' + escapeHtml(h || ("Column " + (i + 1))) + '</option>'; }).join("");
+    dateSel.innerHTML = opts;
+    amtSel.innerHTML = opts;
+    noteSel.innerHTML = '<option value="-1">(none)</option>' + opts;
+    csvImportHeaders.forEach(function (h, i) {
+      var hl = (h || "").toLowerCase();
+      if (/date/.test(hl)) dateSel.value = String(i);
+      if (/amount|amt|value|debit|credit|withdrawal|deposit/.test(hl)) amtSel.value = String(i);
+      if (/desc|note|narrat|remark|detail|particular|payee|merchant/.test(hl)) noteSel.value = String(i);
+    });
+    $("csvAccount").innerHTML = state.accounts.map(function (a) { return '<option value="' + a.id + '">' + escapeHtml(a.name) + '</option>'; }).join("");
+    $("csvCategory").innerHTML = state.expenseCategories.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join("");
+    $("csvJar").innerHTML = JARS.map(function (j) { return '<option value="' + j.key + '">' + escapeHtml(j.name) + '</option>'; }).join("");
+    $("csvSource").innerHTML = state.incomeSources.map(function (s) { return '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>'; }).join("");
+    $("csvImportStep1Hint").textContent = csvImportRows.length + " row(s) found in the file.";
+    $("csvImportStep1").style.display = "block";
+    $("csvImportStep2").style.display = "none";
+    $("csvImportModal").classList.add("show");
+  }
+
+  function buildCsvPreview() {
+    var dateCol = parseInt($("csvColDate").value, 10);
+    var amtCol = parseInt($("csvColAmount").value, 10);
+    var noteCol = parseInt($("csvColNote").value, 10);
+    var mode = $("csvAmountMode").value;
+    var accountId = $("csvAccount").value;
+    var category = $("csvCategory").value;
+    var jar = $("csvJar").value;
+    var source = $("csvSource").value;
+    var parsed = csvImportRows.map(function (row) {
+      var date = parseFlexibleDate(row[dateCol]);
+      var rawAmt = parseCsvAmount(row[amtCol]);
+      var note = noteCol >= 0 ? (row[noteCol] || "").trim() : "";
+      if (!date || isNaN(rawAmt) || rawAmt === 0) return { ok: false, raw: row };
+      var type = mode === "allExpense" ? "expense" : mode === "allIncome" ? "income" : (rawAmt < 0 ? "expense" : "income");
+      return { ok: true, date: date, amount: Math.round(Math.abs(rawAmt) * 100) / 100, note: note, type: type, accountId: accountId, category: category, jar: jar, source: source };
+    });
+    csvPreviewParsed = parsed;
+    var okRows = parsed.filter(function (p) { return p.ok; });
+    var skipped = parsed.length - okRows.length;
+    $("csvImportSummary").innerHTML = 'Ready to import <strong>' + okRows.length + '</strong> transaction(s) into <strong>' +
+      escapeHtml(accountById(accountId) ? accountById(accountId).name : "") + '</strong>' +
+      (skipped ? ' — <strong>' + skipped + '</strong> row(s) skipped (couldn\'t read a date or amount).' : '.');
+    var maxPreviewRows = 200;
+    var rowsHtml = okRows.slice(0, maxPreviewRows).map(function (p) {
+      return '<tr><td style="padding:5px 8px;border-bottom:1px solid var(--grid);">' + p.date + '</td>' +
+        '<td style="padding:5px 8px;border-bottom:1px solid var(--grid);">' + (p.type === "income" ? "Income" : "Expense") + '</td>' +
+        '<td style="padding:5px 8px;border-bottom:1px solid var(--grid);text-align:right;">' + fmtMoneyIn(p.amount, accountCurrency(accountById(p.accountId))) + '</td>' +
+        '<td style="padding:5px 8px;border-bottom:1px solid var(--grid);">' + escapeHtml(p.note || "") + '</td></tr>';
+    }).join("");
+    $("csvPreviewTable").innerHTML =
+      '<thead><tr><th style="text-align:left;padding:5px 8px;">Date</th><th style="text-align:left;padding:5px 8px;">Type</th><th style="text-align:right;padding:5px 8px;">Amount</th><th style="text-align:left;padding:5px 8px;">Note</th></tr></thead><tbody>' +
+      (rowsHtml || '<tr><td colspan="4" style="padding:10px;color:var(--text-muted);">Nothing parsed — check your column mapping.</td></tr>') + '</tbody>';
+    if (okRows.length > maxPreviewRows) {
+      $("csvPreviewTable").innerHTML += '<tfoot><tr><td colspan="4" style="padding:6px 8px;color:var(--text-muted);">…and ' + (okRows.length - maxPreviewRows) + ' more not shown in this preview, but will still be imported.</td></tr></tfoot>';
+    }
+    $("csvImportStep1").style.display = "none";
+    $("csvImportStep2").style.display = "block";
+  }
+
+  function confirmCsvImport() {
+    if (!csvPreviewParsed) return;
+    var added = 0;
+    csvPreviewParsed.filter(function (p) { return p.ok; }).forEach(function (p) {
+      var tx = { id: uid(), type: p.type, amount: p.amount, date: p.date, note: p.note, accountId: p.accountId, isBusiness: false };
+      if (p.type === "expense") { tx.category = p.category; tx.jar = p.jar; } else { tx.source = p.source; }
+      state.transactions.push(tx);
+      added++;
+    });
+    renderAll();
+    $("csvImportModal").classList.remove("show");
+    csvImportRows = null; csvImportHeaders = null; csvPreviewParsed = null;
+    toast("Imported " + added + " transaction(s).", "good");
+  }
+
+  function setupCsvImport() {
+    $("importCsvBtn").addEventListener("click", function () { $("csvImportFile").click(); });
+    $("csvImportFile").addEventListener("change", function () {
+      var file = this.files && this.files[0];
+      this.value = "";
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        var allRows = parseCsvText(String(reader.result || "")).filter(function (r) { return r.some(function (c) { return c !== ""; }); });
+        if (allRows.length === 0) { toast("That file looks empty.", "error"); return; }
+        // Heuristic: treat the first row as a header row unless its cells look
+        // like actual data (a parseable date or a number) rather than labels.
+        var first = allRows[0];
+        var looksLikeHeader = first.every(function (c) { return isNaN(parseCsvAmount(c)) && !parseFlexibleDate(c); });
+        if (looksLikeHeader) { csvImportHeaders = first; csvImportRows = allRows.slice(1); }
+        else { csvImportHeaders = first.map(function (_, i) { return "Column " + (i + 1); }); csvImportRows = allRows; }
+        if (csvImportRows.length === 0) { toast("No data rows found after the header.", "error"); return; }
+        if (csvImportRows.length > 5000) { toast("That's a big file (" + csvImportRows.length + " rows) — importing the first 5000.", "warning"); csvImportRows = csvImportRows.slice(0, 5000); }
+        openCsvImportModal();
+      };
+      reader.onerror = function () { toast("Couldn't read that file.", "error"); };
+      reader.readAsText(file);
+    });
+    $("csvImportCancel1").addEventListener("click", function () { $("csvImportModal").classList.remove("show"); });
+    $("csvImportBackBtn").addEventListener("click", function () { $("csvImportStep1").style.display = "block"; $("csvImportStep2").style.display = "none"; });
+    $("csvImportPreviewBtn").addEventListener("click", buildCsvPreview);
+    $("csvImportConfirmBtn").addEventListener("click", confirmCsvImport);
+    $("csvImportModal").addEventListener("click", function (evt) { if (evt.target === $("csvImportModal")) $("csvImportModal").classList.remove("show"); });
+  }
+
+  /* ================= Paste-a-message quick add =================
+     Browsers give web pages no access to a phone's SMS inbox (there is no
+     general "read my messages" web API — only the narrow WebOTP API for
+     one-time codes), so full automatic SMS import isn't something a website
+     can do. This is the closest honest substitute: parse whatever text is
+     pasted in and prefill the existing Add a Transaction form for review. */
+  function parsePastedMessage(text) {
+    text = (text || "").trim();
+    var result = { amount: null, date: null, note: "", type: "expense" };
+    var amtMatch = text.match(/(?:LKR|Rs\.?|INR|₹|\$|USD)\s?([\d,]+(?:\.\d{1,2})?)/i) || text.match(/([\d,]+(?:\.\d{2}))/);
+    if (amtMatch) result.amount = parseCsvAmount(amtMatch[1]);
+    var dateMatch = text.match(/\b(\d{1,2}[-\/][A-Za-z]{3,}[-\/\s]\d{2,4}|\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4}|\d{4}[-\/]\d{1,2}[-\/]\d{1,2})\b/);
+    if (dateMatch) result.date = parseFlexibleDate(dateMatch[1]);
+    if (/credit(ed)?|received|deposit(ed)?|refund(ed)?/i.test(text)) result.type = "income";
+    else if (/debit(ed)?|withdraw(n|al)?|spent|purchase|paid/i.test(text)) result.type = "expense";
+    var atMatch = text.match(/\bat\s+([A-Za-z0-9 &'._-]{2,30}?)(?=[.,]|\s+avl\b|\s+on\b|\s+bal\b|$)/i) ||
+      text.match(/\bto\s+([A-Za-z0-9 &'._-]{2,30}?)(?=[.,]|\s+avl\b|\s+on\b|\s+bal\b|$)/i) ||
+      text.match(/\bfrom\s+([A-Za-z0-9 &'._-]{2,30}?)(?=[.,]|\s+avl\b|\s+on\b|\s+bal\b|$)/i);
+    result.note = atMatch ? atMatch[1].trim() : text.slice(0, 60).trim();
+    return result;
+  }
+
+  function setupSmsPaste() {
+    $("pasteSmsBtn").addEventListener("click", function () {
+      if (state.accounts.length === 0) { toast("Add an account first.", "error"); return; }
+      $("smsPasteInput").value = "";
+      $("smsPasteModal").classList.add("show");
+      setTimeout(function () { $("smsPasteInput").focus(); }, 50);
+    });
+    $("smsPasteCancel").addEventListener("click", function () { $("smsPasteModal").classList.remove("show"); });
+    $("smsPasteModal").addEventListener("click", function (evt) { if (evt.target === $("smsPasteModal")) $("smsPasteModal").classList.remove("show"); });
+    $("smsPasteParseBtn").addEventListener("click", function () {
+      var text = $("smsPasteInput").value;
+      if (!text.trim()) { toast("Paste the message text first.", "error"); return; }
+      var r = parsePastedMessage(text);
+      $("smsPasteModal").classList.remove("show");
+      activateTab("dashboard");
+      setTimeout(function () {
+        setTxType(r.type);
+        if (r.amount) $("txAmount").value = r.amount;
+        if (r.date) $("txDate").value = r.date;
+        $("txNote").value = r.note || "";
+        renderSplitPreview();
+        if (!r.amount || !r.date) toast("Filled in what we could find — please check the amount/date before adding.", "warning");
+        else toast("Form filled in — review and hit Add.", "good");
+        $("txAmount").scrollIntoView({ behavior: "smooth", block: "center" });
+        $("txAmount").focus();
+      }, 150);
+    });
+  }
+
   /* ================= Custom income sources ================= */
   function setupIncomeSourceAdd() {
     $("txSource").addEventListener("change", function () {
@@ -4815,7 +5327,7 @@
     state.jarPct = Object.assign({}, DEFAULT_PCT, incoming.jarPct || {});
     state.jarBudgets = incoming.jarBudgets || {};
     state.categoryBudgets = incoming.categoryBudgets || {};
-    state.homeCurrency = incoming.homeCurrency || incoming.currency || "USD";
+    state.homeCurrency = incoming.homeCurrency || incoming.currency || guessDefaultCurrency();
     state.freedomTarget = incoming.freedomTarget || 0;
     state.pyfEnabled = incoming.pyfEnabled !== undefined ? incoming.pyfEnabled : true;
     state.confirmBeforeDelete = incoming.confirmBeforeDelete !== undefined ? incoming.confirmBeforeDelete : true;
@@ -5109,6 +5621,8 @@
       }
       cloudLastSyncedAt = new Date();
       updateCloudUi();
+      maybeShowOnboarding();
+      maybeFireReminder();
     });
   }
 
@@ -5413,6 +5927,8 @@
       if (res.data && res.data.session) {
         cloudSession = res.data.session;
         bootstrapSignedInSession();
+      } else {
+        maybeShowOnboarding(); // confirmed anonymous visitor — safe to check now
       }
     });
 
@@ -5757,9 +6273,21 @@
   function renderAdSlot() {
     var container = $("adSlotContainer");
     if (!container) return;
-    if (!adsEnabled || state.isPro) { container.style.display = "none"; return; }
-    container.style.display = "block";
-    if (container.getAttribute("data-built") === "1") return; // already rendered — just keep it visible
+    // Don't show ads to Pro users, and don't show them during the very first
+    // empty state either — a brand-new visitor's first few seconds should be
+    // about the product, not an ad slot (see UX audit, Aug 2026).
+    if (!adsEnabled || state.isPro || state.accounts.length === 0) { container.style.display = "none"; return; }
+    if (container.getAttribute("data-built") === "1") {
+      // Already built earlier — only show it again if it actually filled last time.
+      var builtIns = container.querySelector("ins.adsbygoogle");
+      var builtStatus = builtIns ? builtIns.getAttribute("data-ad-status") : null;
+      container.style.display = (builtStatus === "filled") ? "block" : "none";
+      return;
+    }
+    // Keep the container hidden (reserves no space) until we know AdSense actually
+    // filled the slot — an empty reserved box was the single worst first-impression
+    // issue found in the Aug 2026 UX audit, so we never show a blank placeholder.
+    container.style.display = "none";
     var ins = document.createElement("ins");
     ins.className = "adsbygoogle";
     ins.style.display = "block";
@@ -5769,7 +6297,21 @@
     ins.setAttribute("data-full-width-responsive", "true");
     container.appendChild(ins);
     container.setAttribute("data-built", "1");
-    try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (e) { /* ad blocker or not yet approved — fail quietly */ }
+    try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (e) { /* ad blocker or not yet approved — fail quietly, stays hidden */ }
+    // AdSense sets data-ad-status ("filled" / "unfilled") on the <ins> once it
+    // decides whether it has an ad to show — only reserve visible space if filled.
+    var attempts = 0;
+    var poll = setInterval(function () {
+      attempts++;
+      var status = ins.getAttribute("data-ad-status");
+      if (status === "filled") {
+        container.style.display = "block";
+        clearInterval(poll);
+      } else if (status === "unfilled" || attempts > 20) {
+        container.style.display = "none";
+        clearInterval(poll);
+      }
+    }, 300);
   }
 
   /* ================= Init ================= */
@@ -5790,6 +6332,9 @@
     setupConfirmModal();
     setupPromptModal();
     setupBreakdownModal();
+    setupOnboardingModal();
+    setupCsvImport();
+    setupSmsPaste();
     setupIncomeSourceAdd();
     setupCategoryAdd();
     setupBudgets();
@@ -5803,10 +6348,13 @@
     setupDriveBackup();
     setupAdsense();
     setupGoogleAnalytics();
+    setupReminders();
     runDueRecurringTemplates();
     renderAll();
     checkBillingReturn();
     maybeShowSignupPrompt();
+    if (!cloudEnabled) maybeShowOnboarding(); // Cloud Sync path checks its own async session first
+    maybeFireReminder();
   }
 
   document.addEventListener("DOMContentLoaded", init);
