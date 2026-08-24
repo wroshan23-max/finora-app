@@ -457,7 +457,7 @@
   </header>
 
   <div class="note-box" id="persistenceNote" style="margin-bottom:16px;">
-    This app runs entirely in your browser and keeps data only for this session. Use <strong>Save Data</strong> anytime to download a backup, and <strong>Load Data</strong> to restore it next time you open this file.
+    You haven't created an account yet, so this app only keeps data in your browser for this session. <strong>Sign In / Create Account</strong> above to save automatically to the cloud — or use <strong>Save Data</strong> anytime to download a backup, and <strong>Load Data</strong> to restore it later.
   </div>
 
   <div id="workspaceBanner" class="card" style="display:none;margin-bottom:16px;background:#eef6ff;border:1px solid rgba(42,120,214,0.25);font-size:13px;"></div>
@@ -5413,7 +5413,7 @@
     if (cloudEnabled && cloudSession) {
       el.innerHTML = 'Signed in with <strong>Cloud Sync</strong> — your data backs up automatically, no manual backup needed. (You can still use <strong>Save Data</strong> for an extra local copy anytime.)';
     } else {
-      el.innerHTML = 'This app runs entirely in your browser and keeps data only for this session. Use <strong>Save Data</strong> anytime to download a backup, and <strong>Load Data</strong> to restore it next time you open this file.';
+      el.innerHTML = 'You haven\'t created an account yet, so this app only keeps data in your browser for this session. <strong>Sign In / Create Account</strong> above to save automatically to the cloud — or use <strong>Save Data</strong> anytime to download a backup, and <strong>Load Data</strong> to restore it later.';
     }
   }
 
