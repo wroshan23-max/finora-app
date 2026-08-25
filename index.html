@@ -41,6 +41,7 @@
     --series-7-tint:  rgba(74,58,167,0.14);
     --series-8-tint:  rgba(227,73,72,0.14);
     --status-good:    #0ca30c;
+    --status-good-tint: rgba(12,163,12,0.14);
     --status-warning: #fab219;
     --status-critical:#d03b3b;
   }
@@ -73,6 +74,7 @@
     --series-7-tint:  rgba(144,133,233,0.20);
     --series-8-tint:  rgba(230,103,103,0.20);
     --status-good:    #0ca30c;
+    --status-good-tint: rgba(12,163,12,0.20);
     --status-warning: #fab219;
     --status-critical:#d03b3b;
   }
@@ -185,6 +187,7 @@
      lively, easy-to-scan nav bar — Settings stays neutral since it's a utility tab,
      not a content section. */
   nav.tabs button[data-tab="dashboard"].active { border-bottom-color: var(--series-1); background: var(--series-1-tint); }
+  nav.tabs button[data-tab="add"].active { border-bottom-color: var(--status-good); background: var(--status-good-tint); }
   nav.tabs button[data-tab="transactions"].active { border-bottom-color: var(--series-4); background: var(--series-4-tint); }
   nav.tabs button[data-tab="transfers"].active { border-bottom-color: var(--series-3); background: var(--series-3-tint); }
   nav.tabs button[data-tab="accounts"].active { border-bottom-color: var(--series-2); background: var(--series-2-tint); }
@@ -192,6 +195,7 @@
   nav.tabs button[data-tab="jars"].active { border-bottom-color: var(--series-5); background: var(--series-5-tint); }
   nav.tabs button[data-tab="reports"].active { border-bottom-color: var(--series-6); background: var(--series-6-tint); }
   nav.tabs button[data-tab="dashboard"]:hover { border-bottom-color: var(--series-1); background: var(--series-1-tint); }
+  nav.tabs button[data-tab="add"]:hover { border-bottom-color: var(--status-good); background: var(--status-good-tint); }
   nav.tabs button[data-tab="transactions"]:hover { border-bottom-color: var(--series-4); background: var(--series-4-tint); }
   nav.tabs button[data-tab="transfers"]:hover { border-bottom-color: var(--series-3); background: var(--series-3-tint); }
   nav.tabs button[data-tab="accounts"]:hover { border-bottom-color: var(--series-2); background: var(--series-2-tint); }
@@ -223,6 +227,24 @@
   .stat-tile .sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
   .stat-tile.clickable { cursor: pointer; transition: border-color .12s, transform .12s; }
   .stat-tile.clickable:hover { border-color: var(--series-1); transform: translateY(-1px); }
+
+  .quick-add-methods { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+  .add-hub-grid { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-bottom: 20px; }
+  .add-hub-grid .quick-add-method { padding: 16px; }
+  .add-hub-grid .quick-add-method-icon { font-size: 26px; }
+  .add-hub-grid .quick-add-method-title { font-size: 14.5px; }
+  .add-hub-grid .quick-add-method-desc { font-size: 12px; }
+  .quick-add-method {
+    display: flex; align-items: center; gap: 12px; text-align: left; width: 100%;
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 14px; cursor: pointer; font-family: inherit; color: inherit;
+    transition: border-color .12s, transform .12s, background-color .12s;
+  }
+  .quick-add-method:hover, .quick-add-method:focus-visible { border-color: var(--series-1); background: var(--series-1-tint); transform: translateY(-1px); outline: none; }
+  .quick-add-method-icon { font-size: 22px; line-height: 1; flex-shrink: 0; }
+  .quick-add-method-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .quick-add-method-title { font-size: 13.5px; font-weight: 600; }
+  .quick-add-method-desc { font-size: 11.5px; color: var(--text-secondary); }
   .breakdown-row { margin-bottom: 10px; }
   .breakdown-row .row-top { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; gap: 8px; }
   .breakdown-row .row-top .amt { font-weight: 600; white-space: nowrap; }
@@ -289,6 +311,24 @@
   .empty-state { color: var(--text-muted); font-size: 13px; padding: 24px 0; text-align: center; }
 
   .filters { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .date-range-filter { display: flex; align-items: center; gap: 6px; }
+  .date-range-filter input[type="date"] { max-width: 140px; }
+  .date-range-sep { color: var(--text-muted); font-size: 12px; }
+
+  .admin-email-suggest {
+    position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.16); z-index: 40; max-height: 220px; overflow-y: auto;
+    display: none;
+  }
+  .admin-email-suggest.show { display: block; }
+  .admin-email-suggest .row {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 8px 12px; font-size: 12.5px; cursor: pointer; border-bottom: 1px solid var(--border);
+  }
+  .admin-email-suggest .row:last-child { border-bottom: none; }
+  .admin-email-suggest .row:hover { background: var(--grid); }
+  .admin-email-suggest .empty, .admin-email-suggest .loading { padding: 10px 12px; font-size: 12px; color: var(--text-muted); }
 
   .jar-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
   .jar-card { border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: var(--surface-1); }
@@ -464,6 +504,7 @@
 
   <nav class="tabs">
     <button data-tab="dashboard" class="active"><span class="tab-ic">🏠</span> Dashboard</button>
+    <button data-tab="add"><span class="tab-ic">➕</span> Add Data</button>
     <button data-tab="transactions"><span class="tab-ic">💳</span> Transactions</button>
     <button data-tab="transfers"><span class="tab-ic">⇄</span> Transfers</button>
     <button data-tab="accounts"><span class="tab-ic">🏦</span> Accounts</button>
@@ -605,6 +646,97 @@
       </form>
       <div class="split-preview" id="splitPreview"></div>
     </div>
+
+    <div class="card" id="quickAddMethodsCard">
+      <h2>More ways to add a transaction</h2>
+      <p class="hint" style="margin-top:-6px;">Prefer not to type each one by hand? Use one of these instead — or see every way to add data to Finora on the <button type="button" data-goto-tab="add" style="background:none;border:none;padding:0;font:inherit;color:var(--accent,#2a78d6);cursor:pointer;text-decoration:underline;">Add Data</button> tab.</p>
+      <div class="quick-add-methods">
+        <button type="button" class="quick-add-method" id="importCsvBtnDash">
+          <span class="quick-add-method-icon">📥</span>
+          <span class="quick-add-method-text">
+            <span class="quick-add-method-title">Import CSV</span>
+            <span class="quick-add-method-desc">Bulk-add from a bank statement</span>
+          </span>
+        </button>
+        <button type="button" class="quick-add-method" id="pasteSmsBtnDash">
+          <span class="quick-add-method-icon">💬</span>
+          <span class="quick-add-method-text">
+            <span class="quick-add-method-title">Paste SMS / message</span>
+            <span class="quick-add-method-desc">Fill in one transaction from text</span>
+          </span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ADD DATA — a hub bringing together every way to get data into Finora, so
+       nobody has to remember which tab a particular entry method lives on. -->
+  <section class="tab-panel" id="panel-add">
+    <div class="card">
+      <h2>➕ Add Data to Finora</h2>
+      <p class="hint">Every way to get money in or out of Finora, in one place — pick whichever's fastest for what you've got.</p>
+    </div>
+
+    <div class="stat-section-label">Transactions</div>
+    <div class="quick-add-methods add-hub-grid">
+      <button type="button" class="quick-add-method" id="goAddTransactionBtn">
+        <span class="quick-add-method-icon">➕</span>
+        <span class="quick-add-method-text">
+          <span class="quick-add-method-title">Add a Transaction</span>
+          <span class="quick-add-method-desc">Log a single income or expense by hand</span>
+        </span>
+      </button>
+      <button type="button" class="quick-add-method" id="importCsvBtnAddTab">
+        <span class="quick-add-method-icon">📥</span>
+        <span class="quick-add-method-text">
+          <span class="quick-add-method-title">Import CSV</span>
+          <span class="quick-add-method-desc">Bulk-add from a downloaded bank/card statement</span>
+        </span>
+      </button>
+      <button type="button" class="quick-add-method" id="pasteSmsBtnAddTab">
+        <span class="quick-add-method-icon">💬</span>
+        <span class="quick-add-method-text">
+          <span class="quick-add-method-title">Paste SMS / message</span>
+          <span class="quick-add-method-desc">Fill in one transaction from a bank SMS or notification</span>
+        </span>
+      </button>
+      <button type="button" class="quick-add-method" id="goRecurringBtn">
+        <span class="quick-add-method-icon">🔁</span>
+        <span class="quick-add-method-text">
+          <span class="quick-add-method-title">Recurring Transaction</span>
+          <span class="quick-add-method-desc">Rent, salary, subscriptions — set up once, logged automatically</span>
+        </span>
+      </button>
+    </div>
+
+    <div class="stat-section-label">Between your own accounts</div>
+    <div class="quick-add-methods add-hub-grid">
+      <button type="button" class="quick-add-method" data-goto-tab="transfers">
+        <span class="quick-add-method-icon">⇄</span>
+        <span class="quick-add-method-text">
+          <span class="quick-add-method-title">Transfer Between Accounts</span>
+          <span class="quick-add-method-desc">Move money between accounts — not income or expense</span>
+        </span>
+      </button>
+    </div>
+
+    <div class="stat-section-label">Set up once</div>
+    <div class="quick-add-methods add-hub-grid">
+      <button type="button" class="quick-add-method" data-goto-tab="accounts">
+        <span class="quick-add-method-icon">🏦</span>
+        <span class="quick-add-method-text">
+          <span class="quick-add-method-title">Add an Account</span>
+          <span class="quick-add-method-desc">Cash, bank, card — every transaction belongs to one</span>
+        </span>
+      </button>
+      <button type="button" class="quick-add-method" data-goto-tab="liabilities">
+        <span class="quick-add-method-icon">📉</span>
+        <span class="quick-add-method-text">
+          <span class="quick-add-method-title">Add a Liability</span>
+          <span class="quick-add-method-desc">Loans and debts to track payoff progress</span>
+        </span>
+      </button>
+    </div>
   </section>
 
   <!-- TRANSACTIONS -->
@@ -682,6 +814,12 @@
         <select id="filterAccount">
           <option value="all">All accounts</option>
         </select>
+        <div class="date-range-filter" title="Filter by date range">
+          <input type="date" id="filterDateStart" aria-label="From date">
+          <span class="date-range-sep">–</span>
+          <input type="date" id="filterDateEnd" aria-label="To date">
+          <button type="button" class="ghost small" id="filterDateClearBtn" title="Clear date filter" style="display:none;">✕</button>
+        </div>
         <button id="exportCsvBtn" class="ghost">Export CSV</button>
         <button id="importCsvBtn" class="ghost">📥 Import CSV</button>
         <button id="pasteSmsBtn" class="ghost">💬 Paste SMS / message</button>
@@ -1093,8 +1231,15 @@
     <div class="card" id="adminProCard" style="display:none;">
       <h2>🛠️ Admin — Grant Finora Pro</h2>
       <p class="hint">Give any Finora account Pro access without a real subscription — a fixed period, or permanently. Only visible to admin accounts; the server independently checks your email against <code>ADMIN_EMAILS</code> on every request, so this section being hidden or shown never affects security.</p>
+
+      <div class="stat-grid" id="adminUserStatGrid" style="margin-bottom:14px;"></div>
+
       <div class="settings-grid" style="margin-bottom:10px;">
-        <div class="field"><label>User's email</label><input type="email" id="adminProEmail" placeholder="someone@example.com" autocomplete="off"></div>
+        <div class="field" style="position:relative;">
+          <label>User's email</label>
+          <input type="email" id="adminProEmail" placeholder="someone@example.com" autocomplete="off">
+          <div class="admin-email-suggest" id="adminEmailSuggest"></div>
+        </div>
         <div class="field"><label>Duration</label>
           <select id="adminProDuration">
             <option value="week">1 week</option>
@@ -1326,6 +1471,33 @@
     <div id="breakdownModalBody"></div>
     <div class="modal-actions">
       <button type="button" class="primary" id="breakdownModalClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin — full registered-user list, opened from the "Registered Users" tile
+     in Settings → Admin. Read-only, backed by functions/api/admin-users.js. -->
+<div class="modal-overlay" id="adminUserListModal">
+  <div class="modal" style="max-width:640px;">
+    <h2>👥 Registered Users</h2>
+    <p class="hint" id="adminUserListSummary">Loading…</p>
+    <div class="field" style="margin-bottom:10px;">
+      <input type="text" id="adminUserListSearch" placeholder="🔎 Filter by email…">
+    </div>
+    <div style="max-height:360px;overflow:auto;border:1px solid var(--border);border-radius:10px;">
+      <table style="width:100%;font-size:12.5px;border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th style="text-align:left;padding:8px;border-bottom:1px solid var(--border);">Email</th>
+            <th style="text-align:left;padding:8px;border-bottom:1px solid var(--border);">Joined</th>
+            <th style="text-align:left;padding:8px;border-bottom:1px solid var(--border);">Status</th>
+          </tr>
+        </thead>
+        <tbody id="adminUserListTableBody"></tbody>
+      </table>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="primary" id="adminUserListClose">Close</button>
     </div>
   </div>
 </div>
@@ -3597,6 +3769,8 @@
   function getFilteredTransactions() {
     var typeFilter = $("filterType").value, jarFilter = $("filterJar").value, categoryFilter = $("filterCategory").value, accFilter = $("filterAccount").value;
     var searchQuery = $("txSearchInput") ? $("txSearchInput").value.trim().toLowerCase() : "";
+    var dateStart = $("filterDateStart") ? $("filterDateStart").value : "";
+    var dateEnd = $("filterDateEnd") ? $("filterDateEnd").value : "";
     var rows = state.transactions.filter(function (t) { return t.type === "income" || t.type === "expense"; })
       .slice().sort(function (a, b) { return (b.date || "").localeCompare(a.date || "") || b.id.localeCompare(a.id); });
     return rows.filter(function (t) {
@@ -3608,6 +3782,8 @@
       }
       if (categoryFilter !== "all" && t.type === "expense" && t.category !== categoryFilter) return false;
       if (accFilter !== "all" && t.accountId !== accFilter) return false;
+      if (dateStart && (t.date || "") < dateStart) return false;
+      if (dateEnd && (t.date || "") > dateEnd) return false;
       if (searchQuery) {
         var haystack = ((t.note || "") + " " + (t.source || "") + " " + (t.category || "")).toLowerCase();
         if (haystack.indexOf(searchQuery) === -1) return false;
@@ -3671,6 +3847,14 @@
     if (income > 0) segments.push({ key: "income", label: "Income", value: income, color: seriesColor("--status-good") });
     if (expense > 0) segments.push({ key: "expense", label: "Expense", value: expense, color: seriesColor("--status-critical") });
     renderDonut("txFilterDonut", segments, { centerLabel: fmtMoney(net), centerSub: "net" });
+  }
+
+  // Shows/hides the small "✕" clear button next to the date-range filter —
+  // only worth showing once a date is actually set, keeps the filter row tidy.
+  function updateFilterDateClearBtn() {
+    if (!$("filterDateClearBtn")) return;
+    var hasRange = ($("filterDateStart") && $("filterDateStart").value) || ($("filterDateEnd") && $("filterDateEnd").value);
+    $("filterDateClearBtn").style.display = hasRange ? "inline-block" : "none";
   }
 
   function renderTxTable() {
@@ -3814,6 +3998,7 @@
     // the server-side ADMIN_EMAILS env var on every request, so nothing hinges on
     // this client-side check being tamper-proof.
     if ($("adminProCard")) $("adminProCard").style.display = isOwnerAccount() ? "block" : "none";
+    if (isOwnerAccount() && !adminStatsFetched) { adminStatsFetched = true; loadAdminUserStats(); }
 
     var deleteConfirmWrap = $("proDeleteConfirmWrap");
     if (deleteConfirmWrap) {
@@ -3964,6 +4149,127 @@
       }).catch(function (e) { resultEl.textContent = ""; toast("Request failed: " + e.message, "error"); });
   }
 
+  // Small helper shared by everything below that talks to functions/api/admin-users.js.
+  function adminUsersFetch(body) {
+    return fetch("/api/admin-users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cloudSession.access_token },
+      body: JSON.stringify(body)
+    }).then(function (r) { return r.json().then(function (respBody) { return { ok: r.ok, body: respBody }; }); });
+  }
+
+  // Registered / Active (30d) / Pro counts shown above the admin email field —
+  // fetched once per session (see adminStatsFetched) since it scans every account.
+  function loadAdminUserStats() {
+    if (!cloudSession || !$("adminUserStatGrid")) return;
+    adminUsersFetch({ action: "stats" }).then(function (res) {
+      if (!res.ok || res.body.error) { $("adminUserStatGrid").innerHTML = '<p class="hint">Couldn\'t load user stats.</p>'; return; }
+      var s = res.body;
+      $("adminUserStatGrid").innerHTML =
+        '<div class="stat-tile clickable" id="adminRegisteredTile" tabindex="0" role="button">' +
+          '<div class="label">Registered Users</div><div class="value">' + s.totalUsers + '</div>' +
+          '<div class="sub" style="color:var(--series-1);">Tap to view list →</div></div>' +
+        '<div class="stat-tile"><div class="label">Active (last 30 days)</div><div class="value good">' + s.activeUsers + '</div></div>' +
+        '<div class="stat-tile"><div class="label">Pro Users</div><div class="value good">' + s.proUsers + '</div></div>';
+      $("adminRegisteredTile").addEventListener("click", openAdminUserListModal);
+      $("adminRegisteredTile").addEventListener("keydown", function (evt) { if (evt.key === "Enter" || evt.key === " ") { evt.preventDefault(); openAdminUserListModal(); } });
+    }).catch(function () { $("adminUserStatGrid").innerHTML = '<p class="hint">Couldn\'t load user stats.</p>'; });
+  }
+
+  function adminStatusBadges(u) {
+    var badges = "";
+    if (u.isPro) badges += '<span class="tag" style="color:var(--good);border-color:var(--good);">PRO</span> ';
+    badges += u.isActive ? '<span class="tag">Active</span>' : '<span class="tag" style="color:var(--text-muted);">Inactive</span>';
+    return badges;
+  }
+
+  function renderAdminUserListTable(list) {
+    if (!list.length) { $("adminUserListTableBody").innerHTML = '<tr><td colspan="3" style="padding:14px;text-align:center;color:var(--text-muted);">No matching users.</td></tr>'; return; }
+    $("adminUserListTableBody").innerHTML = list.map(function (u) {
+      var joined = u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "—";
+      return '<tr>' +
+        '<td style="padding:8px;border-bottom:1px solid var(--border);">' + escapeHtml(u.email || "") + '</td>' +
+        '<td style="padding:8px;border-bottom:1px solid var(--border);white-space:nowrap;">' + joined + '</td>' +
+        '<td style="padding:8px;border-bottom:1px solid var(--border);white-space:nowrap;">' + adminStatusBadges(u) + '</td>' +
+        '</tr>';
+    }).join("");
+  }
+
+  function openAdminUserListModal() {
+    if (!cloudSession) return;
+    $("adminUserListModal").classList.add("show");
+    $("adminUserListSearch").value = "";
+    if (adminUserListCache) { renderAdminUserListTable(adminUserListCache); return; }
+    $("adminUserListSummary").textContent = "Loading…";
+    $("adminUserListTableBody").innerHTML = "";
+    adminUsersFetch({ action: "list" }).then(function (res) {
+      if (!res.ok || res.body.error) { $("adminUserListSummary").textContent = "Couldn't load the user list."; return; }
+      adminUserListCache = res.body.users || [];
+      var shown = adminUserListCache.length, total = res.body.totalUsers;
+      $("adminUserListSummary").textContent = shown < total ?
+        ("Showing the " + shown + " most recent of " + total + " registered users.") :
+        (total + " registered user" + (total === 1 ? "" : "s") + ".");
+      renderAdminUserListTable(adminUserListCache);
+    }).catch(function () { $("adminUserListSummary").textContent = "Couldn't load the user list."; });
+  }
+
+  function setupAdminUserList() {
+    $("adminUserListClose").addEventListener("click", function () { $("adminUserListModal").classList.remove("show"); });
+    $("adminUserListModal").addEventListener("click", function (evt) { if (evt.target === $("adminUserListModal")) $("adminUserListModal").classList.remove("show"); });
+    $("adminUserListSearch").addEventListener("input", function () {
+      if (!adminUserListCache) return;
+      var q = $("adminUserListSearch").value.trim().toLowerCase();
+      var filtered = q ? adminUserListCache.filter(function (u) { return (u.email || "").toLowerCase().indexOf(q) !== -1; }) : adminUserListCache;
+      renderAdminUserListTable(filtered);
+    });
+  }
+
+  // Autocomplete dropdown on the admin email field — debounced search against
+  // functions/api/admin-users.js so a busy admin doesn't have to remember/copy-paste
+  // a user's exact email before granting or revoking Pro.
+  function setupAdminEmailAutocomplete() {
+    var input = $("adminProEmail"), box = $("adminEmailSuggest");
+    if (!input || !box) return;
+    var debounceTimer = null;
+
+    function hide() { box.classList.remove("show"); box.innerHTML = ""; }
+
+    function runSearch(query) {
+      adminUsersFetch({ action: "search", query: query }).then(function (res) {
+        if (input.value.trim().toLowerCase() !== query) return; // stale response — input changed since this request went out
+        if (!res.ok || res.body.error || !res.body.results.length) {
+          box.innerHTML = '<div class="empty">No matching accounts.</div>';
+          box.classList.add("show");
+          return;
+        }
+        box.innerHTML = res.body.results.map(function (u) {
+          return '<div class="row" data-email="' + escapeHtml(u.email) + '"><span>' + escapeHtml(u.email) + '</span>' +
+            (u.isPro ? '<span class="tag" style="color:var(--good);border-color:var(--good);">PRO</span>' : '') + '</div>';
+        }).join("");
+        box.classList.add("show");
+      }).catch(hide);
+    }
+
+    input.addEventListener("input", function () {
+      var query = input.value.trim().toLowerCase();
+      clearTimeout(debounceTimer);
+      if (query.length < 2 || !cloudSession) { hide(); return; }
+      box.innerHTML = '<div class="loading">Searching…</div>';
+      box.classList.add("show");
+      debounceTimer = setTimeout(function () { runSearch(query); }, 250);
+    });
+    box.addEventListener("mousedown", function (evt) {
+      // mousedown (not click) so this fires before the input's blur hides the box
+      var row = evt.target.closest && evt.target.closest("[data-email]");
+      if (!row) return;
+      evt.preventDefault();
+      input.value = row.getAttribute("data-email");
+      hide();
+    });
+    input.addEventListener("blur", function () { setTimeout(hide, 150); });
+    input.addEventListener("keydown", function (evt) { if (evt.key === "Escape") hide(); });
+  }
+
   function renderSplitPreview() {
     var amt = evalAmount($("txAmount").value); if (isNaN(amt)) amt = 0;
     if (currentTxType !== "income" || amt <= 0) { $("splitPreview").innerHTML = ""; return; }
@@ -4025,6 +4331,10 @@
   // resets to "monthly" each visit; that's fine, it's picked right before checkout.
   var selectedBillingPeriod = "monthly";
   var currentRecType = "income"; // mirrors currentTxType, but for the separate Recurring Transactions form
+  // Admin user-directory state (Settings → Admin panel) — see loadAdminUserStats().
+  // Fetched once per session rather than on every renderProStatus() re-render.
+  var adminStatsFetched = false;
+  var adminUserListCache = null; // populated on first "Registered Users" click, reused by the in-modal search box
 
   function setTxType(type) {
     currentTxType = type;
@@ -4438,6 +4748,13 @@
     $("filterCategory").addEventListener("change", renderTxTable);
     $("filterAccount").addEventListener("change", renderTxTable);
     $("txSearchInput").addEventListener("input", renderTxTable);
+    $("filterDateStart").addEventListener("change", function () { updateFilterDateClearBtn(); renderTxTable(); });
+    $("filterDateEnd").addEventListener("change", function () { updateFilterDateClearBtn(); renderTxTable(); });
+    $("filterDateClearBtn").addEventListener("click", function () {
+      $("filterDateStart").value = ""; $("filterDateEnd").value = "";
+      updateFilterDateClearBtn();
+      renderTxTable();
+    });
     $("settleExtra").addEventListener("input", renderSettlementPlan);
   }
 
@@ -4622,6 +4939,8 @@
       $("adminProLookupBtn").addEventListener("click", function () { adminProAction("lookup"); });
       $("adminProGrantBtn").addEventListener("click", function () { adminProAction("grant"); });
       $("adminProRevokeBtn").addEventListener("click", function () { adminProAction("revoke"); });
+      setupAdminEmailAutocomplete();
+      setupAdminUserList();
     }
 
     $("appPasswordSaveBtn").addEventListener("click", function () {
@@ -5230,6 +5549,8 @@
 
   function setupCsvImport() {
     $("importCsvBtn").addEventListener("click", function () { $("csvImportFile").click(); });
+    if ($("importCsvBtnDash")) $("importCsvBtnDash").addEventListener("click", function () { $("csvImportFile").click(); });
+    if ($("importCsvBtnAddTab")) $("importCsvBtnAddTab").addEventListener("click", function () { $("csvImportFile").click(); });
     $("csvImportFile").addEventListener("change", function () {
       var file = this.files && this.files[0];
       this.value = "";
@@ -5280,13 +5601,16 @@
     return result;
   }
 
+  function openSmsPasteModal() {
+    if (state.accounts.length === 0) { toast("Add an account first.", "error"); return; }
+    $("smsPasteInput").value = "";
+    $("smsPasteModal").classList.add("show");
+    setTimeout(function () { $("smsPasteInput").focus(); }, 50);
+  }
   function setupSmsPaste() {
-    $("pasteSmsBtn").addEventListener("click", function () {
-      if (state.accounts.length === 0) { toast("Add an account first.", "error"); return; }
-      $("smsPasteInput").value = "";
-      $("smsPasteModal").classList.add("show");
-      setTimeout(function () { $("smsPasteInput").focus(); }, 50);
-    });
+    $("pasteSmsBtn").addEventListener("click", openSmsPasteModal);
+    if ($("pasteSmsBtnDash")) $("pasteSmsBtnDash").addEventListener("click", openSmsPasteModal);
+    if ($("pasteSmsBtnAddTab")) $("pasteSmsBtnAddTab").addEventListener("click", openSmsPasteModal);
     $("smsPasteCancel").addEventListener("click", function () { $("smsPasteModal").classList.remove("show"); });
     $("smsPasteModal").addEventListener("click", function (evt) { if (evt.target === $("smsPasteModal")) $("smsPasteModal").classList.remove("show"); });
     $("smsPasteParseBtn").addEventListener("click", function () {
@@ -5307,6 +5631,31 @@
         $("txAmount").focus();
       }, 150);
     });
+  }
+
+  /* ================= Add Data hub (panel-add) =================
+     A few of these tiles just jump tabs via the generic [data-goto-tab] handler
+     (setupTabs) — no listener needed here. These two need to land on a specific
+     form and focus it, so they get their own small handlers. */
+  function setupAddHub() {
+    if ($("goAddTransactionBtn")) {
+      $("goAddTransactionBtn").addEventListener("click", function () {
+        activateTab("dashboard");
+        setTimeout(function () {
+          $("txAmount").scrollIntoView({ behavior: "smooth", block: "center" });
+          $("txAmount").focus();
+        }, 150);
+      });
+    }
+    if ($("goRecurringBtn")) {
+      $("goRecurringBtn").addEventListener("click", function () {
+        activateTab("transactions");
+        setTimeout(function () {
+          $("recurringCard").scrollIntoView({ behavior: "smooth", block: "start" });
+          $("recName").focus();
+        }, 150);
+      });
+    }
   }
 
   /* ================= Custom income sources ================= */
@@ -6365,6 +6714,7 @@
     setupOnboardingModal();
     setupCsvImport();
     setupSmsPaste();
+    setupAddHub();
     setupIncomeSourceAdd();
     setupCategoryAdd();
     setupBudgets();
