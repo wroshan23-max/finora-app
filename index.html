@@ -1468,17 +1468,25 @@
     GOOGLE_CLIENT_ID: "951813628489-hk6h7j6i8i947ju624af32os3atqrv1a.apps.googleusercontent.com",
     // Flip to true once PayHere + the Cloudflare Pages Functions (functions/api/) +
     // the subscriptions table are all set up (see the setup guide). Must match the
-    // PRICE_LKR set in functions/api/payhere-start.js — that server-side value is
-    // what's actually charged; this one is only used to show the price on the button.
+    // PRICE_LKR_MONTHLY / PRICE_LKR_ANNUAL set in functions/api/payhere-start.js —
+    // that server-side value is what's actually charged; these are only used to show
+    // the price on the button. Lowered from Rs.500 to Rs.349/month (25 Aug 2026
+    // pricing review) — Finora's local competitor (Money Master) is free, so trust
+    // and price-sensitivity matter more here than raw affordability. An annual plan
+    // was added at the same time to improve perceived value and retention.
     BILLING_ENABLED: true,
-    SUBSCRIPTION_PRICE_LKR: "500",
+    SUBSCRIPTION_PRICE_LKR: "349",
+    SUBSCRIPTION_PRICE_LKR_ANNUAL: "2990",
     // International subscribers pay via Dodo Payments (a Merchant of Record — handles
     // global cards, Apple Pay/Google Pay, currency conversion and tax/VAT compliance).
     // Flip to true once functions/api/dodo-checkout.js + dodo-webhook.js are set up
     // with real Dodo API credentials. The real price is whatever's configured on the
-    // DODO_PRODUCT_ID product in the Dodo dashboard; this is only used for display.
+    // DODO_PRODUCT_ID / DODO_PRODUCT_ID_ANNUAL products in the Dodo dashboard; these
+    // are only used for display. $5/month was already competitive (YNAB/Monarch are
+    // $14.99/mo) so it was left unchanged; $39/year added alongside it (~35% off).
     DODO_ENABLED: true,
     SUBSCRIPTION_PRICE_USD: "5",
+    SUBSCRIPTION_PRICE_USD_ANNUAL: "39",
     // From your Google AdSense account, e.g. "ca-pub-1234567890123456" / "1234567890".
     ADSENSE_CLIENT_ID: "ca-pub-2768304069617672",
     ADSENSE_SLOT_ID: "8456213669",
@@ -3840,16 +3848,32 @@
     // Two subscribe buttons: PayHere for Sri Lankan Rupee payers, Dodo Payments
     // (a Merchant of Record) for everyone else — global cards, Apple Pay/Google Pay,
     // in their own currency. Shown side by side; the person picks whichever fits them.
+    // A Monthly/Annual toggle sits above both — selectedBillingPeriod is UI-only
+    // (not persisted), so it resets to Monthly each visit; that's fine, it's a
+    // one-click choice made right before checkout, not a saved preference.
     function subscribeButtonsHtml(prefix) {
-      var html = '<button type="button" class="primary" id="proSubscribePayhereBtn">' + prefix + '🇱🇰 Pay with PayHere — Rs ' + CONFIG.SUBSCRIPTION_PRICE_LKR + '/month</button>';
+      var isAnnual = selectedBillingPeriod === "annual";
+      var periodLabel = isAnnual ? "/year" : "/month";
+      var payherePrice = isAnnual ? CONFIG.SUBSCRIPTION_PRICE_LKR_ANNUAL : CONFIG.SUBSCRIPTION_PRICE_LKR;
+      var dodoPrice = isAnnual ? CONFIG.SUBSCRIPTION_PRICE_USD_ANNUAL : CONFIG.SUBSCRIPTION_PRICE_USD;
+      var html = '<div style="width:100%;">';
+      html += '<div class="type-toggle" id="billingPeriodToggle" style="max-width:280px;margin-bottom:10px;">' +
+        '<button type="button" data-period="monthly" class="' + (isAnnual ? "" : "active") + '">Monthly</button>' +
+        '<button type="button" data-period="annual" class="' + (isAnnual ? "active" : "") + '">Annual <span style="opacity:.75;font-weight:500;">(save ~30%)</span></button>' +
+        '</div><div style="display:flex;gap:8px;flex-wrap:wrap;">';
+      html += '<button type="button" class="primary" id="proSubscribePayhereBtn">' + prefix + '🇱🇰 Pay with PayHere — Rs ' + payherePrice + periodLabel + '</button>';
       if (dodoEnabled) {
-        html += ' <button type="button" class="primary" id="proSubscribeDodoBtn">' + prefix + '🌍 Pay with Card — $' + CONFIG.SUBSCRIPTION_PRICE_USD + '/month</button>';
+        html += ' <button type="button" class="primary" id="proSubscribeDodoBtn">' + prefix + '🌍 Pay with Card — $' + dodoPrice + periodLabel + '</button>';
       }
+      html += '</div></div>';
       return html;
     }
     function wireSubscribeButtons() {
-      $("proSubscribePayhereBtn").addEventListener("click", function () { startSubscriptionCheckout("payhere"); });
-      if ($("proSubscribeDodoBtn")) $("proSubscribeDodoBtn").addEventListener("click", function () { startSubscriptionCheckout("dodo"); });
+      document.querySelectorAll('#billingPeriodToggle button').forEach(function (btn) {
+        btn.addEventListener('click', function () { selectedBillingPeriod = btn.getAttribute('data-period'); renderProStatus(); });
+      });
+      $("proSubscribePayhereBtn").addEventListener("click", function () { startSubscriptionCheckout("payhere", selectedBillingPeriod); });
+      if ($("proSubscribeDodoBtn")) $("proSubscribeDodoBtn").addEventListener("click", function () { startSubscriptionCheckout("dodo", selectedBillingPeriod); });
     }
 
     if (myIsPro && currentSubscription.provider === "admin") {
@@ -3997,6 +4021,9 @@
 
   /* ================= Transaction form ================= */
   var currentTxType = "income";
+  // UI-only choice for the Monthly/Annual subscribe toggle — not persisted, so it
+  // resets to "monthly" each visit; that's fine, it's picked right before checkout.
+  var selectedBillingPeriod = "monthly";
   var currentRecType = "income"; // mirrors currentTxType, but for the separate Recurring Transactions form
 
   function setTxType(type) {
@@ -6142,14 +6169,16 @@
 
   // provider is "payhere" (Sri Lanka, LKR, via PayHere) or "dodo" (international,
   // any currency/card/wallet, via Dodo Payments' hosted checkout).
-  function startSubscriptionCheckout(provider) {
+  function startSubscriptionCheckout(provider, plan) {
     if (!billingEnabled || !cloudSession) return;
+    plan = plan === "annual" ? "annual" : "monthly";
     if (provider === "dodo") {
       if (!dodoEnabled) return;
       toast("Opening checkout…", "good");
       fetch("/api/dodo-checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cloudSession.access_token }
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cloudSession.access_token },
+        body: JSON.stringify({ plan: plan })
       }).then(function (r) { return r.json().then(function (body) { return { ok: r.ok, body: body }; }); })
         .then(function (res) {
           if (!res.ok || res.body.error || !res.body.checkoutUrl) { toast("Couldn't start checkout: " + (res.body.error || "server error"), "error"); return; }
@@ -6160,7 +6189,8 @@
     toast("Opening PayHere checkout…", "good");
     fetch("/api/payhere-start", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cloudSession.access_token }
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cloudSession.access_token },
+      body: JSON.stringify({ plan: plan })
     }).then(function (r) { return r.json().then(function (body) { return { ok: r.ok, body: body }; }); })
       .then(function (res) {
         if (!res.ok || res.body.error) { toast("Couldn't start checkout: " + (res.body.error || "server error"), "error"); return; }
