@@ -15,12 +15,14 @@
 import { md5Hex } from "../_utils/md5.js";
 import { getUserFromToken, bearerToken, json } from "../_utils/supabase.js";
 
-// ---- Change your subscription price here. Keep two decimal places. ----
-// This is the value that's actually charged — it must match
-// CONFIG.SUBSCRIPTION_PRICE_LKR in index.html, which is only used for display.
-const PRICE_LKR = "500.00";
+// ---- Change your subscription prices here. Keep two decimal places. ----
+// These are the values that are actually charged — they must match
+// CONFIG.SUBSCRIPTION_PRICE_LKR / SUBSCRIPTION_PRICE_LKR_ANNUAL in index.html,
+// which are only used for display. (Reviewed 25 Aug 2026 — lowered the monthly
+// price and added an annual option to make Finora Pro more accessible locally.)
+const PRICE_LKR_MONTHLY = "349.00";
+const PRICE_LKR_ANNUAL = "2990.00";
 const CURRENCY = "LKR";
-const ITEM_NAME = "Finora Pro — Monthly Subscription";
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -39,10 +41,21 @@ export async function onRequestPost(context) {
   const user = await getUserFromToken(env, token);
   if (!user) return json({ error: "Session expired — please sign in again." }, 401);
 
+  let plan = "monthly";
+  try {
+    const body = await request.json();
+    if (body && body.plan === "annual") plan = "annual";
+  } catch (e) {
+    // No/invalid JSON body — default to monthly for backwards compatibility.
+  }
+  const isAnnual = plan === "annual";
+  const amount = isAnnual ? PRICE_LKR_ANNUAL : PRICE_LKR_MONTHLY;
+  const ITEM_NAME = isAnnual ? "Finora Pro — Annual Subscription" : "Finora Pro — Monthly Subscription";
+  const RECURRENCE = isAnnual ? "1 Year" : "1 Month";
+
   const url = new URL(request.url);
   const siteUrl = url.protocol + "//" + url.host;
   const orderId = "finora-" + user.id.replace(/-/g, "").slice(0, 20) + "-" + Date.now();
-  const amount = PRICE_LKR;
 
   // hash = UPPER(MD5(merchant_id + order_id + amount + currency + UPPER(MD5(merchant_secret))))
   const hash = md5Hex(MERCHANT_ID + orderId + amount + CURRENCY + md5Hex(MERCHANT_SECRET).toUpperCase()).toUpperCase();
@@ -65,7 +78,7 @@ export async function onRequestPost(context) {
     address: "N/A",
     city: "Colombo",
     country: "Sri Lanka",
-    recurrence: "1 Month",
+    recurrence: RECURRENCE,
     duration: "Forever",
     custom_1: user.id,
     hash: hash
