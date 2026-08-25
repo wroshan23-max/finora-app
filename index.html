@@ -129,6 +129,33 @@
   #topSignOutBtn { display: none; }
   #topSignOutBtn.show { display: inline-flex; align-items: center; gap: 6px; }
 
+  #topSyncNowBtn { display: none; }
+  #topSyncNowBtn.show { display: inline-flex; align-items: center; gap: 6px; }
+  #topSyncNowBtn.syncing { opacity: 0.65; pointer-events: none; }
+
+  /* ================= Payment Calendar ================= */
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .cal-dow { text-align: center; font-size: 11px; font-weight: 600; color: var(--text-muted); padding: 4px 0; text-transform: uppercase; }
+  .cal-day { position: relative; min-height: 58px; border: 1px solid var(--grid); border-radius: 8px; padding: 4px 6px; cursor: pointer; background: var(--card-bg, transparent); }
+  .cal-day:hover { border-color: var(--series-8); }
+  .cal-day.cal-empty { border: none; cursor: default; background: none; }
+  .cal-day.cal-today { border-color: var(--series-1); border-width: 2px; }
+  .cal-day.cal-selected { background: var(--series-8-tint); border-color: var(--series-8); }
+  .cal-day-num { font-size: 12px; font-weight: 600; }
+  .cal-dots { position: absolute; bottom: 5px; left: 6px; display: flex; gap: 3px; }
+  .cal-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .cal-dot.cal-dot-recurring { background: var(--series-1); }
+  .cal-dot.cal-dot-reminder { background: var(--series-8); }
+  .cal-event-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--grid); font-size: 13px; }
+  .cal-event-row:last-child { border-bottom: none; }
+  .cal-event-tag { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; white-space: nowrap; }
+  .cal-event-tag.recurring { background: var(--series-1-tint); color: var(--series-1); }
+  .cal-event-tag.reminder { background: var(--series-8-tint); color: var(--series-8); }
+  @media (max-width: 640px) {
+    .cal-day { min-height: 42px; }
+    .cal-dow { font-size: 9px; }
+  }
+
   /* Draws attention to the Cloud Sync card for someone who just arrived via
      the refer.html "Get Started Free" link — see maybeShowSignupPrompt(). */
   .referral-welcome-highlight { animation: referralWelcomePulse 1.2s ease-in-out 3; }
@@ -193,6 +220,7 @@
   nav.tabs button[data-tab="accounts"].active { border-bottom-color: var(--series-2); background: var(--series-2-tint); }
   nav.tabs button[data-tab="liabilities"].active { border-bottom-color: var(--series-7); background: var(--series-7-tint); }
   nav.tabs button[data-tab="jars"].active { border-bottom-color: var(--series-5); background: var(--series-5-tint); }
+  nav.tabs button[data-tab="calendar"].active { border-bottom-color: var(--series-8); background: var(--series-8-tint); }
   nav.tabs button[data-tab="reports"].active { border-bottom-color: var(--series-6); background: var(--series-6-tint); }
   nav.tabs button[data-tab="dashboard"]:hover { border-bottom-color: var(--series-1); background: var(--series-1-tint); }
   nav.tabs button[data-tab="add"]:hover { border-bottom-color: var(--status-good); background: var(--status-good-tint); }
@@ -201,6 +229,7 @@
   nav.tabs button[data-tab="accounts"]:hover { border-bottom-color: var(--series-2); background: var(--series-2-tint); }
   nav.tabs button[data-tab="liabilities"]:hover { border-bottom-color: var(--series-7); background: var(--series-7-tint); }
   nav.tabs button[data-tab="jars"]:hover { border-bottom-color: var(--series-5); background: var(--series-5-tint); }
+  nav.tabs button[data-tab="calendar"]:hover { border-bottom-color: var(--series-8); background: var(--series-8-tint); }
   nav.tabs button[data-tab="reports"]:hover { border-bottom-color: var(--series-6); background: var(--series-6-tint); }
   /* Settings intentionally overrides the generic .active rule above to stay
      neutral (gray), since it's a utility tab rather than a content section. */
@@ -493,6 +522,7 @@
       <button id="importBtn" class="ghost" title="Restore data from a backup file">⬆ Load Data</button>
       <input type="file" id="importFile" class="file-input-hidden" accept="application/json">
       <button id="topSignOutBtn" class="dangerFilled" title="Sign out of Cloud Sync">🚪 Sign Out</button>
+      <button id="topSyncNowBtn" class="ghost" title="Sync your data with the cloud now">🔄 Sync Now</button>
     </div>
   </header>
 
@@ -510,6 +540,7 @@
     <button data-tab="accounts"><span class="tab-ic">🏦</span> Accounts</button>
     <button data-tab="liabilities"><span class="tab-ic">📉</span> Liabilities</button>
     <button data-tab="jars"><span class="tab-ic">🏺</span> 6 Jars &amp; Freedom</button>
+    <button data-tab="calendar"><span class="tab-ic">📅</span> Calendar</button>
     <button data-tab="reports"><span class="tab-ic">📊</span> Reports</button>
     <button data-tab="settings"><span class="tab-ic">⚙️</span> Settings</button>
   </nav>
@@ -637,7 +668,8 @@
         </div>
         <div class="field wide">
           <label>Note (description)</label>
-          <input type="text" id="txNote" placeholder="e.g. Groceries, Client payment...">
+          <input type="text" id="txNote" placeholder="e.g. Groceries, Client payment..." list="txNoteHistory" autocomplete="off">
+          <datalist id="txNoteHistory"></datalist>
         </div>
         <div class="field">
           <label>&nbsp;</label>
@@ -1071,6 +1103,47 @@
         <input type="checkbox" id="pyfToggle" checked>
         Show the "Pay Yourself First" reminder whenever I add income
       </label>
+    </div>
+  </section>
+
+  <!-- PAYMENT CALENDAR -->
+  <section class="tab-panel" id="panel-calendar">
+    <div class="card">
+      <h2>📅 Payment Calendar</h2>
+      <p class="hint">Everyone's recurring payments and due dates, at a glance — a blue dot is a recurring transaction, an orange dot is a reminder you added.</p>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <button type="button" class="ghost" id="calPrevBtn">‹ Prev</button>
+        <h3 id="calMonthLabel" style="margin:0;"></h3>
+        <button type="button" class="ghost" id="calNextBtn">Next ›</button>
+      </div>
+      <div class="cal-grid" id="calDowRow">
+        <div class="cal-dow">Sun</div><div class="cal-dow">Mon</div><div class="cal-dow">Tue</div>
+        <div class="cal-dow">Wed</div><div class="cal-dow">Thu</div><div class="cal-dow">Fri</div><div class="cal-dow">Sat</div>
+      </div>
+      <div class="cal-grid" id="calGrid" style="margin-top:4px;"></div>
+      <div id="calSelectedDayPanel" style="margin-top:14px;"></div>
+    </div>
+
+    <div class="card" id="calAddReminderCard">
+      <h2>🔔 Payment Reminders <span class="tag" style="color:var(--series-8);border-color:var(--series-8);">Pro</span></h2>
+      <p class="hint" id="calProHint" style="display:none;">Adding your own custom payment reminders (bills, rent, anything that isn't already a recurring transaction) is a Finora Pro feature. Everyone can still view the calendar and see recurring transactions on it for free.</p>
+      <button type="button" class="primary" id="calUnlockProBtn" style="display:none;">Open Settings to Upgrade to Pro</button>
+      <form class="form-grid" id="calReminderForm" novalidate style="display:none;">
+        <div class="field wide"><label>Title</label><input type="text" id="calRemTitle" placeholder="e.g. Pay electricity bill"></div>
+        <div class="field"><label>Date</label><input type="date" id="calRemDate"></div>
+        <div class="field">
+          <label>Repeat</label>
+          <select id="calRemRepeat">
+            <option value="none">Doesn't repeat</option>
+            <option value="monthly">Every month</option>
+            <option value="yearly">Every year</option>
+          </select>
+        </div>
+        <div class="field wide"><label>Note (optional)</label><input type="text" id="calRemNote"></div>
+        <div class="field"><label>&nbsp;</label><button type="button" class="primary" id="calRemAddBtn">Add Reminder</button></div>
+      </form>
+      <div id="calReminderList" style="margin-top:10px;"></div>
+      <div class="empty-state" id="calReminderEmptyState" style="display:none;">No reminders added yet.</div>
     </div>
   </section>
 
@@ -1777,6 +1850,11 @@
     // Optional recurring transaction templates — see setupRecurringTransactions /
     // runDueRecurringTransactions for how these turn into real transactions.
     recurringTemplates: [],
+    // Manual payment reminders shown on the Payment Calendar (Pro-only to add) —
+    // { id, title, date (anchor ISO date), repeat: "none"|"monthly"|"yearly", note }.
+    // These never create real transactions, unlike recurringTemplates — they're
+    // purely a visual/nudge reminder on the calendar.
+    paymentReminders: [],
     isPro: false
   };
 
@@ -2407,6 +2485,7 @@
       renderDropdowns();
       updateRecurringFieldVisibility();
       renderRecurringList();
+      renderCalendar();
       toast('Recurring "' + name + '" set up — first one lands ' + fmtDate(tpl.nextDueDate) + '.', "good");
     }
     $("recAddBtn").addEventListener("click", addRecurring);
@@ -2420,6 +2499,7 @@
         if (!tpl1) return;
         tpl1.active = !tpl1.active;
         renderRecurringList();
+        renderCalendar();
       } else if (delBtn) {
         var tid = delBtn.getAttribute("data-rec-del");
         var tpl2 = state.recurringTemplates.find(function (t) { return t.id === tid; });
@@ -2427,9 +2507,204 @@
         confirmDeleteAction('Delete the recurring transaction "' + tpl2.name + '"? Past transactions it already created stay untouched.', function () {
           state.recurringTemplates = state.recurringTemplates.filter(function (t) { return t.id !== tid; });
           renderRecurringList();
+          renderCalendar();
         });
       }
     });
+  }
+
+  /* ================= Payment Calendar =================
+     Shows two kinds of events on a monthly grid: recurring transaction templates
+     (state.recurringTemplates, blue dots — the same data that auto-logs real
+     transactions) and manual payment reminders (state.paymentReminders, orange
+     dots — a Finora Pro-only add). Viewing the calendar, including recurring
+     transactions on it, is free for everyone; only adding a custom reminder is
+     gated behind Pro. Reminders never create real transactions — they're purely
+     a visual nudge. */
+  var calYear, calMonth; // 0-indexed month; set in setupCalendarForm()
+  var calSelectedDate = null; // "YYYY-MM-DD" or null
+
+  function calPad(n) { return (n < 10 ? "0" : "") + n; }
+  function calDateStr(y, m, d) { return y + "-" + calPad(m + 1) + "-" + calPad(d); }
+  function calDaysInMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
+
+  // Calendar-day numbers (1-based) within (y, m) [0-indexed month] that a
+  // recurring template lands on, honoring its frequency.
+  function calRecurringDaysInMonth(tpl, y, m) {
+    if (!tpl.active) return [];
+    var days = [];
+    var dim = calDaysInMonth(y, m);
+    if (tpl.frequency === "weekly") {
+      for (var d = 1; d <= dim; d++) { if (new Date(y, m, d).getDay() === tpl.weekday) days.push(d); }
+    } else if (tpl.frequency === "yearly") {
+      if (tpl.month === m + 1) days.push(Math.min(tpl.dayOfMonth, dim));
+    } else { // monthly
+      days.push(Math.min(tpl.dayOfMonth, dim));
+    }
+    return days;
+  }
+
+  // The calendar-day number (1-based) a manual reminder lands on within (y, m),
+  // or null if it doesn't occur that month.
+  function calReminderDayInMonth(rem, y, m) {
+    var anchor = new Date(rem.date + "T00:00:00");
+    var dim = calDaysInMonth(y, m);
+    if (rem.repeat === "yearly") return anchor.getMonth() === m ? Math.min(anchor.getDate(), dim) : null;
+    if (rem.repeat === "monthly") {
+      if (y < anchor.getFullYear() || (y === anchor.getFullYear() && m < anchor.getMonth())) return null;
+      return Math.min(anchor.getDate(), dim);
+    }
+    return (anchor.getFullYear() === y && anchor.getMonth() === m) ? anchor.getDate() : null;
+  }
+
+  function calEventsForDay(dateStr) {
+    var parts = dateStr.split("-");
+    var y = parseInt(parts[0], 10), m = parseInt(parts[1], 10) - 1, d = parseInt(parts[2], 10);
+    var events = [];
+    (state.recurringTemplates || []).forEach(function (tpl) {
+      if (calRecurringDaysInMonth(tpl, y, m).indexOf(d) !== -1) {
+        events.push({ kind: "recurring", label: tpl.name, amount: tpl.amount, id: tpl.id });
+      }
+    });
+    (state.paymentReminders || []).forEach(function (rem) {
+      if (calReminderDayInMonth(rem, y, m) === d) {
+        events.push({ kind: "reminder", label: rem.title, note: rem.note || "", id: rem.id });
+      }
+    });
+    return events;
+  }
+
+  function renderCalendarProGate() {
+    var hint = $("calProHint"), unlockBtn = $("calUnlockProBtn"), form = $("calReminderForm");
+    if (!hint) return;
+    var pro = !!state.isPro;
+    hint.style.display = pro ? "none" : "block";
+    unlockBtn.style.display = pro ? "none" : "inline-flex";
+    form.style.display = pro ? "grid" : "none";
+  }
+
+  function renderCalendarDaySelection() {
+    var panel = $("calSelectedDayPanel");
+    if (!panel) return;
+    if (!calSelectedDate) { panel.innerHTML = ""; return; }
+    var events = calEventsForDay(calSelectedDate);
+    var label = fmtDate(calSelectedDate);
+    if (events.length === 0) {
+      panel.innerHTML = '<p class="hint">No payments or reminders on ' + label + '.</p>';
+      return;
+    }
+    panel.innerHTML = '<h3 style="margin:0 0 6px;font-size:14px;">' + label + '</h3>' +
+      events.map(function (e) {
+        if (e.kind === "recurring") {
+          return '<div class="cal-event-row"><span class="cal-event-tag recurring">RECURRING</span><span>' +
+            escapeHtml(e.label) + ' — ' + fmtMoney(e.amount) + '</span></div>';
+        }
+        return '<div class="cal-event-row"><span class="cal-event-tag reminder">REMINDER</span><span>' +
+          escapeHtml(e.label) + (e.note ? ' — ' + escapeHtml(e.note) : '') +
+          '</span><button type="button" class="ghost small" data-cal-rem-del="' + e.id + '" style="margin-left:auto;">Delete</button></div>';
+      }).join("");
+  }
+
+  function renderCalendar() {
+    var grid = $("calGrid");
+    if (!grid || calYear === undefined) return;
+    renderCalendarProGate();
+    $("calMonthLabel").textContent = new Date(calYear, calMonth, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    var dim = calDaysInMonth(calYear, calMonth);
+    var firstDow = new Date(calYear, calMonth, 1).getDay();
+    var today = new Date();
+    var todayStr = calDateStr(today.getFullYear(), today.getMonth(), today.getDate());
+    var html = "";
+    for (var i = 0; i < firstDow; i++) html += '<div class="cal-day cal-empty"></div>';
+    for (var d = 1; d <= dim; d++) {
+      var dateStr = calDateStr(calYear, calMonth, d);
+      var hasRecurring = (state.recurringTemplates || []).some(function (tpl) { return calRecurringDaysInMonth(tpl, calYear, calMonth).indexOf(d) !== -1; });
+      var hasReminder = (state.paymentReminders || []).some(function (rem) { return calReminderDayInMonth(rem, calYear, calMonth) === d; });
+      var cls = "cal-day";
+      if (dateStr === todayStr) cls += " cal-today";
+      if (dateStr === calSelectedDate) cls += " cal-selected";
+      var dots = "";
+      if (hasRecurring || hasReminder) {
+        dots = '<div class="cal-dots">' + (hasRecurring ? '<span class="cal-dot cal-dot-recurring"></span>' : '') + (hasReminder ? '<span class="cal-dot cal-dot-reminder"></span>' : '') + '</div>';
+      }
+      html += '<div class="' + cls + '" data-cal-day="' + dateStr + '"><div class="cal-day-num">' + d + '</div>' + dots + '</div>';
+    }
+    grid.innerHTML = html;
+    renderCalendarDaySelection();
+  }
+
+  function renderCalReminderList() {
+    var list = $("calReminderList"), empty = $("calReminderEmptyState");
+    if (!list) return;
+    var rems = state.paymentReminders || [];
+    if (rems.length === 0) { list.innerHTML = ""; if (empty) empty.style.display = "block"; return; }
+    if (empty) empty.style.display = "none";
+    list.innerHTML = rems.slice().sort(function (a, b) { return (a.date || "").localeCompare(b.date || ""); }).map(function (r) {
+      var repeatLabel = r.repeat === "monthly" ? "Every month" : r.repeat === "yearly" ? "Every year" : "One-time";
+      return '<div class="cal-event-row"><span class="cal-event-tag reminder">REMINDER</span><span>' +
+        escapeHtml(r.title) + ' — ' + fmtDate(r.date) + ' · ' + repeatLabel +
+        (r.note ? ' · ' + escapeHtml(r.note) : '') +
+        '</span><button type="button" class="ghost small" data-cal-rem-del="' + r.id + '" style="margin-left:auto;">Delete</button></div>';
+    }).join("");
+  }
+
+  function setupCalendarForm() {
+    if (!$("calGrid")) return;
+    var now = new Date();
+    calYear = now.getFullYear(); calMonth = now.getMonth();
+    $("calRemDate").value = calDateStr(now.getFullYear(), now.getMonth(), now.getDate());
+
+    $("calPrevBtn").addEventListener("click", function () {
+      calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; }
+      calSelectedDate = null;
+      renderCalendar();
+    });
+    $("calNextBtn").addEventListener("click", function () {
+      calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; }
+      calSelectedDate = null;
+      renderCalendar();
+    });
+    $("calGrid").addEventListener("click", function (evt) {
+      var cell = evt.target.closest && evt.target.closest("[data-cal-day]");
+      if (!cell) return;
+      calSelectedDate = cell.getAttribute("data-cal-day");
+      renderCalendar();
+    });
+    $("calUnlockProBtn").addEventListener("click", function () { activateTab("settings"); });
+
+    function addReminder() {
+      if (!state.isPro) { toast("Adding payment reminders is a Finora Pro feature.", "error"); return; }
+      var title = $("calRemTitle").value.trim();
+      if (!title) { toast("Please give this reminder a title.", "error"); $("calRemTitle").focus(); return; }
+      var date = $("calRemDate").value;
+      if (!date) { toast("Please pick a date.", "error"); return; }
+      var rem = { id: uid(), title: title, date: date, repeat: $("calRemRepeat").value, note: $("calRemNote").value.trim() };
+      state.paymentReminders.push(rem);
+      $("calReminderForm").reset();
+      $("calRemDate").value = date;
+      renderCalReminderList();
+      renderCalendar();
+      scheduleCloudSave();
+      toast('Reminder "' + title + '" added.', "good");
+    }
+    $("calRemAddBtn").addEventListener("click", addReminder);
+    bindEnterKey($("calReminderForm"), addReminder);
+
+    document.addEventListener("click", function (evt) {
+      var delBtn = evt.target.closest && evt.target.closest("[data-cal-rem-del]");
+      if (!delBtn) return;
+      var rid = delBtn.getAttribute("data-cal-rem-del");
+      var rem = (state.paymentReminders || []).find(function (r) { return r.id === rid; });
+      if (!rem) return;
+      confirmDeleteAction('Delete the reminder "' + rem.title + '"?', function () {
+        state.paymentReminders = state.paymentReminders.filter(function (r) { return r.id !== rid; });
+        renderCalReminderList();
+        renderCalendar();
+      });
+    });
+
+    renderCalReminderList();
+    renderCalendar();
   }
 
   function computeMainBalance() {
@@ -3989,6 +4264,10 @@
   }
 
   function renderProStatus() {
+    // Keep the Payment Calendar's Pro/free gate (Add Reminder form vs. upgrade
+    // hint) in sync with isPro everywhere renderProStatus() is called — this
+    // runs regardless of the early-returns below.
+    renderCalendarProGate();
     var statusEl = $("proStatusText"), box = $("proActionBox");
     if (!statusEl || !box) return;
 
@@ -4312,6 +4591,8 @@
     renderSavingsGoals();
     renderTxTable();
     renderRecurringList();
+    renderCalendar();
+    renderCalReminderList();
     renderTransferTable();
     renderJarPctInputs();
     renderSplitPreview();
@@ -4346,8 +4627,30 @@
     renderSplitPreview();
   }
 
+  // Suggests previously-typed Note values while adding a transaction, so a
+  // recurring merchant/description ("Groceries", "Client payment - Acme")
+  // doesn't have to be retyped from scratch every time. Backed by a plain
+  // <datalist> (native browser autocomplete UI), most-recent-first, deduped
+  // case-insensitively, capped so it stays fast and the dropdown stays useful.
+  function renderTxNoteHistory() {
+    var list = $("txNoteHistory");
+    if (!list) return;
+    var seen = {};
+    var notes = [];
+    for (var i = state.transactions.length - 1; i >= 0 && notes.length < 40; i--) {
+      var n = (state.transactions[i].note || "").trim();
+      if (!n) continue;
+      var key = n.toLowerCase();
+      if (seen[key]) continue;
+      seen[key] = true;
+      notes.push(n);
+    }
+    list.innerHTML = notes.map(function (n) { return '<option value="' + escapeHtml(n) + '">'; }).join("");
+  }
+
   function setupTxForm() {
     $("txDate").value = new Date().toISOString().slice(0, 10);
+    renderTxNoteHistory();
 
     document.querySelectorAll(".type-toggle button").forEach(function (btn) {
       btn.addEventListener("click", function () { setTxType(btn.getAttribute("data-type")); });
@@ -4383,6 +4686,7 @@
 
       state.transactions.push(tx);
       $("txAmount").value = ""; $("txNote").value = "";
+      renderTxNoteHistory();
       renderAll();
       if (currentTxType === "income" && state.pyfEnabled && !isBusiness && !skipJars) openPyfModal(tx);
       checkBudgetAlerts(tx);
@@ -4910,12 +5214,15 @@
   }
 
   // Mirror of updateTopSignInBtn() — a quick-access Sign Out button so a signed-in
-  // user doesn't have to dig into Settings just to sign out.
+  // user doesn't have to dig into Settings just to sign out. Also shows a matching
+  // quick-access Sync Now button right next to it, for the same audience (a
+  // shortcut to the Cloud Sync card's "Sync Now" button without leaving the tab).
   function updateTopSignOutBtn() {
     var btn = $("topSignOutBtn");
-    if (!btn) return;
+    var syncBtn = $("topSyncNowBtn");
     var canSignOut = cloudEnabled && !!cloudSession && !inPasswordRecovery;
-    btn.classList.toggle("show", canSignOut);
+    if (btn) btn.classList.toggle("show", canSignOut);
+    if (syncBtn) syncBtn.classList.toggle("show", canSignOut);
   }
 
   /* ================= Settings ================= */
@@ -5711,11 +6018,13 @@
     state.settlement = incoming.settlement || { extraPayment: 0 };
     state.savingsGoals = incoming.savingsGoals || [];
     state.recurringTemplates = incoming.recurringTemplates || [];
+    state.paymentReminders = incoming.paymentReminders || [];
     state.accounts.forEach(function (a) { if (!a.currency) a.currency = state.homeCurrency; if (!a.exchangeRate) a.exchangeRate = 1; });
     if ($("pyfToggle")) $("pyfToggle").checked = state.pyfEnabled;
     if ($("settleExtra")) $("settleExtra").value = state.settlement.extraPayment || 0;
     renderCurrencySelect();
     runDueRecurringTemplates();
+    renderTxNoteHistory();
     renderAll();
     cloudSuppressAutoSave = false;
     syncProStatus();
@@ -5755,7 +6064,7 @@
       jarBudgets: {}, categoryBudgets: {},
       homeCurrency: state.homeCurrency, freedomTarget: 0,
       pyfEnabled: true, confirmBeforeDelete: true, settlement: { extraPayment: 0 },
-      savingsGoals: [], recurringTemplates: []
+      savingsGoals: [], recurringTemplates: [], paymentReminders: []
     };
   }
 
@@ -5776,7 +6085,8 @@
       confirmBeforeDelete: state.confirmBeforeDelete,
       settlement: state.settlement,
       savingsGoals: state.savingsGoals,
-      recurringTemplates: state.recurringTemplates
+      recurringTemplates: state.recurringTemplates,
+      paymentReminders: state.paymentReminders
     };
   }
 
@@ -6295,6 +6605,13 @@
     $("cloudSignOutBtn").addEventListener("click", performCloudSignOut);
     $("topSignOutBtn").addEventListener("click", performCloudSignOut);
     $("cloudSyncNowBtn").addEventListener("click", function () { toast("Syncing…", "good"); cloudSaveNow(); });
+    $("topSyncNowBtn").addEventListener("click", function () {
+      var btn = $("topSyncNowBtn");
+      btn.classList.add("syncing");
+      toast("Syncing…", "good");
+      cloudSaveNow();
+      setTimeout(function () { btn.classList.remove("syncing"); }, 1200);
+    });
     updateCloudUi();
 
     // Restore an existing session (e.g. a returning visitor) so Pro status is picked
@@ -6720,6 +7037,7 @@
     setupBudgets();
     setupSavingsGoals();
     setupRecurringForm();
+    setupCalendarForm();
     setupReports();
     setupReportsAdvanced();
     setupFabButtons();
