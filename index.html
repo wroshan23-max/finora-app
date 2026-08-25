@@ -156,6 +156,34 @@
     .cal-dow { font-size: 9px; }
   }
 
+  /* ================= Shopping Lists ================= */
+  .shop-list-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+  .shop-list-chip { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 999px; padding: 6px 8px 6px 14px; font-size: 13px; cursor: pointer; background: var(--surface-1); }
+  .shop-list-chip.active { border-color: var(--series-2); background: var(--series-2-tint); font-weight: 600; }
+  .shop-list-chip .shop-chip-del { border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 13px; padding: 2px 4px; border-radius: 50%; line-height: 1; }
+  .shop-list-chip .shop-chip-del:hover { background: var(--surface-2); color: var(--status-critical); }
+  .shop-item-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--grid); }
+  .shop-item-row:last-child { border-bottom: none; }
+  .shop-item-row.bought .shop-item-name { text-decoration: line-through; color: var(--text-muted); }
+  .shop-item-name { font-size: 13.5px; font-weight: 600; flex: 1; }
+  .shop-item-meta { font-size: 11.5px; color: var(--text-muted); }
+
+  /* ================= Event Budgets ================= */
+  .event-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .event-card { border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: var(--surface-1); }
+  .event-card .ev-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; font-weight: 700; font-size: 13.5px; }
+  .event-progress-track { height: 8px; border-radius: 999px; background: var(--grid); overflow: hidden; margin: 8px 0; }
+  .event-progress-fill { height: 100%; border-radius: 999px; background: var(--series-4); }
+  .event-progress-fill.over { background: var(--status-critical); }
+
+  /* ================= Salary Planner ================= */
+  .plan-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--grid); font-size: 13px; }
+  .plan-row:last-child { border-bottom: none; }
+  .plan-row .plan-label { flex: 1; }
+  .plan-bar-track { flex: 1.4; height: 8px; border-radius: 999px; background: var(--grid); overflow: hidden; }
+  .plan-bar-fill { height: 100%; border-radius: 999px; background: var(--series-3); }
+  .plan-bar-fill.over { background: var(--status-critical); }
+
   /* Draws attention to the Cloud Sync card for someone who just arrived via
      the refer.html "Get Started Free" link — see maybeShowSignupPrompt(). */
   .referral-welcome-highlight { animation: referralWelcomePulse 1.2s ease-in-out 3; }
@@ -219,8 +247,12 @@
   nav.tabs button[data-tab="transfers"].active { border-bottom-color: var(--series-3); background: var(--series-3-tint); }
   nav.tabs button[data-tab="accounts"].active { border-bottom-color: var(--series-2); background: var(--series-2-tint); }
   nav.tabs button[data-tab="liabilities"].active { border-bottom-color: var(--series-7); background: var(--series-7-tint); }
+  nav.tabs button[data-tab="lending"].active { border-bottom-color: var(--series-6); background: var(--series-6-tint); }
   nav.tabs button[data-tab="jars"].active { border-bottom-color: var(--series-5); background: var(--series-5-tint); }
   nav.tabs button[data-tab="calendar"].active { border-bottom-color: var(--series-8); background: var(--series-8-tint); }
+  nav.tabs button[data-tab="shopping"].active { border-bottom-color: var(--series-2); background: var(--series-2-tint); }
+  nav.tabs button[data-tab="events"].active { border-bottom-color: var(--series-4); background: var(--series-4-tint); }
+  nav.tabs button[data-tab="planner"].active { border-bottom-color: var(--series-3); background: var(--series-3-tint); }
   nav.tabs button[data-tab="reports"].active { border-bottom-color: var(--series-6); background: var(--series-6-tint); }
   nav.tabs button[data-tab="dashboard"]:hover { border-bottom-color: var(--series-1); background: var(--series-1-tint); }
   nav.tabs button[data-tab="add"]:hover { border-bottom-color: var(--status-good); background: var(--status-good-tint); }
@@ -228,8 +260,12 @@
   nav.tabs button[data-tab="transfers"]:hover { border-bottom-color: var(--series-3); background: var(--series-3-tint); }
   nav.tabs button[data-tab="accounts"]:hover { border-bottom-color: var(--series-2); background: var(--series-2-tint); }
   nav.tabs button[data-tab="liabilities"]:hover { border-bottom-color: var(--series-7); background: var(--series-7-tint); }
+  nav.tabs button[data-tab="lending"]:hover { border-bottom-color: var(--series-6); background: var(--series-6-tint); }
   nav.tabs button[data-tab="jars"]:hover { border-bottom-color: var(--series-5); background: var(--series-5-tint); }
   nav.tabs button[data-tab="calendar"]:hover { border-bottom-color: var(--series-8); background: var(--series-8-tint); }
+  nav.tabs button[data-tab="shopping"]:hover { border-bottom-color: var(--series-2); background: var(--series-2-tint); }
+  nav.tabs button[data-tab="events"]:hover { border-bottom-color: var(--series-4); background: var(--series-4-tint); }
+  nav.tabs button[data-tab="planner"]:hover { border-bottom-color: var(--series-3); background: var(--series-3-tint); }
   nav.tabs button[data-tab="reports"]:hover { border-bottom-color: var(--series-6); background: var(--series-6-tint); }
   /* Settings intentionally overrides the generic .active rule above to stay
      neutral (gray), since it's a utility tab rather than a content section. */
@@ -539,8 +575,12 @@
     <button data-tab="transfers"><span class="tab-ic">⇄</span> Transfers</button>
     <button data-tab="accounts"><span class="tab-ic">🏦</span> Accounts</button>
     <button data-tab="liabilities"><span class="tab-ic">📉</span> Liabilities</button>
+    <button data-tab="lending"><span class="tab-ic">🤝</span> Lending</button>
     <button data-tab="jars"><span class="tab-ic">🏺</span> 6 Jars &amp; Freedom</button>
     <button data-tab="calendar"><span class="tab-ic">📅</span> Calendar</button>
+    <button data-tab="shopping"><span class="tab-ic">🛒</span> Shopping Lists</button>
+    <button data-tab="events"><span class="tab-ic">🎉</span> Event Budgets</button>
+    <button data-tab="planner"><span class="tab-ic">💰</span> Salary Planner</button>
     <button data-tab="reports"><span class="tab-ic">📊</span> Reports</button>
     <button data-tab="settings"><span class="tab-ic">⚙️</span> Settings</button>
   </nav>
@@ -1035,6 +1075,53 @@
     </div>
   </section>
 
+  <!-- LENDING TRACKER -->
+  <section class="tab-panel" id="panel-lending">
+    <div class="card">
+      <h2>Money You've Lent</h2>
+      <p class="hint">The mirror image of Liabilities — money someone else owes <em>you</em>. Track who it is, how much, and get it back on record when they repay.</p>
+      <form class="form-grid" id="lendingForm" novalidate>
+        <div class="field">
+          <label>Borrower's name</label>
+          <input type="text" id="lendName" placeholder="e.g. Kamal, Sister, Office friend" required>
+        </div>
+        <div class="field">
+          <label>Amount lent</label>
+          <input type="number" id="lendAmount" min="0" step="0.01" required>
+        </div>
+        <div class="field">
+          <label>Annual interest rate (%) — optional</label>
+          <input type="number" id="lendRate" min="0" step="0.01" value="0">
+        </div>
+        <div class="field">
+          <label>Expected repayment day of month (optional)</label>
+          <input type="number" id="lendDueDay" min="1" max="31" step="1" placeholder="e.g. 15">
+        </div>
+        <div class="field wide">
+          <label>Note (optional)</label>
+          <input type="text" id="lendNote" placeholder="e.g. For hospital bill">
+        </div>
+        <div class="field wide">
+          <label style="font-weight:600;">Cash actually left one of your accounts? (optional)</label>
+        </div>
+        <div class="field">
+          <label>Take the cash out of account</label>
+          <select id="lendSourceAccount"><option value="">— Don't add a transaction —</option></select>
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <button type="button" class="primary" id="lendSubmitBtn">Add Lending</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Who Owes You</h2>
+      <div class="liability-grid" id="lendingGrid"></div>
+      <div class="empty-state" id="lendingEmptyState" style="display:none;">Nobody owes you money right now.</div>
+    </div>
+  </section>
+
   <!-- JARS -->
   <section class="tab-panel" id="panel-jars">
     <div class="card">
@@ -1144,6 +1231,92 @@
       </form>
       <div id="calReminderList" style="margin-top:10px;"></div>
       <div class="empty-state" id="calReminderEmptyState" style="display:none;">No reminders added yet.</div>
+    </div>
+  </section>
+
+  <!-- SHOPPING LISTS -->
+  <section class="tab-panel" id="panel-shopping">
+    <div class="card">
+      <h2>🛒 Shopping Lists</h2>
+      <p class="hint">Keep as many lists as you like — groceries, a trip, a project — and check items off as you buy them.</p>
+      <div class="shop-list-chips" id="shopListChips"></div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        <input type="text" id="shopNewListName" placeholder="New list name, e.g. Groceries" style="flex:1;min-width:180px;">
+        <button type="button" class="primary" id="shopNewListBtn">+ New List</button>
+      </div>
+      <div class="empty-state" id="shopListsEmptyState" style="display:none;">No shopping lists yet — add one above.</div>
+    </div>
+
+    <div class="card" id="shopItemsCard" style="display:none;">
+      <h2 id="shopActiveListTitle">Items</h2>
+      <form class="form-grid" id="shopItemForm" novalidate>
+        <div class="field wide"><label>Item</label><input type="text" id="shopItemName" placeholder="e.g. Milk"></div>
+        <div class="field"><label>Qty (optional)</label><input type="text" id="shopItemQty" placeholder="e.g. 2 packets"></div>
+        <div class="field wide"><label>Note (optional)</label><input type="text" id="shopItemNote" placeholder="e.g. low-fat"></div>
+        <div class="field"><label>&nbsp;</label><button type="button" class="primary" id="shopItemAddBtn">Add Item</button></div>
+      </form>
+      <div id="shopItemList"></div>
+      <div class="empty-state" id="shopItemsEmptyState" style="display:none;">No items in this list yet.</div>
+    </div>
+  </section>
+
+  <!-- EVENT BUDGETS -->
+  <section class="tab-panel" id="panel-events">
+    <div class="card">
+      <h2>🎉 Create an Event Budget</h2>
+      <p class="hint">Weddings, parties, holidays — set a spending limit for the whole event, then log expenses against it separately from your everyday budgets.</p>
+      <form class="form-grid" id="eventForm" novalidate>
+        <div class="field wide"><label>Event name</label><input type="text" id="evName" placeholder="e.g. Sister's Wedding"></div>
+        <div class="field"><label>Budget limit</label><input type="number" id="evBudget" min="0" step="0.01"></div>
+        <div class="field"><label>Event date (optional)</label><input type="date" id="evDate"></div>
+        <div class="field"><label>&nbsp;</label><button type="button" class="primary" id="evAddBtn">Create Event</button></div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Your Events</h2>
+      <div class="event-grid" id="eventGrid"></div>
+      <div class="empty-state" id="eventEmptyState" style="display:none;">No event budgets yet.</div>
+    </div>
+
+    <div class="card" id="eventExpenseCard" style="display:none;">
+      <h2 id="evActiveTitle">Log an Expense</h2>
+      <form class="form-grid" id="eventExpenseForm" novalidate>
+        <div class="field"><label>Amount</label><input type="number" id="evExpAmount" min="0" step="0.01"></div>
+        <div class="field wide"><label>What was it for?</label><input type="text" id="evExpNote" placeholder="e.g. Catering deposit"></div>
+        <div class="field"><label>Date</label><input type="date" id="evExpDate"></div>
+        <div class="field"><label>&nbsp;</label><button type="button" class="primary" id="evExpAddBtn">Add Expense</button></div>
+      </form>
+      <div id="eventExpenseList"></div>
+    </div>
+  </section>
+
+  <!-- SALARY PLANNER -->
+  <section class="tab-panel" id="panel-planner">
+    <div class="card">
+      <h2>💰 Salary Planner <span class="tag" style="color:var(--series-8);border-color:var(--series-8);">Pro</span></h2>
+      <p class="hint">Plan the whole month the day your salary lands — split it across expense categories, loan payments, and savings goals up front, then watch planned vs. actual as the month goes.</p>
+      <p class="hint" id="plannerProHint" style="display:none;">Planning next month's salary allocation is a Finora Pro feature. Everyone can still see actual spending vs. any plan already made.</p>
+      <button type="button" class="primary" id="plannerUnlockProBtn" style="display:none;">Open Settings to Upgrade to Pro</button>
+      <div id="plannerSetupWrap" style="display:none;">
+        <div class="form-grid" style="max-width:420px;">
+          <div class="field"><label>Month</label><input type="month" id="planMonth"></div>
+          <div class="field"><label>Expected income this month</label><input type="number" id="planIncome" min="0" step="0.01"></div>
+        </div>
+        <div id="planAllocRows"></div>
+        <datalist id="planLabelSuggestions"></datalist>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+          <button type="button" class="ghost" id="planAddRowBtn">+ Add allocation line</button>
+          <button type="button" class="primary" id="planSaveBtn">Save Plan</button>
+        </div>
+        <p class="hint" style="margin-top:0;">Tip: type a label that exactly matches one of your expense categories or a liability's name (suggested as you type) and Finora will automatically track actual spending against it below.</p>
+        <p class="hint" id="planRemainingHint" style="margin-top:8px;"></p>
+      </div>
+    </div>
+
+    <div class="card" id="planActualCard" style="display:none;">
+      <h2>Planned vs. Actual — <span id="planActualMonthLabel"></span></h2>
+      <div id="planActualRows"></div>
     </div>
   </section>
 
@@ -1855,6 +2028,17 @@
     // These never create real transactions, unlike recurringTemplates — they're
     // purely a visual/nudge reminder on the calendar.
     paymentReminders: [],
+    // Money lent out to other people — the mirror image of `liabilities` (money
+    // owed BY the user). See computeLendingBalance / the Lending tab.
+    lendings: [],
+    // Shopping Lists — { id, name, createdDate, items: [{ id, name, qty, note, bought }] }.
+    shoppingLists: [],
+    // Event Budgets — { id, name, budget, date, createdDate, expenses: [{ id, amount, note, date }] }.
+    events: [],
+    // Salary Planner — one entry per planned month: { id, month ("YYYY-MM"),
+    // income, allocations: [{ id, label, amount }] }. Actual-vs-planned is
+    // computed live from state.transactions, never stored.
+    salaryPlans: [],
     isPro: false
   };
 
@@ -2047,6 +2231,8 @@
         bal += t.delta; // direct correction, already signed for this account's own convention
       } else if (t.type === "liabilityPayment" && t.accountId === accountId) {
         bal += accountDelta(acc.type, "out", t.amount);
+      } else if (t.type === "lendingRepayment" && t.accountId === accountId) {
+        bal += accountDelta(acc.type, "in", t.amount);
       }
     });
     return bal;
@@ -2065,6 +2251,31 @@
     state.transactions.forEach(function (t) {
       if (t.type === "liabilityInterest" && t.liabilityId === liabilityId) bal += t.amount;
       if (t.type === "liabilityPayment" && t.liabilityId === liabilityId) bal -= t.amount;
+    });
+    return Math.max(0, bal);
+  }
+
+  // Lending Tracker — the mirror image of Liabilities: money someone else owes
+  // YOU, instead of money you owe. Balance shrinks as "lendingRepayment"
+  // transactions come in (which also add the cash to whichever account it
+  // landed in — see computeAccountBalance/computeAccountBalanceAsOf above).
+  function lendingById(id) { for (var i = 0; i < (state.lendings || []).length; i++) if (state.lendings[i].id === id) return state.lendings[i]; return null; }
+  function computeLendingBalance(lendingId) {
+    var l = lendingById(lendingId);
+    if (!l) return 0;
+    var bal = l.openingAmount || 0;
+    state.transactions.forEach(function (t) {
+      if (t.type === "lendingRepayment" && t.lendingId === lendingId) bal -= t.amount;
+    });
+    return Math.max(0, bal);
+  }
+  function computeLendingBalanceAsOf(lendingId, asOfDate) {
+    var l = lendingById(lendingId);
+    if (!l) return 0;
+    var bal = l.openingAmount || 0;
+    state.transactions.forEach(function (t) {
+      if ((t.date || "9999-99-99") > asOfDate) return;
+      if (t.type === "lendingRepayment" && t.lendingId === lendingId) bal -= t.amount;
     });
     return Math.max(0, bal);
   }
@@ -2186,13 +2397,14 @@
   }
 
   function computeNetWorth() {
-    var assets = 0, cardDebt = 0, liabilitiesTotal = 0;
+    var assets = 0, cardDebt = 0, liabilitiesTotal = 0, lendingsTotal = 0;
     state.accounts.forEach(function (a) {
       var bal = accountBalanceHome(a.id);
       if (a.type === "creditcard") cardDebt += bal; else assets += bal;
     });
     state.liabilities.forEach(function (l) { liabilitiesTotal += computeLiabilityBalance(l.id); });
-    return { assets: assets, cardDebt: cardDebt, liabilities: liabilitiesTotal, netWorth: assets - cardDebt - liabilitiesTotal };
+    (state.lendings || []).forEach(function (l) { lendingsTotal += computeLendingBalance(l.id); });
+    return { assets: assets, cardDebt: cardDebt, liabilities: liabilitiesTotal, lendings: lendingsTotal, netWorth: assets + lendingsTotal - cardDebt - liabilitiesTotal };
   }
 
   /* ================= Net Worth history (reconstructed, not stored) =================
@@ -2220,6 +2432,8 @@
         bal += t.delta;
       } else if (t.type === "liabilityPayment" && t.accountId === accountId) {
         bal += accountDelta(acc.type, "out", t.amount);
+      } else if (t.type === "lendingRepayment" && t.accountId === accountId) {
+        bal += accountDelta(acc.type, "in", t.amount);
       }
     });
     return bal;
@@ -2239,13 +2453,14 @@
   }
 
   function computeNetWorthAsOf(asOfDate) {
-    var assets = 0, cardDebt = 0, liabilitiesTotal = 0;
+    var assets = 0, cardDebt = 0, liabilitiesTotal = 0, lendingsTotal = 0;
     state.accounts.forEach(function (a) {
       var bal = toHomeAmount(computeAccountBalanceAsOf(a.id, asOfDate), a);
       if (a.type === "creditcard") cardDebt += bal; else assets += bal;
     });
     state.liabilities.forEach(function (l) { liabilitiesTotal += computeLiabilityBalanceAsOf(l.id, asOfDate); });
-    return assets - cardDebt - liabilitiesTotal;
+    (state.lendings || []).forEach(function (l) { lendingsTotal += computeLendingBalanceAsOf(l.id, asOfDate); });
+    return assets + lendingsTotal - cardDebt - liabilitiesTotal;
   }
 
   // Itemized version of computeNetWorthAsOf() — same point-in-time reconstruction,
@@ -2270,6 +2485,11 @@
       var bal = computeLiabilityBalanceAsOf(l.id, asOfDate);
       liabilitiesList.push({ key: l.id, label: l.name, value: bal });
       totalLiabilities += bal;
+    });
+    (state.lendings || []).forEach(function (l) {
+      var lbal = computeLendingBalanceAsOf(l.id, asOfDate);
+      assets.push({ key: l.id, label: l.name + " (Money Lent Out)", value: lbal });
+      totalAssets += lbal;
     });
     return {
       asOfDate: asOfDate,
@@ -2783,6 +3003,11 @@
       return { key: l.id, label: l.name, value: computeLiabilityBalance(l.id) };
     });
   }
+  function computeBreakdownByLending() {
+    return (state.lendings || []).map(function (l) {
+      return { key: l.id, label: l.name, value: computeLendingBalance(l.id) };
+    });
+  }
   // Net Worth = assets − card debt − other liabilities; shown as three signed line
   // items (debt shown negative) so the modal's own total line reconciles exactly
   // with the Net Worth figure on the dashboard.
@@ -2790,6 +3015,7 @@
     var nw = computeNetWorth();
     return [
       { key: "assets", label: "Total Assets (Cash + Bank)", value: nw.assets },
+      { key: "lendings", label: "Money Lent Out", value: nw.lendings },
       { key: "cardDebt", label: "Credit Card Debt", value: -nw.cardDebt },
       { key: "liabilities", label: "Other Liabilities", value: -nw.liabilities }
     ];
@@ -3471,6 +3697,7 @@
     var nw = computeNetWorth();
     var tiles = [
       { label: "Total Assets (Cash + Bank)", value: fmtMoney(nw.assets), cls: "good", breakdown: "assets" },
+      { label: "Money Lent Out", value: fmtMoney(nw.lendings), cls: nw.lendings > 0 ? "good" : "", breakdown: "lendings" },
       { label: "Credit Card Debt", value: fmtMoney(nw.cardDebt), cls: nw.cardDebt > 0 ? "bad" : "", breakdown: "cardDebt" },
       { label: "Other Liabilities", value: fmtMoney(nw.liabilities), cls: nw.liabilities > 0 ? "bad" : "", breakdown: "liabilities" },
       { label: "Net Worth", value: fmtMoney(nw.netWorth), cls: nw.netWorth >= 0 ? "good" : "bad", breakdown: "netWorth" }
@@ -4038,6 +4265,529 @@
       '</div>';
   }
 
+  /* ================= Lending Tracker ================= */
+  // Reuses the .liability-card / .liability-grid styling (visually identical
+  // card shape), just with a green balance instead of red, and its own inline
+  // "Record Repayment" mini-form instead of the shared action-modal system that
+  // Liabilities uses — simpler, and self-contained to this one tab.
+  function lendingCardHtml(l) {
+    var bal = computeLendingBalance(l.id);
+    var metaBits = [];
+    if (l.interestRate) metaBits.push("Interest: " + l.interestRate + "%/year");
+    if (l.dueDayOfMonth) metaBits.push("Expected on day " + l.dueDayOfMonth + " of month");
+    if (l.note) metaBits.push(escapeHtml(l.note));
+    return '<div class="liability-card"><div class="l-head"><span class="l-name">🤝 ' + escapeHtml(l.name) + '</span></div>' +
+      '<div class="l-balance" style="color:var(--status-good);">' + fmtMoney(bal) + '</div>' +
+      (metaBits.length ? '<div class="l-meta">' + metaBits.join(" &middot; ") + '</div>' : "") +
+      (bal <= 0 ? '<div class="hint" style="margin:0 0 8px;">Fully repaid 🎉</div>' : "") +
+      '<div class="card-actions">' +
+      (bal > 0 ? '<button type="button" class="ghost small" data-lend-repay-toggle="' + l.id + '">Record Repayment</button>' : "") +
+      '<button type="button" class="ghost small danger" data-lend-del="' + l.id + '">Delete</button>' +
+      '</div>' +
+      '<div class="lend-repay-row" id="lendRepayRow-' + l.id + '" style="display:none;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);">' +
+      '<div class="form-grid" style="margin-bottom:0;">' +
+      '<div class="field"><label>Amount received</label><input type="number" min="0" step="0.01" id="lendRepayAmount-' + l.id + '" placeholder="' + bal.toFixed(2) + '"></div>' +
+      '<div class="field"><label>Into account</label><select id="lendRepayAccount-' + l.id + '"></select></div>' +
+      '<div class="field"><label>&nbsp;</label><button type="button" class="primary small" data-lend-repay-confirm="' + l.id + '">Confirm</button></div>' +
+      '</div></div>' +
+      '</div>';
+  }
+
+  function renderLendings() {
+    var grid = $("lendingGrid");
+    if (!grid) return;
+    var lendings = state.lendings || [];
+    grid.innerHTML = lendings.map(lendingCardHtml).join("");
+    $("lendingEmptyState").style.display = lendings.length ? "none" : "block";
+    // Fill each card's own "Into account" picker now that the <select> elements
+    // exist in the freshly-rendered DOM.
+    var acctOpts = state.accounts.filter(function (a) { return a.type !== "creditcard"; })
+      .map(function (a) { return '<option value="' + a.id + '">' + accountTypeMeta(a.type).icon + ' ' + escapeHtml(a.name) + '</option>'; }).join("");
+    lendings.forEach(function (l) {
+      var sel = $("lendRepayAccount-" + l.id);
+      if (sel) sel.innerHTML = acctOpts;
+    });
+  }
+
+  function setupLendingForm() {
+    if (!$("lendSubmitBtn")) return;
+    function submitLendingForm() {
+      var name = $("lendName").value.trim();
+      if (!name) { toast("Please enter the borrower's name.", "error"); $("lendName").focus(); return; }
+      var amountRaw = $("lendAmount").value;
+      if (amountRaw === "" || isNaN(parseFloat(amountRaw)) || parseFloat(amountRaw) <= 0) { toast("Please enter the amount lent.", "error"); $("lendAmount").focus(); return; }
+      var amount = Math.round(parseFloat(amountRaw) * 100) / 100;
+      var dueDayRaw = parseInt($("lendDueDay").value, 10);
+      state.lendings.push({
+        id: uid(), name: name, openingAmount: amount,
+        interestRate: parseFloat($("lendRate").value) || 0,
+        dueDayOfMonth: (dueDayRaw >= 1 && dueDayRaw <= 31) ? dueDayRaw : null,
+        note: $("lendNote").value.trim(),
+        createdDate: new Date().toISOString().slice(0, 10)
+      });
+      // Optional: if cash actually left an account to fund this loan, record it
+      // the same way the Liability form records cash received — as an
+      // "adjustment", not "expense", so it doesn't inflate Total Expenses or
+      // distort the 6 Jars split. Net worth is unaffected overall since the new
+      // lending record above offsets it exactly (cash converts into a receivable).
+      var sourceAccId = $("lendSourceAccount") ? $("lendSourceAccount").value : "";
+      if (sourceAccId) {
+        var srcAcc = accountById(sourceAccId);
+        if (srcAcc) {
+          state.transactions.push({
+            id: uid(), type: "adjustment", accountId: sourceAccId,
+            delta: accountDelta(srcAcc.type, "out", amount),
+            date: new Date().toISOString().slice(0, 10),
+            note: "Lent to " + name
+          });
+        }
+      }
+      $("lendingForm").reset();
+      renderAll();
+      toast('Lending to "' + name + '" added.' + (sourceAccId ? " Cash taken out of your account too." : ""), "good");
+    }
+    $("lendSubmitBtn").addEventListener("click", submitLendingForm);
+    bindEnterKey($("lendingForm"), submitLendingForm);
+
+    document.addEventListener("click", function (evt) {
+      var toggleBtn = evt.target.closest && evt.target.closest("[data-lend-repay-toggle]");
+      var confirmBtn = evt.target.closest && evt.target.closest("[data-lend-repay-confirm]");
+      var delBtn = evt.target.closest && evt.target.closest("[data-lend-del]");
+      if (toggleBtn) {
+        var lid = toggleBtn.getAttribute("data-lend-repay-toggle");
+        var row = $("lendRepayRow-" + lid);
+        if (row) row.style.display = row.style.display === "none" ? "block" : "none";
+        return;
+      }
+      if (confirmBtn) {
+        var clid = confirmBtn.getAttribute("data-lend-repay-confirm");
+        var lending = lendingById(clid);
+        if (!lending) return;
+        var bal = computeLendingBalance(clid);
+        var amtInput = $("lendRepayAmount-" + clid);
+        var amtRaw = amtInput.value.trim();
+        var amt = amtRaw === "" ? bal : (parseFloat(amtRaw) || 0);
+        if (!amt || amt <= 0) { toast("Please enter a repayment amount greater than 0.", "error"); return; }
+        var accSel = $("lendRepayAccount-" + clid);
+        if (!accSel || !accSel.value) { toast("Please choose which account the money went into.", "error"); return; }
+        state.transactions.push({
+          id: uid(), type: "lendingRepayment", lendingId: clid, accountId: accSel.value,
+          amount: Math.round(amt * 100) / 100, date: new Date().toISOString().slice(0, 10)
+        });
+        renderAll();
+        toast('Repayment recorded for "' + lending.name + '".', "good");
+        return;
+      }
+      if (delBtn) {
+        var did = delBtn.getAttribute("data-lend-del");
+        var toDelete = lendingById(did);
+        if (!toDelete) return;
+        confirmDeleteAction('Delete the lending record for "' + toDelete.name + '"? Any repayments already recorded stay as past transactions.', function () {
+          state.lendings = state.lendings.filter(function (l) { return l.id !== did; });
+          renderAll();
+        });
+      }
+    });
+  }
+
+  /* ================= Shopping Lists ================= */
+  var activeShoppingListId = null; // UI-only selection, not persisted
+
+  function shoppingListById(id) { for (var i = 0; i < (state.shoppingLists || []).length; i++) if (state.shoppingLists[i].id === id) return state.shoppingLists[i]; return null; }
+
+  function renderShoppingLists() {
+    var chipsEl = $("shopListChips");
+    if (!chipsEl) return;
+    var lists = state.shoppingLists || [];
+    $("shopListsEmptyState").style.display = lists.length ? "none" : "block";
+    if (!activeShoppingListId || !shoppingListById(activeShoppingListId)) {
+      activeShoppingListId = lists.length ? lists[0].id : null;
+    }
+    chipsEl.innerHTML = lists.map(function (l) {
+      var bought = l.items.filter(function (it) { return it.bought; }).length;
+      var isActive = l.id === activeShoppingListId;
+      return '<span class="shop-list-chip' + (isActive ? " active" : "") + '" data-shop-list-select="' + l.id + '">' +
+        escapeHtml(l.name) + ' <span style="color:var(--text-muted);font-size:11px;">(' + bought + '/' + l.items.length + ')</span>' +
+        '<button type="button" class="shop-chip-del" data-shop-list-del="' + l.id + '" title="Delete list">✕</button></span>';
+    }).join("");
+
+    var itemsCard = $("shopItemsCard");
+    var activeList = shoppingListById(activeShoppingListId);
+    if (!activeList) { itemsCard.style.display = "none"; return; }
+    itemsCard.style.display = "block";
+    $("shopActiveListTitle").textContent = "Items — " + activeList.name;
+    renderShopItemList();
+  }
+
+  function renderShopItemList() {
+    var list = shoppingListById(activeShoppingListId);
+    var container = $("shopItemList");
+    if (!list || !container) return;
+    $("shopItemsEmptyState").style.display = list.items.length ? "none" : "block";
+    container.innerHTML = list.items.map(function (it) {
+      var metaBits = [];
+      if (it.qty) metaBits.push(escapeHtml(it.qty));
+      if (it.note) metaBits.push(escapeHtml(it.note));
+      return '<div class="shop-item-row' + (it.bought ? " bought" : "") + '">' +
+        '<input type="checkbox" data-shop-item-toggle="' + it.id + '"' + (it.bought ? " checked" : "") + '>' +
+        '<span class="shop-item-name">' + escapeHtml(it.name) + '</span>' +
+        (metaBits.length ? '<span class="shop-item-meta">' + metaBits.join(" · ") + '</span>' : "") +
+        '<button type="button" class="ghost small danger" data-shop-item-del="' + it.id + '">Delete</button>' +
+        '</div>';
+    }).join("");
+  }
+
+  function setupShoppingLists() {
+    if (!$("shopNewListBtn")) return;
+    function addList() {
+      var name = $("shopNewListName").value.trim();
+      if (!name) { toast("Please name your new list.", "error"); $("shopNewListName").focus(); return; }
+      var list = { id: uid(), name: name, createdDate: new Date().toISOString().slice(0, 10), items: [] };
+      state.shoppingLists.push(list);
+      activeShoppingListId = list.id;
+      $("shopNewListName").value = "";
+      renderShoppingLists();
+      scheduleCloudSave();
+    }
+    $("shopNewListBtn").addEventListener("click", addList);
+    $("shopNewListName").addEventListener("keydown", function (evt) { if (evt.key === "Enter") { evt.preventDefault(); addList(); } });
+
+    function addItem() {
+      var list = shoppingListById(activeShoppingListId);
+      if (!list) return;
+      var name = $("shopItemName").value.trim();
+      if (!name) { toast("Please enter an item name.", "error"); $("shopItemName").focus(); return; }
+      list.items.push({ id: uid(), name: name, qty: $("shopItemQty").value.trim(), note: $("shopItemNote").value.trim(), bought: false });
+      $("shopItemForm").reset();
+      renderShoppingLists();
+      scheduleCloudSave();
+    }
+    $("shopItemAddBtn").addEventListener("click", addItem);
+    bindEnterKey($("shopItemForm"), addItem);
+
+    document.addEventListener("click", function (evt) {
+      var selectChip = evt.target.closest && evt.target.closest("[data-shop-list-select]");
+      var delChip = evt.target.closest && evt.target.closest("[data-shop-list-del]");
+      var delItem = evt.target.closest && evt.target.closest("[data-shop-item-del]");
+      if (delChip) {
+        // Checked first — the ✕ sits inside the selectable chip, and its own
+        // handler must win so clicking delete doesn't also select the list.
+        var dlid = delChip.getAttribute("data-shop-list-del");
+        var dList = shoppingListById(dlid);
+        if (!dList) return;
+        confirmDeleteAction('Delete the shopping list "' + dList.name + '" and all its items?', function () {
+          state.shoppingLists = state.shoppingLists.filter(function (l) { return l.id !== dlid; });
+          if (activeShoppingListId === dlid) activeShoppingListId = null;
+          renderShoppingLists();
+          scheduleCloudSave();
+        });
+        return;
+      }
+      if (selectChip) {
+        activeShoppingListId = selectChip.getAttribute("data-shop-list-select");
+        renderShoppingLists();
+        return;
+      }
+      if (delItem) {
+        var list2 = shoppingListById(activeShoppingListId);
+        if (!list2) return;
+        var iid = delItem.getAttribute("data-shop-item-del");
+        list2.items = list2.items.filter(function (it) { return it.id !== iid; });
+        renderShopItemList();
+        renderShoppingLists();
+        scheduleCloudSave();
+      }
+    });
+
+    document.addEventListener("change", function (evt) {
+      var toggle = evt.target.getAttribute && evt.target.getAttribute("data-shop-item-toggle");
+      if (!toggle) return;
+      var list = shoppingListById(activeShoppingListId);
+      if (!list) return;
+      var item = list.items.find(function (it) { return it.id === toggle; });
+      if (!item) return;
+      item.bought = evt.target.checked;
+      renderShopItemList();
+      renderShoppingLists();
+      scheduleCloudSave();
+    });
+  }
+
+  /* ================= Event Budgets ================= */
+  // Deliberately isolated from state.transactions/accounts — an event budget is
+  // a separate mental sandbox ("what did the wedding cost in total") rather
+  // than another way to log everyday spending, so it never double-counts into
+  // Income/Expense totals, the 6 Jars split, or account balances. If the cash
+  // also needs to come out of a real account, log that as its own transaction
+  // the normal way (e.g. an expense with a note) — Event Budgets is purely a
+  // ring-fenced running total against a limit.
+  var activeEventId = null; // UI-only selection, not persisted
+
+  function eventById(id) { for (var i = 0; i < (state.events || []).length; i++) if (state.events[i].id === id) return state.events[i]; return null; }
+  function computeEventSpent(ev) { return (ev.expenses || []).reduce(function (sum, e) { return sum + (e.amount || 0); }, 0); }
+
+  function eventCardHtml(ev) {
+    var spent = computeEventSpent(ev);
+    var budget = ev.budget || 0;
+    var pct = budget > 0 ? Math.min(100, (spent / budget) * 100) : 0;
+    var over = budget > 0 && spent > budget;
+    var isActive = ev.id === activeEventId;
+    return '<div class="event-card' + (isActive ? "" : "") + '" style="' + (isActive ? "border-color:var(--series-4);" : "") + '" data-event-select="' + ev.id + '">' +
+      '<div class="ev-head"><span>🎉 ' + escapeHtml(ev.name) + '</span><button type="button" class="ghost small danger" data-event-del="' + ev.id + '">Delete</button></div>' +
+      (ev.date ? '<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">' + fmtDate(ev.date) + '</div>' : "") +
+      '<div style="font-size:13px;">' + fmtMoney(spent) + ' of ' + fmtMoney(budget) + ' spent</div>' +
+      '<div class="event-progress-track"><div class="event-progress-fill' + (over ? " over" : "") + '" style="width:' + pct + '%;"></div></div>' +
+      (over ? '<div style="font-size:11px;color:var(--status-critical);">' + fmtMoney(spent - budget) + ' over budget</div>' : '<div style="font-size:11px;color:var(--text-muted);">' + fmtMoney(Math.max(0, budget - spent)) + ' remaining</div>') +
+      '<button type="button" class="ghost small" style="margin-top:8px;" data-event-select="' + ev.id + '">' + (isActive ? "Selected — log expenses below" : "Select to log expenses") + '</button>' +
+      '</div>';
+  }
+
+  function renderEvents() {
+    var grid = $("eventGrid");
+    if (!grid) return;
+    var events = state.events || [];
+    grid.innerHTML = events.map(eventCardHtml).join("");
+    $("eventEmptyState").style.display = events.length ? "none" : "block";
+    var activeEvent = eventById(activeEventId);
+    var expCard = $("eventExpenseCard");
+    if (!activeEvent) { expCard.style.display = "none"; return; }
+    expCard.style.display = "block";
+    $("evActiveTitle").textContent = "Log an Expense — " + activeEvent.name;
+    renderEventExpenseList();
+  }
+
+  function renderEventExpenseList() {
+    var ev = eventById(activeEventId);
+    var container = $("eventExpenseList");
+    if (!ev || !container) return;
+    if (!ev.expenses.length) { container.innerHTML = '<p class="hint">No expenses logged for this event yet.</p>'; return; }
+    container.innerHTML = ev.expenses.slice().sort(function (a, b) { return (b.date || "").localeCompare(a.date || ""); }).map(function (e) {
+      return '<div class="cal-event-row"><span>' + fmtDate(e.date) + ' — ' + escapeHtml(e.note || "Expense") + '</span>' +
+        '<strong style="margin-left:auto;margin-right:10px;">' + fmtMoney(e.amount) + '</strong>' +
+        '<button type="button" class="ghost small danger" data-event-exp-del="' + e.id + '">Delete</button></div>';
+    }).join("");
+  }
+
+  function setupEvents() {
+    if (!$("evAddBtn")) return;
+    $("evExpDate").value = new Date().toISOString().slice(0, 10);
+
+    function addEvent() {
+      var name = $("evName").value.trim();
+      if (!name) { toast("Please name this event.", "error"); $("evName").focus(); return; }
+      var budget = parseFloat($("evBudget").value) || 0;
+      var ev = { id: uid(), name: name, budget: budget, date: $("evDate").value || "", createdDate: new Date().toISOString().slice(0, 10), expenses: [] };
+      state.events.push(ev);
+      activeEventId = ev.id;
+      $("eventForm").reset();
+      renderEvents();
+      scheduleCloudSave();
+      toast('Event "' + name + '" created.', "good");
+    }
+    $("evAddBtn").addEventListener("click", addEvent);
+    bindEnterKey($("eventForm"), addEvent);
+
+    function addExpense() {
+      var ev = eventById(activeEventId);
+      if (!ev) return;
+      var amount = parseFloat($("evExpAmount").value);
+      if (!amount || isNaN(amount) || amount <= 0) { toast("Please enter an amount greater than 0.", "error"); $("evExpAmount").focus(); return; }
+      ev.expenses.push({ id: uid(), amount: Math.round(amount * 100) / 100, note: $("evExpNote").value.trim(), date: $("evExpDate").value || new Date().toISOString().slice(0, 10) });
+      $("evExpAmount").value = ""; $("evExpNote").value = "";
+      renderEvents();
+      scheduleCloudSave();
+    }
+    $("evExpAddBtn").addEventListener("click", addExpense);
+    bindEnterKey($("eventExpenseForm"), addExpense);
+
+    document.addEventListener("click", function (evt) {
+      var delBtn = evt.target.closest && evt.target.closest("[data-event-del]");
+      var selectBtn = evt.target.closest && evt.target.closest("[data-event-select]");
+      var expDelBtn = evt.target.closest && evt.target.closest("[data-event-exp-del]");
+      if (delBtn) {
+        var did = delBtn.getAttribute("data-event-del");
+        var toDelete = eventById(did);
+        if (!toDelete) return;
+        confirmDeleteAction('Delete the event "' + toDelete.name + '" and all its logged expenses?', function () {
+          state.events = state.events.filter(function (e) { return e.id !== did; });
+          if (activeEventId === did) activeEventId = null;
+          renderEvents();
+          scheduleCloudSave();
+        });
+        return;
+      }
+      if (selectBtn) {
+        activeEventId = selectBtn.getAttribute("data-event-select");
+        renderEvents();
+        return;
+      }
+      if (expDelBtn) {
+        var ev2 = eventById(activeEventId);
+        if (!ev2) return;
+        var eid = expDelBtn.getAttribute("data-event-exp-del");
+        ev2.expenses = ev2.expenses.filter(function (e) { return e.id !== eid; });
+        renderEvents();
+        scheduleCloudSave();
+      }
+    });
+  }
+
+  /* ================= Salary Planner ================= */
+  // One plan per calendar month: an expected income figure plus a list of
+  // { label, amount } allocation lines. "Actual" is never stored — it's
+  // computed live by matching each line's label against an existing expense
+  // category (sums that category's spending that month) or liability name
+  // (sums liabilityPayment transactions for it that month). A label that
+  // matches neither just shows as "not tracked" — still useful as a plan, the
+  // app just can't auto-reconcile it against anything.
+  function salaryPlanForMonth(month) { return (state.salaryPlans || []).find(function (p) { return p.month === month; }) || null; }
+
+  function computeAllocationActual(alloc, month) {
+    var label = (alloc.label || "").trim();
+    if (!label) return null;
+    var catMatch = state.expenseCategories.some(function (c) { return c.toLowerCase() === label.toLowerCase(); });
+    if (catMatch) {
+      var sum = 0;
+      state.transactions.forEach(function (t) {
+        if (t.type === "expense" && (t.category || "").toLowerCase() === label.toLowerCase() && (t.date || "").slice(0, 7) === month) sum += txAmountInHome(t);
+      });
+      return sum;
+    }
+    var liMatch = state.liabilities.find(function (l) { return l.name.toLowerCase() === label.toLowerCase(); });
+    if (liMatch) {
+      var sum2 = 0;
+      state.transactions.forEach(function (t) {
+        if (t.type === "liabilityPayment" && t.liabilityId === liMatch.id && (t.date || "").slice(0, 7) === month) sum2 += t.amount;
+      });
+      return sum2;
+    }
+    return null;
+  }
+
+  function planAllocRowHtml(label, amount) {
+    return '<div class="form-grid plan-alloc-row" style="align-items:end;">' +
+      '<div class="field wide"><label>Category / Loan name / Label</label><input type="text" class="plan-alloc-label" list="planLabelSuggestions" value="' + escapeHtml(label || "") + '" placeholder="e.g. Food & Groceries, Car Loan, Rent"></div>' +
+      '<div class="field"><label>Amount</label><input type="number" class="plan-alloc-amount" min="0" step="0.01" value="' + (amount ? amount : "") + '"></div>' +
+      '<div class="field"><label>&nbsp;</label><button type="button" class="ghost small danger plan-alloc-remove">Remove</button></div>' +
+      '</div>';
+  }
+
+  function renderPlanLabelSuggestions() {
+    var list = $("planLabelSuggestions");
+    if (!list) return;
+    var names = state.expenseCategories.slice().concat(state.liabilities.map(function (l) { return l.name; }));
+    list.innerHTML = names.map(function (n) { return '<option value="' + escapeHtml(n) + '">'; }).join("");
+  }
+
+  function addPlanAllocRow(label, amount) {
+    var wrap = document.createElement("div");
+    wrap.innerHTML = planAllocRowHtml(label, amount);
+    $("planAllocRows").appendChild(wrap.firstChild);
+  }
+
+  function readPlanAllocRows() {
+    return Array.prototype.map.call(document.querySelectorAll("#planAllocRows .plan-alloc-row"), function (row) {
+      return { id: uid(), label: row.querySelector(".plan-alloc-label").value.trim(), amount: parseFloat(row.querySelector(".plan-alloc-amount").value) || 0 };
+    }).filter(function (a) { return a.label; });
+  }
+
+  function updatePlanRemainingHint() {
+    if (!$("planRemainingHint")) return;
+    var income = parseFloat($("planIncome").value) || 0;
+    var allocated = readPlanAllocRows().reduce(function (s, a) { return s + a.amount; }, 0);
+    var remaining = income - allocated;
+    $("planRemainingHint").textContent = "Allocated " + fmtMoney(allocated) + " of " + fmtMoney(income) +
+      (remaining >= 0 ? " — " + fmtMoney(remaining) + " left to assign." : " — " + fmtMoney(-remaining) + " over-allocated.");
+    $("planRemainingHint").style.color = remaining < 0 ? "var(--status-critical)" : "";
+  }
+
+  function loadPlanIntoForm(month) {
+    var plan = salaryPlanForMonth(month);
+    $("planIncome").value = plan ? plan.income : "";
+    $("planAllocRows").innerHTML = "";
+    if (plan && plan.allocations.length) {
+      plan.allocations.forEach(function (a) { addPlanAllocRow(a.label, a.amount); });
+    } else {
+      addPlanAllocRow("", "");
+    }
+    updatePlanRemainingHint();
+  }
+
+  function renderSalaryPlannerProGate() {
+    var hint = $("plannerProHint"), unlockBtn = $("plannerUnlockProBtn"), setupWrap = $("plannerSetupWrap");
+    if (!hint) return;
+    var pro = !!state.isPro;
+    hint.style.display = pro ? "none" : "block";
+    unlockBtn.style.display = pro ? "none" : "inline-flex";
+    setupWrap.style.display = pro ? "block" : "none";
+  }
+
+  function renderPlanActual() {
+    if (!$("planMonth")) return;
+    var month = $("planMonth").value || new Date().toISOString().slice(0, 7);
+    var plan = salaryPlanForMonth(month);
+    var card = $("planActualCard");
+    if (!plan) { card.style.display = "none"; return; }
+    card.style.display = "block";
+    $("planActualMonthLabel").textContent = new Date(month + "-01T00:00:00").toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    var actualIncome = 0;
+    state.transactions.forEach(function (t) { if (t.type === "income" && (t.date || "").slice(0, 7) === month) actualIncome += txAmountInHome(t); });
+    var rows = '<div class="plan-row"><span class="plan-label"><strong>Income</strong></span><span>' + fmtMoney(actualIncome) + ' actual / ' + fmtMoney(plan.income) + ' planned</span></div>';
+    plan.allocations.forEach(function (a) {
+      var actual = computeAllocationActual(a, month);
+      var pct = (a.amount > 0 && actual !== null) ? Math.min(100, (actual / a.amount) * 100) : 0;
+      var over = actual !== null && actual > a.amount;
+      rows += '<div class="plan-row"><span class="plan-label">' + escapeHtml(a.label) + '</span>' +
+        '<div class="plan-bar-track"><div class="plan-bar-fill' + (over ? " over" : "") + '" style="width:' + pct + '%;"></div></div>' +
+        '<span>' + (actual === null ? "not tracked" : fmtMoney(actual)) + ' / ' + fmtMoney(a.amount) + '</span></div>';
+    });
+    $("planActualRows").innerHTML = rows;
+  }
+
+  function renderSalaryPlanner() {
+    if (!$("planMonth")) return;
+    renderSalaryPlannerProGate();
+    renderPlanLabelSuggestions();
+    renderPlanActual();
+  }
+
+  function setupSalaryPlanner() {
+    if (!$("planMonth")) return;
+    var thisMonth = new Date().toISOString().slice(0, 7);
+    $("planMonth").value = thisMonth;
+    loadPlanIntoForm(thisMonth);
+
+    $("planMonth").addEventListener("change", function () {
+      loadPlanIntoForm($("planMonth").value || thisMonth);
+      renderPlanActual();
+    });
+    $("planIncome").addEventListener("input", updatePlanRemainingHint);
+    $("planAllocRows").addEventListener("input", function (evt) {
+      if (evt.target.classList.contains("plan-alloc-amount") || evt.target.classList.contains("plan-alloc-label")) updatePlanRemainingHint();
+    });
+    $("planAddRowBtn").addEventListener("click", function () { addPlanAllocRow("", ""); updatePlanRemainingHint(); });
+    $("planAllocRows").addEventListener("click", function (evt) {
+      if (evt.target.classList.contains("plan-alloc-remove")) {
+        evt.target.closest(".plan-alloc-row").remove();
+        updatePlanRemainingHint();
+      }
+    });
+    $("planSaveBtn").addEventListener("click", function () {
+      if (!state.isPro) { toast("Planning a month's salary allocation is a Finora Pro feature.", "error"); return; }
+      var month = $("planMonth").value;
+      if (!month) { toast("Please choose a month.", "error"); return; }
+      var income = parseFloat($("planIncome").value) || 0;
+      var allocations = readPlanAllocRows();
+      var existing = salaryPlanForMonth(month);
+      if (existing) { existing.income = income; existing.allocations = allocations; }
+      else { state.salaryPlans.push({ id: uid(), month: month, income: income, allocations: allocations }); }
+      renderPlanActual();
+      scheduleCloudSave();
+      toast("Plan saved for " + new Date(month + "-01T00:00:00").toLocaleDateString(undefined, { month: "long", year: "numeric" }) + ".", "good");
+    });
+    $("plannerUnlockProBtn").addEventListener("click", function () { activateTab("settings"); });
+  }
+
   /* ================= Rendering: transactions table ================= */
   // Shared by the table render below and the Filtered Summary chart, so the two
   // never drift out of sync with each other or with the filter dropdowns.
@@ -4207,6 +4957,11 @@
       $("liDepositAccount").innerHTML = '<option value="">— Don\'t add a transaction —</option>' + incomeAccOpts;
       if (prevDeposit && state.accounts.some(function (a) { return a.id === prevDeposit; })) $("liDepositAccount").value = prevDeposit;
     }
+    if ($("lendSourceAccount")) {
+      var prevLendSrc = $("lendSourceAccount").value;
+      $("lendSourceAccount").innerHTML = '<option value="">— Don\'t add a transaction —</option>' + incomeAccOpts;
+      if (prevLendSrc && state.accounts.some(function (a) { return a.id === prevLendSrc; })) $("lendSourceAccount").value = prevLendSrc;
+    }
 
     var prevSource = $("txSource").value;
     $("txSource").innerHTML = state.incomeSources.map(function (s) { return '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>'; }).join("") +
@@ -4264,10 +5019,11 @@
   }
 
   function renderProStatus() {
-    // Keep the Payment Calendar's Pro/free gate (Add Reminder form vs. upgrade
-    // hint) in sync with isPro everywhere renderProStatus() is called — this
-    // runs regardless of the early-returns below.
+    // Keep the Payment Calendar's and Salary Planner's Pro/free gates in sync
+    // with isPro everywhere renderProStatus() is called — this runs regardless
+    // of the early-returns below.
     renderCalendarProGate();
+    renderSalaryPlannerProGate();
     var statusEl = $("proStatusText"), box = $("proActionBox");
     if (!statusEl || !box) return;
 
@@ -4575,6 +5331,10 @@
     renderAccounts();
     renderForeignAssets();
     renderLiabilities();
+    renderLendings();
+    renderShoppingLists();
+    renderEvents();
+    renderSalaryPlanner();
     renderBillReminders();
     renderSpendingAlerts();
     renderHealthScore();
@@ -5592,6 +6352,7 @@
       else if (kind === "assets") openBreakdownModal("Total Assets — by Account", computeBreakdownByAssetAccount());
       else if (kind === "cardDebt") openBreakdownModal("Credit Card Debt — by Card", computeBreakdownByCardDebt());
       else if (kind === "liabilities") openBreakdownModal("Other Liabilities — by Liability", computeBreakdownByLiability());
+      else if (kind === "lendings") openBreakdownModal("Money Lent Out — by Borrower", computeBreakdownByLending());
       else if (kind === "netWorth") openBreakdownModal("Net Worth — Breakdown", computeNetWorthBreakdown());
       else if (kind === "businessIncome") openBreakdownModal("Business Income — by Source", computeBusinessIncomeBreakdown(), { txType: "income", businessOnly: true });
       else if (kind === "businessExpense") openBreakdownModal("Business Expenses — by Category", computeBusinessExpenseBreakdown(), { txType: "expense", businessOnly: true });
@@ -6019,6 +6780,10 @@
     state.savingsGoals = incoming.savingsGoals || [];
     state.recurringTemplates = incoming.recurringTemplates || [];
     state.paymentReminders = incoming.paymentReminders || [];
+    state.lendings = incoming.lendings || [];
+    state.shoppingLists = incoming.shoppingLists || [];
+    state.events = incoming.events || [];
+    state.salaryPlans = incoming.salaryPlans || [];
     state.accounts.forEach(function (a) { if (!a.currency) a.currency = state.homeCurrency; if (!a.exchangeRate) a.exchangeRate = 1; });
     if ($("pyfToggle")) $("pyfToggle").checked = state.pyfEnabled;
     if ($("settleExtra")) $("settleExtra").value = state.settlement.extraPayment || 0;
@@ -6064,7 +6829,8 @@
       jarBudgets: {}, categoryBudgets: {},
       homeCurrency: state.homeCurrency, freedomTarget: 0,
       pyfEnabled: true, confirmBeforeDelete: true, settlement: { extraPayment: 0 },
-      savingsGoals: [], recurringTemplates: [], paymentReminders: []
+      savingsGoals: [], recurringTemplates: [], paymentReminders: [], lendings: [],
+      shoppingLists: [], events: [], salaryPlans: []
     };
   }
 
@@ -6086,7 +6852,11 @@
       settlement: state.settlement,
       savingsGoals: state.savingsGoals,
       recurringTemplates: state.recurringTemplates,
-      paymentReminders: state.paymentReminders
+      paymentReminders: state.paymentReminders,
+      lendings: state.lendings,
+      shoppingLists: state.shoppingLists,
+      events: state.events,
+      salaryPlans: state.salaryPlans
     };
   }
 
@@ -7019,6 +7789,10 @@
     setupDelegatedEvents();
     setupAccountForm();
     setupLiabilityForm();
+    setupLendingForm();
+    setupShoppingLists();
+    setupEvents();
+    setupSalaryPlanner();
     setupTransferForm();
     setupSettings();
     setupTopControls();
