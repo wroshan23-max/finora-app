@@ -44,6 +44,11 @@
     --status-good-tint: rgba(12,163,12,0.14);
     --status-warning: #fab219;
     --status-critical:#d03b3b;
+    --shadow-sm: 0 1px 2px rgba(20,20,15,0.05), 0 1px 1px rgba(20,20,15,0.04);
+    --shadow-md: 0 4px 16px rgba(20,20,15,0.07), 0 1px 3px rgba(20,20,15,0.05);
+    --shadow-lg: 0 12px 32px rgba(20,20,15,0.10), 0 2px 6px rgba(20,20,15,0.06);
+    --radius-card: 16px;
+    --radius-tile: 14px;
   }
   :root[data-theme="dark"] {
     color-scheme: dark;
@@ -77,6 +82,11 @@
     --status-good-tint: rgba(12,163,12,0.20);
     --status-warning: #fab219;
     --status-critical:#d03b3b;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.22), 0 1px 1px rgba(0,0,0,0.16);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.28), 0 1px 3px rgba(0,0,0,0.20);
+    --shadow-lg: 0 12px 32px rgba(0,0,0,0.34), 0 2px 6px rgba(0,0,0,0.22);
+    --radius-card: 16px;
+    --radius-tile: 14px;
   }
 
   * { box-sizing: border-box; }
@@ -175,6 +185,75 @@
   .event-progress-track { height: 8px; border-radius: 999px; background: var(--grid); overflow: hidden; margin: 8px 0; }
   .event-progress-fill { height: 100%; border-radius: 999px; background: var(--series-4); }
   .event-progress-fill.over { background: var(--status-critical); }
+
+  /* ================= Dashboard 2.0 ================= */
+  .dash-greeting { margin-bottom: 18px; }
+  .dash-greeting h2 { font-size: 22px; margin: 0 0 2px; letter-spacing: -0.015em; }
+  .dash-greeting .dash-date { font-size: 12.5px; color: var(--text-secondary); }
+
+  .hero-card {
+    background: linear-gradient(155deg, var(--series-1) 0%, #1d5aa8 100%);
+    color: #fff; border: none; border-radius: var(--radius-card);
+    padding: 22px 24px; margin-bottom: 18px; box-shadow: var(--shadow-lg);
+    position: relative; overflow: hidden;
+  }
+  :root[data-theme="dark"] .hero-card, :root:not([data-theme="light"]) .hero-card { background: linear-gradient(155deg, #1d5aa8 0%, #123a6e 100%); }
+  .hero-card .hero-label { font-size: 12.5px; opacity: 0.85; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; cursor: pointer; }
+  .hero-card .hero-value { font-size: 34px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; cursor: pointer; }
+  .hero-card .hero-delta { font-size: 12.5px; opacity: 0.92; margin-top: 4px; }
+  .hero-card .hero-breakdown { display: flex; gap: 22px; margin-top: 16px; flex-wrap: wrap; }
+  .hero-card .hero-breakdown .item { font-size: 11.5px; opacity: 0.85; }
+  .hero-card .hero-breakdown .item .amt { font-size: 15px; font-weight: 700; opacity: 1; display: block; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .hero-sparkline { position: absolute; right: 0; bottom: 0; width: 46%; max-width: 260px; opacity: 0.9; pointer-events: none; }
+  @media (max-width: 640px) { .hero-sparkline { display: none; } }
+
+  .health-ring-wrap { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+  .health-ring-svg { flex-shrink: 0; }
+  .health-ring-num { font-size: 26px; font-weight: 800; }
+  .health-ring-band { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+
+  .insight-list, .attention-list { display: flex; flex-direction: column; gap: 8px; }
+  .insight-item, .attention-item {
+    display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px;
+    border-radius: 10px; font-size: 13px; line-height: 1.5; border: 1px solid var(--border);
+  }
+  .insight-item .ic, .attention-item .ic { font-size: 15px; line-height: 1.3; flex-shrink: 0; }
+  .insight-item.positive, .attention-item.opportunity { background: var(--status-good-tint); border-color: var(--status-good); }
+  .insight-item.attention, .attention-item.warning { background: rgba(250,178,25,0.14); border-color: var(--status-warning); }
+  .insight-item.critical, .attention-item.urgent { background: var(--series-8-tint); border-color: var(--status-critical); }
+  .attention-item button { margin-left: auto; flex-shrink: 0; }
+  .all-caught-up { text-align: center; padding: 18px 10px; color: var(--text-secondary); font-size: 13.5px; }
+
+  .monthly-summary-grid .stat-tile .value { font-variant-numeric: tabular-nums; }
+  .month-delta { font-size: 11px; margin-top: 4px; }
+  .month-delta.up { color: var(--good); }
+  .month-delta.down { color: var(--status-critical); }
+
+  .cat-mini-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 12.5px; }
+  .cat-mini-row .cat-mini-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .cat-mini-row .cat-mini-name { flex: 1; }
+  .cat-mini-row .cat-mini-amt { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .recent-tx-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--grid); font-size: 13px; }
+  .recent-tx-row:last-child { border-bottom: none; }
+  .recent-tx-row .tx-ic { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; background: var(--grid); }
+  .recent-tx-row .tx-main { flex: 1; min-width: 0; }
+  .recent-tx-row .tx-desc { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .recent-tx-row .tx-meta { font-size: 11px; color: var(--text-muted); }
+  .recent-tx-row .tx-amt { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .recent-tx-row .tx-amt.income { color: var(--good); }
+  .view-all-link { display: inline-block; margin-top: 10px; font-size: 12.5px; color: var(--series-1); text-decoration: none; cursor: pointer; background: none; border: none; padding: 0; font-family: inherit; }
+  .view-all-link:hover { text-decoration: underline; }
+
+  .upcoming-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--grid); font-size: 12.5px; }
+  .upcoming-row:last-child { border-bottom: none; }
+  .upcoming-row .up-date { min-width: 58px; font-weight: 600; color: var(--text-secondary); }
+  .upcoming-row .up-amt { margin-left: auto; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .upcoming-row .up-amt.income { color: var(--good); }
+
+  #addTxCard.jump-highlight { animation: cardHighlight 1.6s ease-out 1; }
+  @keyframes cardHighlight { 0% { box-shadow: 0 0 0 3px var(--series-1); } 100% { box-shadow: var(--shadow-sm); } }
+  @media (prefers-reduced-motion: reduce) { #addTxCard.jump-highlight { animation: none; } }
 
   /* ================= Salary Planner ================= */
   .plan-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--grid); font-size: 13px; }
@@ -276,22 +355,22 @@
   section.tab-panel.active { display: block; }
 
   .card {
-    background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
-    padding: 16px 18px; margin-bottom: 16px;
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-card, 12px);
+    padding: 18px 20px; margin-bottom: 18px; box-shadow: var(--shadow-sm);
   }
-  .card h2 { font-size: 15px; margin: 0 0 12px; }
+  .card h2 { font-size: 15px; margin: 0 0 12px; letter-spacing: -0.01em; }
   .card h3 { font-size: 13px; margin: 0 0 8px; color: var(--text-secondary); }
-  .card p.hint { font-size: 12px; color: var(--text-secondary); margin-top: -6px; margin-bottom: 12px; }
+  .card p.hint { font-size: 12px; color: var(--text-secondary); margin-top: -6px; margin-bottom: 12px; line-height: 1.55; }
 
-  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; }
-  .stat-tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .stat-tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-tile, 12px); padding: 14px 16px; box-shadow: var(--shadow-sm); }
   .stat-tile .label { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
-  .stat-tile .value { font-size: 21px; font-weight: 700; }
+  .stat-tile .value { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
   .stat-tile .value.good { color: var(--good); }
   .stat-tile .value.bad { color: var(--status-critical); }
   .stat-tile .sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
-  .stat-tile.clickable { cursor: pointer; transition: border-color .12s, transform .12s; }
-  .stat-tile.clickable:hover { border-color: var(--series-1); transform: translateY(-1px); }
+  .stat-tile.clickable { cursor: pointer; transition: border-color .12s, transform .12s, box-shadow .12s; }
+  .stat-tile.clickable:hover { border-color: var(--series-1); transform: translateY(-2px); box-shadow: var(--shadow-md); }
 
   .quick-add-methods { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
   .add-hub-grid { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-bottom: 20px; }
@@ -436,7 +515,7 @@
   .fab {
     width: 56px; height: 56px; border-radius: 50%; border: none; cursor: pointer;
     font-size: 28px; font-weight: 700; line-height: 1; color: #fff;
-    box-shadow: 0 6px 16px rgba(0,0,0,0.28); display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--shadow-lg); display: flex; align-items: center; justify-content: center;
     transition: transform .12s, filter .12s;
   }
   .fab:hover { transform: scale(1.06); filter: brightness(1.06); }
@@ -597,17 +676,43 @@
       <button class="primary small" data-goto-tab="accounts">Add an account</button>
     </div>
 
+    <div class="dash-greeting" id="dashGreeting">
+      <h2 id="dashGreetingText">Good morning 👋</h2>
+      <div class="dash-date" id="dashGreetingDate"></div>
+    </div>
+
+    <div class="hero-card" id="netWorthHero">
+      <div class="hero-label" data-breakdown="netWorth" tabindex="0" role="button">Net Worth</div>
+      <div class="hero-value" id="heroNetWorthValue" data-breakdown="netWorth" tabindex="0" role="button">—</div>
+      <div class="hero-delta" id="heroNetWorthDelta"></div>
+      <div class="hero-breakdown" id="heroNetWorthBreakdown"></div>
+      <div class="hero-sparkline" id="heroSparkline"></div>
+    </div>
+
+    <div class="stat-section-label">This Month vs. Last Month</div>
+    <div class="stat-grid monthly-summary-grid" id="monthlySummaryGrid"></div>
+
     <div id="billRemindersBanner" style="display:none;margin-bottom:16px;"></div>
 
     <div id="spendingAlertsBanner" style="display:none;margin-bottom:16px;"></div>
+
+    <div class="card" id="attentionCard">
+      <h2>🔔 Needs Your Attention</h2>
+      <div class="attention-list" id="attentionList"></div>
+    </div>
+
+    <div class="card" id="insightsCard">
+      <h2>💡 Finora Insights</h2>
+      <div class="insight-list" id="insightsList"></div>
+    </div>
 
     <div class="card" id="healthScoreCard">
       <h2>🏆 Financial Health Score</h2>
       <div id="healthScoreEmpty" style="display:none;">
         <p class="hint" style="margin:0;">✨ Add your first account to see your Financial Health Score here — it checks in on your savings rate, net worth, and debt payoff progress once there's something to measure. Nothing to worry about yet!</p>
       </div>
-      <div class="health-score-wrap" id="healthScoreWrap">
-        <div class="health-score-num" id="healthScoreNum">—</div>
+      <div class="health-ring-wrap" id="healthScoreWrap">
+        <div id="healthRingSvgWrap"></div>
         <div>
           <div class="health-score-band" id="healthScoreBand"></div>
           <div id="healthScoreBreakdown" style="font-size:12px;color:var(--text-secondary);line-height:1.7;"></div>
@@ -616,7 +721,7 @@
       <p class="hint" id="healthScoreDisclaimer" style="margin-top:10px;margin-bottom:0;">A general indicator based on your savings rate, net worth, and debt payoff progress — not financial advice.</p>
     </div>
 
-    <div class="stat-section-label">Net Worth</div>
+    <div class="stat-section-label">Net Worth Details</div>
     <div class="stat-grid" id="netWorthGrid"></div>
 
     <div class="card" id="netWorthHistoryCard">
@@ -643,6 +748,12 @@
         <h2>Spending by Jar</h2>
         <div id="expenseDonut"></div>
       </div>
+    </div>
+
+    <div class="card" id="recentTxCard">
+      <h2>Recent Transactions</h2>
+      <div id="recentTxList"></div>
+      <button type="button" class="view-all-link" data-goto-tab="transactions">View all transactions →</button>
     </div>
 
     <div class="card">
@@ -3669,10 +3780,24 @@
   }
 
   /* ================= Rendering: stats ================= */
+  // Renders the score as an SVG radial ring (replacing the old plain number) —
+  // purely a presentation change; computeHealthScore()'s math is untouched.
+  function healthRingSvgHtml(score, color) {
+    var size = 108, stroke = 10, r = (size - stroke) / 2, c = size / 2;
+    var circumference = 2 * Math.PI * r;
+    var offset = circumference * (1 - Math.max(0, Math.min(100, score)) / 100);
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '" class="health-ring-svg">' +
+      '<circle cx="' + c + '" cy="' + c + '" r="' + r + '" fill="none" stroke="var(--grid)" stroke-width="' + stroke + '"></circle>' +
+      '<circle cx="' + c + '" cy="' + c + '" r="' + r + '" fill="none" stroke="' + color + '" stroke-width="' + stroke + '" stroke-linecap="round" ' +
+      'stroke-dasharray="' + circumference.toFixed(1) + '" stroke-dashoffset="' + offset.toFixed(1) + '" transform="rotate(-90 ' + c + ' ' + c + ')"></circle>' +
+      '<text x="' + c + '" y="' + (c + 9) + '" text-anchor="middle" font-size="27" font-weight="800" fill="' + color + '">' + score + '</text>' +
+      '</svg>';
+  }
+
   function renderHealthScore() {
-    var numEl = $("healthScoreNum"), bandEl = $("healthScoreBand"), breakdownEl = $("healthScoreBreakdown");
+    var ringWrap = $("healthRingSvgWrap"), bandEl = $("healthScoreBand"), breakdownEl = $("healthScoreBreakdown");
     var emptyEl = $("healthScoreEmpty"), wrapEl = $("healthScoreWrap"), disclaimerEl = $("healthScoreDisclaimer");
-    if (!numEl) return;
+    if (!ringWrap) return;
     // A brand-new account with nothing added yet would otherwise score a flat 45
     // ("Needs Attention") purely from the neutral-midpoint fallbacks below — that
     // reads as "something's wrong" to someone who's done nothing wrong yet. Show
@@ -3683,8 +3808,7 @@
     if (disclaimerEl) disclaimerEl.style.display = hasAccounts ? "block" : "none";
     if (!hasAccounts) return;
     var h = computeHealthScore();
-    numEl.textContent = h.score;
-    numEl.style.color = h.bandColor;
+    ringWrap.innerHTML = healthRingSvgHtml(h.score, h.bandColor);
     bandEl.textContent = h.band;
     bandEl.style.color = h.bandColor;
     breakdownEl.innerHTML =
@@ -3706,6 +3830,221 @@
       return '<div class="stat-tile clickable" data-breakdown="' + s.breakdown + '" tabindex="0" role="button"' +
         '><div class="label">' + s.label + '</div><div class="value ' + (s.cls || "") + '">' + s.value + '</div>' +
         '<div class="sub" style="color:var(--series-1);">Tap for breakdown →</div></div>';
+    }).join("");
+  }
+
+  /* ================= Dashboard 2.0 ================= */
+  function renderDashGreeting() {
+    var titleEl = $("dashGreetingText"), dateEl = $("dashGreetingDate");
+    if (!titleEl) return;
+    var hr = new Date().getHours();
+    var greet = hr < 12 ? "Good morning" : hr < 18 ? "Good afternoon" : "Good evening";
+    var name = "";
+    try {
+      if (cloudSession && cloudSession.user && cloudSession.user.email) {
+        name = cloudSession.user.email.split("@")[0];
+        name = name.charAt(0).toUpperCase() + name.slice(1);
+      }
+    } catch (e) { /* not signed in yet — greet without a name */ }
+    titleEl.textContent = greet + (name ? ", " + name : "") + " 👋";
+    if (dateEl) dateEl.textContent = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  }
+
+  // A compact axis-free line, distinct from renderLineChart() (which draws
+  // value/x-axis labels for the full Net Worth Over Time card) — just the shape.
+  function renderSparkline(containerId, data, color) {
+    var container = $(containerId);
+    if (!container) return;
+    if (!data || data.length < 2) { container.innerHTML = ""; return; }
+    var w = 260, h = 90, pad = 6;
+    var values = data.map(function (d) { return d.value; });
+    var minV = Math.min.apply(null, values), maxV = Math.max.apply(null, values);
+    if (minV === maxV) { minV -= 1; maxV += 1; }
+    var range = maxV - minV;
+    function xFor(i) { return pad + (i / (data.length - 1)) * (w - pad * 2); }
+    function yFor(v) { return h - pad - ((v - minV) / range) * (h - pad * 2); }
+    var points = data.map(function (d, i) { return xFor(i) + "," + yFor(d.value); }).join(" ");
+    var areaPoints = points + " " + xFor(data.length - 1) + "," + (h - pad) + " " + xFor(0) + "," + (h - pad);
+    container.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '" preserveAspectRatio="none">' +
+      '<polygon points="' + areaPoints + '" fill="' + color + '" opacity="0.20"></polygon>' +
+      '<polyline points="' + points + '" fill="none" stroke="' + color + '" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"></polyline>' +
+      '</svg>';
+  }
+
+  function renderNetWorthHero() {
+    var valueEl = $("heroNetWorthValue");
+    if (!valueEl) return;
+    var nw = computeNetWorth();
+    valueEl.textContent = fmtMoney(nw.netWorth);
+    var history = computeNetWorthHistory(6);
+    var deltaEl = $("heroNetWorthDelta");
+    if (state.accounts.length > 0 && history.length >= 2) {
+      var change = history[history.length - 1].value - history[0].value;
+      var up = change >= 0;
+      var pctTxt = history[0].value !== 0 ? " (" + Math.abs((change / Math.abs(history[0].value)) * 100).toFixed(0) + "%)" : "";
+      deltaEl.innerHTML = (up ? "▲ " : "▼ ") + fmtMoney(Math.abs(change)) + pctTxt + " over the last 6 months";
+    } else {
+      deltaEl.textContent = "Add an account to start tracking your net worth over time.";
+    }
+    $("heroNetWorthBreakdown").innerHTML =
+      '<div class="item">Assets<span class="amt">' + fmtMoney(nw.assets + nw.lendings) + '</span></div>' +
+      '<div class="item">Debt<span class="amt">' + fmtMoney(nw.cardDebt + nw.liabilities) + '</span></div>';
+    renderSparkline("heroSparkline", state.accounts.length > 0 ? history : [], "#ffffff");
+  }
+
+  // Same-window totals for "this month" vs. "the same days last month",
+  // reusing the existing thisMonthRange()/computePeriodTotals() helpers that
+  // already power Budget Limits and the Reports tab — no new math invented.
+  function prevMonthRange() {
+    var now = new Date();
+    var y = now.getFullYear(), m = now.getMonth();
+    var pad = function (n) { return (n < 10 ? "0" : "") + n; };
+    var pm = m === 0 ? 11 : m - 1, py = m === 0 ? y - 1 : y;
+    var start = py + "-" + pad(pm + 1) + "-01";
+    return { start: start, end: thisMonthRange().start };
+  }
+
+  function computeMonthlySummary() {
+    var cur = computePeriodTotals(thisMonthRange().start, thisMonthRange().end);
+    var prev = computePeriodTotals(prevMonthRange().start, prevMonthRange().end);
+    function pctChange(c, p) { if (!p) return null; return ((c - p) / Math.abs(p)) * 100; }
+    return {
+      income: cur.income, expenseChange: pctChange(cur.expense, prev.expense),
+      expense: cur.expense, incomeChange: pctChange(cur.income, prev.income),
+      net: cur.net, savingsRate: cur.savingsRate
+    };
+  }
+
+  function renderMonthlySummary() {
+    var grid = $("monthlySummaryGrid");
+    if (!grid) return;
+    if (state.accounts.length === 0) { grid.innerHTML = '<div class="empty-state">Add an account to see this month\'s summary.</div>'; return; }
+    var s = computeMonthlySummary();
+    function deltaHtml(change, goodWhenUp) {
+      if (change === null) return "";
+      var up = change >= 0;
+      var good = goodWhenUp ? up : !up;
+      return '<div class="month-delta ' + (good ? "up" : "down") + '">' + (up ? "▲" : "▼") + " " + Math.abs(change).toFixed(0) + "% vs. last month</div>";
+    }
+    var tiles = [
+      { label: "Income", value: fmtMoney(s.income), cls: "good", delta: deltaHtml(s.incomeChange, true) },
+      { label: "Expenses", value: fmtMoney(s.expense), cls: "bad", delta: deltaHtml(s.expenseChange, false) },
+      { label: "Net", value: fmtMoney(s.net), cls: s.net >= 0 ? "good" : "bad", delta: "" },
+      { label: "Savings Rate", value: (s.income > 0 ? s.savingsRate.toFixed(1) : "0.0") + "%", cls: s.savingsRate >= 20 ? "good" : "", delta: "" }
+    ];
+    grid.innerHTML = tiles.map(function (t) {
+      return '<div class="stat-tile"><div class="label">' + t.label + '</div><div class="value ' + t.cls + '">' + t.value + '</div>' + t.delta + '</div>';
+    }).join("");
+  }
+
+  // Consolidates the old separate bill-reminder / spending-alert banners plus
+  // budget-limit and event-budget overages into one prioritized list — see the
+  // Aug 2026 UX audit's "Needs Your Attention" recommendation.
+  function computeNeedsAttention() {
+    var items = [];
+    computeUpcomingLiabilityDues().forEach(function (d) {
+      var when = d.daysUntil < 0 ? "was due " + Math.abs(d.daysUntil) + (Math.abs(d.daysUntil) === 1 ? " day ago" : " days ago")
+        : d.daysUntil === 0 ? "is due today" : "due in " + d.daysUntil + (d.daysUntil === 1 ? " day" : " days");
+      items.push({
+        severity: d.daysUntil < 0 ? "urgent" : d.daysUntil <= 2 ? "warning" : "opportunity",
+        icon: d.daysUntil < 0 ? "🔴" : d.daysUntil <= 2 ? "🟠" : "🟡",
+        text: "<strong>" + escapeHtml(d.liability.name) + "</strong> payment " + when + " — " + fmtMoney(d.balance) + " owed",
+        tab: "liabilities"
+      });
+    });
+    computeSpendingAnomalies().forEach(function (a) {
+      items.push({
+        severity: "warning", icon: "📈",
+        text: "<strong>" + escapeHtml(a.category) + "</strong> spending is up " + a.pct.toFixed(0) + "% vs. this point last month",
+        tab: "transactions"
+      });
+    });
+    var jarSpent = computeMonthJarSpent();
+    JARS.forEach(function (j) {
+      var limit = state.jarBudgets[j.key];
+      if (!limit) return;
+      var spent = jarSpent[j.key] || 0;
+      if (spent > limit) items.push({ severity: "urgent", icon: "🚨", text: "<strong>" + j.name + "</strong> jar is over its budget — " + fmtMoney(spent) + " of " + fmtMoney(limit), tab: "jars" });
+      else if (spent >= limit * 0.9) items.push({ severity: "warning", icon: "⚠️", text: "<strong>" + j.name + "</strong> jar is close to its limit — " + fmtMoney(spent) + " of " + fmtMoney(limit), tab: "jars" });
+    });
+    var catSpent = computeMonthCategorySpent();
+    Object.keys(state.categoryBudgets || {}).forEach(function (c) {
+      var limit = state.categoryBudgets[c];
+      if (!limit) return;
+      var spent = catSpent[c] || 0;
+      if (spent > limit) items.push({ severity: "urgent", icon: "🚨", text: "<strong>" + escapeHtml(c) + "</strong> is over its budget — " + fmtMoney(spent) + " of " + fmtMoney(limit), tab: "jars" });
+    });
+    (state.events || []).forEach(function (ev) {
+      var spent = computeEventSpent(ev);
+      if (ev.budget > 0 && spent > ev.budget) items.push({ severity: "urgent", icon: "🎉", text: "<strong>" + escapeHtml(ev.name) + "</strong> event is over budget — " + fmtMoney(spent) + " of " + fmtMoney(ev.budget), tab: "events" });
+    });
+    var order = { urgent: 0, warning: 1, opportunity: 2 };
+    return items.sort(function (a, b) { return order[a.severity] - order[b.severity]; });
+  }
+
+  function renderNeedsAttention() {
+    var list = $("attentionList");
+    if (!list) return;
+    var items = computeNeedsAttention();
+    if (items.length === 0) { list.innerHTML = '<div class="all-caught-up">✅ All caught up — nothing needs your attention right now.</div>'; return; }
+    list.innerHTML = items.map(function (it) {
+      return '<div class="attention-item ' + it.severity + '"><span class="ic">' + it.icon + '</span><span>' + it.text + '</span>' +
+        '<button class="ghost small" data-goto-tab="' + it.tab + '">View</button></div>';
+    }).join("");
+  }
+
+  // Short, auto-generated observations from data Finora already tracks — not
+  // financial advice, just plain-language pointers to what changed recently.
+  function computeFinoraInsights() {
+    var insights = [];
+    if (state.accounts.length === 0) return insights;
+    var s = computeMonthlySummary();
+    if (s.income > 0) {
+      if (s.savingsRate >= 20) insights.push({ type: "positive", icon: "🎯", text: "Your savings rate this month is " + s.savingsRate.toFixed(0) + "% — at or above the recommended 20%. Well done!" });
+      else insights.push({ type: "attention", icon: "🎯", text: "Your savings rate this month is " + s.savingsRate.toFixed(0) + "% — below the recommended 20%." });
+    }
+    if (s.expenseChange !== null) {
+      if (s.expenseChange <= -10) insights.push({ type: "positive", icon: "📉", text: "Expenses are down " + Math.abs(s.expenseChange).toFixed(0) + "% vs. last month — nice work keeping spending in check." });
+      else if (s.expenseChange >= 20) insights.push({ type: "critical", icon: "📈", text: "Expenses are up " + s.expenseChange.toFixed(0) + "% vs. last month." });
+    }
+    var history = computeNetWorthHistory(2);
+    if (history.length === 2) {
+      var change = history[1].value - history[0].value;
+      if (change > 0) insights.push({ type: "positive", icon: "💰", text: "Your net worth grew by " + fmtMoney(change) + " over the last month." });
+      else if (change < 0) insights.push({ type: "attention", icon: "💰", text: "Your net worth dropped by " + fmtMoney(Math.abs(change)) + " over the last month." });
+    }
+    var catSpent = computeMonthCategorySpent();
+    var topCat = null, topAmt = 0;
+    Object.keys(catSpent).forEach(function (c) { if (catSpent[c] > topAmt) { topAmt = catSpent[c]; topCat = c; } });
+    if (topCat) insights.push({ type: "attention", icon: "🛒", text: "Your biggest spending category this month is " + escapeHtml(topCat) + " at " + fmtMoney(topAmt) + "." });
+    return insights.slice(0, 5);
+  }
+
+  function renderFinoraInsights() {
+    var list = $("insightsList");
+    if (!list) return;
+    var insights = computeFinoraInsights();
+    if (insights.length === 0) { list.innerHTML = '<div class="all-caught-up">Add a few transactions and check back here for personalized insights.</div>'; return; }
+    list.innerHTML = insights.map(function (i) {
+      return '<div class="insight-item ' + i.type + '"><span class="ic">' + i.icon + '</span><span>' + i.text + '</span></div>';
+    }).join("");
+  }
+
+  function renderRecentTransactions() {
+    var list = $("recentTxList");
+    if (!list) return;
+    var rows = state.transactions.filter(function (t) { return t.type === "income" || t.type === "expense"; })
+      .slice().sort(function (a, b) { return (b.date || "").localeCompare(a.date || ""); }).slice(0, 6);
+    if (rows.length === 0) { list.innerHTML = '<div class="empty-state">No transactions yet.</div>'; return; }
+    list.innerHTML = rows.map(function (t) {
+      var acc = accountById(t.accountId);
+      var desc = t.type === "income" ? (t.source || "Income") : (t.category || "Expense");
+      var meta = fmtDate(t.date) + (acc ? " · " + escapeHtml(acc.name) : "");
+      var icon = t.type === "income" ? "💰" : "🧾";
+      var amt = (t.type === "income" ? "+" : "-") + fmtMoney(txAmountInHome(t));
+      return '<div class="recent-tx-row"><div class="tx-ic">' + icon + '</div>' +
+        '<div class="tx-main"><div class="tx-desc">' + escapeHtml(desc) + (t.note ? " — " + escapeHtml(t.note) : "") + '</div><div class="tx-meta">' + meta + '</div></div>' +
+        '<div class="tx-amt ' + (t.type === "income" ? "income" : "") + '">' + amt + '</div></div>';
     }).join("");
   }
 
@@ -5327,6 +5666,7 @@
 
   /* ================= Master render ================= */
   function renderAll() {
+    renderDashGreeting();
     renderDropdowns();
     renderAccounts();
     renderForeignAssets();
@@ -5339,12 +5679,17 @@
     renderSpendingAlerts();
     renderHealthScore();
     renderNetWorth();
+    renderNetWorthHero();
     renderNetWorthHistory();
+    renderMonthlySummary();
+    renderNeedsAttention();
+    renderFinoraInsights();
     renderStats();
     renderBusiness();
     renderBarChart();
     renderAllocationDonut();
     renderExpenseDonut();
+    renderRecentTransactions();
     renderJarGrid();
     renderBudgetInputs();
     renderFreedomTracker();
@@ -6150,7 +6495,13 @@
     setTxType(type);
     setTimeout(function () {
       var card = $("addTxCard");
-      if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (card) {
+        card.scrollIntoView({ behavior: "smooth", block: "center" });
+        card.classList.remove("jump-highlight");
+        void card.offsetWidth; // restart the animation even if it just played
+        card.classList.add("jump-highlight");
+        setTimeout(function () { card.classList.remove("jump-highlight"); }, 1700);
+      }
       $("txAmount").focus();
     }, 60);
   }
