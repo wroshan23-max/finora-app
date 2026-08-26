@@ -254,6 +254,7 @@
      today's exact look — picking a style is purely opt-in. */
   :root { --hero-grad-1: var(--series-1); --hero-grad-2: #1d5aa8; }
   :root[data-theme="dark"], :root:not([data-theme="light"]) { --hero-grad-1: #1d5aa8; --hero-grad-2: #123a6e; }
+
   :root[data-bg-theme="navy"]   { --hero-grad-1: #274978; --hero-grad-2: #0d1b2e; }
   :root[data-bg-theme="ocean"]  { --hero-grad-1: #12799c; --hero-grad-2: #123a52; }
   :root[data-bg-theme="forest"] { --hero-grad-1: #1baf7a; --hero-grad-2: #0f4a34; }
@@ -755,10 +756,12 @@
   .fab-income { background: var(--status-good); }
   .fab-expense { background: var(--status-critical); }
   .fab-transfer { background: var(--series-1); font-size: 22px; }
+  .fab-adddata { background: var(--series-7, #4a3aa7); font-size: 22px; width: 48px; height: 48px; box-shadow: var(--shadow-md); }
   @media (max-width: 560px) {
     .fab-stack { right: 14px; bottom: 84px; } /* raised above the fixed bottom group-nav bar */
     .fab { width: 50px; height: 50px; font-size: 24px; }
     .fab-transfer { font-size: 19px; }
+    .fab-adddata { width: 42px; height: 42px; font-size: 19px; }
   }
 
   .ff-progress-wrap { margin-top: 8px; }
@@ -1241,6 +1244,55 @@
         <span class="quick-add-method-text">
           <span class="quick-add-method-title">Add a Liability</span>
           <span class="quick-add-method-desc">Loans and debts to track payoff progress</span>
+        </span>
+      </button>
+      <button type="button" class="quick-add-method" data-goto-tab="lending">
+        <span class="quick-add-method-icon">🤝</span>
+        <span class="quick-add-method-text">
+          <span class="quick-add-method-title">Lend Money</span>
+          <span class="quick-add-method-desc">Track money you've lent to others until it's repaid</span>
+        </span>
+      </button>
+    </div>
+
+    <!-- Every other place Finora takes data entry, so nothing is only
+         reachable by stumbling into its own tab — same tile style, same
+         data-goto-tab handoff as the groups above (setupTabs()). -->
+    <div class="stat-section-label">Track &amp; Plan</div>
+    <div class="quick-add-methods add-hub-grid">
+      <button type="button" class="quick-add-method" data-goto-tab="jars">
+        <span class="quick-add-method-icon">🎯</span>
+        <span class="quick-add-method-text">
+          <span class="quick-add-method-title">Add a Savings Goal</span>
+          <span class="quick-add-method-desc">A named target inside your Long-Term Savings jar</span>
+        </span>
+      </button>
+      <button type="button" class="quick-add-method" data-goto-tab="calendar">
+        <span class="quick-add-method-icon">📅</span>
+        <span class="quick-add-method-text">
+          <span class="quick-add-method-title">Add a Payment Reminder</span>
+          <span class="quick-add-method-desc">A due date to show on the Payment Calendar</span>
+        </span>
+      </button>
+      <button type="button" class="quick-add-method" data-goto-tab="shopping">
+        <span class="quick-add-method-icon">🛒</span>
+        <span class="quick-add-method-text">
+          <span class="quick-add-method-title">Add a Shopping List</span>
+          <span class="quick-add-method-desc">Plan what to buy before you spend</span>
+        </span>
+      </button>
+      <button type="button" class="quick-add-method" data-goto-tab="events">
+        <span class="quick-add-method-icon">🎉</span>
+        <span class="quick-add-method-text">
+          <span class="quick-add-method-title">Create an Event Budget</span>
+          <span class="quick-add-method-desc">Ring-fenced spending for a wedding, trip, or occasion</span>
+        </span>
+      </button>
+      <button type="button" class="quick-add-method" data-goto-tab="planner">
+        <span class="quick-add-method-icon">💰</span>
+        <span class="quick-add-method-text">
+          <span class="quick-add-method-title">Plan Salary Allocation</span>
+          <span class="quick-add-method-desc">Split next month's income across categories up front</span>
         </span>
       </button>
     </div>
@@ -2425,6 +2477,10 @@
 </div>
 
 <div class="fab-stack" id="fabStack">
+  <!-- Jumps straight to the Add Data hub (panel-add — every data-entry method,
+       one nice icon each) so it's reachable from anywhere, not just the nav
+       bar. See setupFabButtons(). -->
+  <button type="button" class="fab fab-adddata" id="fabAddData" title="Add Data" aria-label="Add Data">🗂️</button>
   <button type="button" class="fab fab-income" id="fabIncome" title="Quick add Income" aria-label="Quick add Income">+</button>
   <button type="button" class="fab fab-expense" id="fabExpense" title="Quick add Expense" aria-label="Quick add Expense">−</button>
   <button type="button" class="fab fab-transfer" id="fabTransfer" title="Quick add Transfer" aria-label="Quick add Transfer">⇄</button>
@@ -7551,6 +7607,7 @@
     }, 60);
   }
   function setupFabButtons() {
+    $("fabAddData").addEventListener("click", function () { activateTab("add"); });
     $("fabIncome").addEventListener("click", function () { quickAdd("income"); });
     $("fabExpense").addEventListener("click", function () { quickAdd("expense"); });
     $("fabTransfer").addEventListener("click", quickAddTransfer);
