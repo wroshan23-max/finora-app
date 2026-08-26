@@ -219,6 +219,7 @@
     position: relative; overflow: hidden;
   }
   :root[data-theme="dark"] .hero-card, :root:not([data-theme="light"]) .hero-card { background: linear-gradient(155deg, #1d5aa8 0%, #123a6e 100%); }
+  .hero-card.ffa-hero, :root[data-theme="dark"] .hero-card.ffa-hero, :root:not([data-theme="light"]) .hero-card.ffa-hero { background: linear-gradient(155deg, var(--series-2) 0%, #7a3414 100%); }
   .hero-card .hero-label { font-size: 12.5px; opacity: 0.85; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; cursor: pointer; }
   .hero-card .hero-value { font-size: 34px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; cursor: pointer; }
   .hero-card .hero-delta { font-size: 12.5px; opacity: 0.92; margin-top: 4px; }
@@ -338,6 +339,29 @@
     body { padding-bottom: 74px; }
     .fab-stack { bottom: 84px; }
   }
+  /* Wide screens get a persistent left sidebar instead of the horizontal top
+     bar — same buttons, same activateTab() logic, just repositioned via CSS
+     so no DOM restructuring was needed (mirrors the mobile bottom-nav
+     approach above). Header controls (sign-in, sync, theme, currency) stay in
+     the top header bar rather than being duplicated into the sidebar. */
+  .sidebar-brand { display: none; }
+  @media (min-width: 1000px) {
+    body { padding-left: 88px; }
+    .group-nav {
+      position: fixed; top: 0; left: 0; bottom: 0; right: auto; z-index: 300;
+      width: 88px; flex-direction: column; align-items: stretch; justify-content: flex-start;
+      background: var(--surface-1); border-right: 1px solid var(--grid); border-bottom: none;
+      margin: 0; gap: 6px; padding: 16px 8px; box-shadow: none; overflow-y: auto;
+    }
+    .sidebar-brand {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      font-weight: 800; font-size: 10.5px; color: var(--series-1);
+      margin-bottom: 10px; padding-bottom: 14px; border-bottom: 1px solid var(--grid);
+    }
+    .sidebar-brand .sidebar-brand-ic { font-size: 22px; }
+    .group-nav button { flex-direction: column; gap: 4px; padding: 11px 4px; font-size: 10.5px; border-radius: 10px; text-align: center; }
+    .group-nav button .group-ic { font-size: 20px; }
+  }
 
   nav.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--grid); margin-bottom: 20px; flex-wrap: wrap; }
   nav.tabs button {
@@ -451,6 +475,47 @@
   .section-intro h1 { font-size: 18px; margin: 0 0 2px; letter-spacing: -0.01em; }
   .section-intro p { font-size: 12.5px; color: var(--text-secondary); margin: 0; }
 
+  /* ================= Transaction history: table (desktop) / cards (mobile) =================
+     Same data, same renderTxTable() loop, two render targets — below 720px the
+     table hides and a card list takes over so nobody has to scroll a wide
+     table sideways on a phone. */
+  .tx-card-list { display: none; }
+  .tx-card { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--grid); font-size: 13px; }
+  .tx-card:last-child { border-bottom: none; }
+  .tx-card .tx-card-actions { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+  .tx-card .tx-card-actions button { padding: 3px 8px; font-size: 11px; }
+  @media (max-width: 720px) {
+    .tx-table-wrap { display: none; }
+    .tx-card-list { display: block; }
+  }
+
+  /* ================= Quick Add bottom sheet =================
+     #addTxCard (the one real Add Transaction form) gets physically moved into
+     here on open and moved back to #addTxCardAnchor on close — see
+     openQuickAddSheet()/closeQuickAddSheet() in the script. */
+  /* #quickAddSheet (id selector, not just .bottom-sheet-overlay) so this beats
+     the later .modal-overlay { align-items: center; } rule regardless of
+     source order — both classes are present on the same element. */
+  #quickAddSheet { align-items: flex-end; }
+  .bottom-sheet {
+    background: var(--surface-1); width: 100%; max-width: 480px;
+    border-radius: var(--radius-card, 14px) var(--radius-card, 14px) 0 0;
+    padding: 10px 20px 20px; max-height: 92vh; overflow-y: auto;
+    box-shadow: var(--shadow-lg); animation: sheetSlideUp .22s ease-out;
+  }
+  @keyframes sheetSlideUp { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .bottom-sheet { animation: none; } }
+  .bottom-sheet-handle { width: 36px; height: 4px; border-radius: 999px; background: var(--grid); margin: 0 auto 12px; }
+  .bottom-sheet-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .bottom-sheet-header h2 { margin: 0; font-size: 16px; }
+  .bottom-sheet #addTxCard { border: none; box-shadow: none; padding: 0; margin: 0; }
+  .bottom-sheet #addTxCard > h2 { display: none; }
+  @media (min-width: 641px) {
+    #quickAddSheet { align-items: center; }
+    .bottom-sheet { border-radius: var(--radius-card, 14px); }
+    .bottom-sheet-handle { display: none; }
+  }
+
   .health-score-wrap { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
   .health-score-num { font-size: 46px; font-weight: 800; line-height: 1; min-width: 90px; }
   .health-score-band { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
@@ -530,6 +595,39 @@
   .jar-card .jar-target { font-size: 11px; color: var(--text-muted); }
   .jar-card .jar-balance { font-size: 20px; font-weight: 700; margin: 4px 0 8px; }
   .jar-card .jar-desc { font-size: 11px; color: var(--text-secondary); line-height: 1.5; }
+
+  /* ================= 6 Jars signature cards (jar-card-v2) ================= */
+  .jar-card-v2 {
+    border: 1px solid var(--border); border-radius: var(--radius-card, 12px); padding: 16px;
+    background: var(--surface-1); box-shadow: var(--shadow-sm); transition: border-color .12s, transform .12s, box-shadow .12s;
+  }
+  .jar-card-v2.clickable { cursor: pointer; }
+  .jar-card-v2.clickable:hover { border-color: var(--jar-color, var(--series-1)); transform: translateY(-2px); box-shadow: var(--shadow-md); }
+  .jar-card-v2 .jar-v2-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .jar-card-v2 .jar-v2-icon {
+    width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0; font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--jar-tint, var(--series-1-tint));
+  }
+  .jar-card-v2 .jar-v2-name { font-weight: 700; font-size: 13px; flex: 1; }
+  .jar-card-v2 .jar-v2-pct { font-size: 11.5px; color: var(--text-muted); font-weight: 600; }
+  .jar-card-v2 .jar-v2-balance { font-size: 21px; font-weight: 800; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 6px; }
+  .jar-card-v2 .jar-v2-balance-label { font-size: 10.5px; font-weight: 500; color: var(--text-muted); }
+  .jar-card-v2 .bar-track { margin: 8px 0 6px; }
+  .jar-card-v2 .jar-v2-spent { font-size: 11px; color: var(--text-secondary); margin-bottom: 6px; }
+  .jar-card-v2 .jar-v2-desc { font-size: 11px; color: var(--text-secondary); line-height: 1.5; padding-top: 6px; border-top: 1px dashed var(--grid); }
+
+  /* ================= Budget Limits "control center" summary ================= */
+  .budget-summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 4px 0 16px; }
+  @media (max-width: 640px) { .budget-summary-grid { grid-template-columns: 1fr; } }
+  .budget-summary-tile { border: 1px solid var(--border); border-radius: var(--radius-card, 12px); padding: 14px; background: var(--surface-2, var(--surface-1)); }
+  .budget-summary-title { font-size: 12.5px; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .budget-status-badge { font-size: 10px; font-weight: 700; border: 1px solid; border-radius: 999px; padding: 1px 7px; }
+  .budget-summary-figures { display: flex; gap: 16px; flex-wrap: wrap; }
+  .budget-summary-num { display: block; font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .budget-summary-sub { display: block; font-size: 10.5px; color: var(--text-muted); font-weight: 500; }
+  .budget-summary-pct { font-size: 11px; color: var(--text-secondary); }
+  .budget-summary-projected { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
   .bar-track { height: 8px; border-radius: 5px; background: var(--grid); overflow: hidden; margin: 6px 0; }
   .bar-fill { height: 100%; border-radius: 5px; }
   .swatch-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
@@ -642,6 +740,22 @@
   .liability-card .l-meta { font-size: 11px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 8px; }
   .card-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 
+  /* ================= Debt cards (liability-card-v2) =================
+     Used only by liabilityCardHtml() — the Lending Tracker keeps the original
+     .liability-card class untouched (lendingCardHtml still uses it). */
+  .liability-card-v2 { border: 1px solid var(--border); border-radius: var(--radius-card, 12px); padding: 14px; background: var(--surface-1); }
+  .liability-card-v2 .l2-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .liability-card-v2 .l2-icon {
+    width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0; font-size: 17px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--series-7-tint); color: var(--series-7);
+  }
+  .liability-card-v2 .l2-name { font-weight: 700; font-size: 13.5px; }
+  .liability-card-v2 .l-type { font-size: 11px; color: var(--text-muted); }
+  .liability-card-v2 .l-balance { font-size: 21px; font-weight: 700; margin: 6px 0; color: var(--status-critical); }
+  .liability-card-v2 .l-progress-label { font-size: 10.5px; color: var(--text-secondary); margin-bottom: 8px; }
+  .liability-card-v2 .l-meta { font-size: 11px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 8px; }
+
   .settle-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
   @media (max-width: 700px) { .settle-compare { grid-template-columns: 1fr; } }
   .settle-card { border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: var(--surface-2); }
@@ -667,6 +781,7 @@
     display: none !important;
   }
   body.printing-report .app { max-width: 100%; padding: 0; }
+  body.printing-report { padding-left: 0 !important; padding-bottom: 0 !important; }
   body.printing-report section.tab-panel { display: none !important; }
   body.printing-report #panel-reports { display: block !important; }
 </style>
@@ -719,6 +834,7 @@
        see activateTab() — so none of the 14 tabs' render/setup logic needed
        to change to get here. -->
   <nav class="group-nav" id="groupNav">
+    <div class="sidebar-brand" aria-hidden="true"><span class="sidebar-brand-ic">💠</span>Finora</div>
     <button data-group="home" class="active"><span class="group-ic">🏠</span> Home</button>
     <button data-group="transactions"><span class="group-ic">💳</span> Transactions</button>
     <button data-group="plan"><span class="group-ic">🗓️</span> Plan</button>
@@ -848,6 +964,10 @@
       <div id="foreignAssetsList"></div>
     </div>
 
+    <!-- Marks #addTxCard's home position so the Quick Add bottom sheet can move
+         the real form in (same node, same IDs/listeners — no duplicate form
+         logic) and move it back out again when closed. See openQuickAddSheet(). -->
+    <div id="addTxCardAnchor" style="display:none;"></div>
     <div class="card" id="addTxCard">
       <h2>Add a Transaction</h2>
       <form class="tx-form" id="txForm" novalidate>
@@ -1089,7 +1209,7 @@
         <input type="file" id="csvImportFile" accept=".csv,text/csv" class="file-input-hidden">
       </div>
       <p class="hint" style="margin-top:8px;">Got a statement from your bank? <strong>Import CSV</strong> reads a downloaded statement in bulk. Got a single transaction SMS/notification? <strong>Paste SMS</strong> fills in one transaction from the text — Finora can't read your phone's messages directly (browsers don't allow that), but pasting the text in is nearly as fast.</p>
-      <div style="overflow-x:auto;">
+      <div class="tx-table-wrap" style="overflow-x:auto;">
         <table id="txTable">
           <thead>
             <tr><th>Date</th><th>Type</th><th>Jar</th><th>Account</th><th>Source / Note</th><th>Amount</th><th></th></tr>
@@ -1097,6 +1217,7 @@
           <tbody id="txTableBody"></tbody>
         </table>
       </div>
+      <div class="tx-card-list" id="txCardList"></div>
       <div class="empty-state" id="txEmptyState" style="display:none;">No transactions yet — add your first one from the Dashboard tab.</div>
     </div>
   </section>
@@ -1158,6 +1279,19 @@
       <div class="section-intro-ic" style="background:var(--series-2-tint);color:var(--series-2);">🏦</div>
       <div><h1>Accounts</h1><p>Cash, bank, and card balances — the foundation of your Net Worth.</p></div>
     </div>
+
+    <!-- Wealth group's Net Worth hero — same computeNetWorth()/computeNetWorthHistory()
+         math and same .hero-card shell as the Dashboard's hero, just a second render
+         target (see renderNetWorthHero()) so opening Accounts, Liabilities, or Lending
+         always leads with the one number that ties them together. -->
+    <div class="hero-card" id="wealthNetWorthHero">
+      <div class="hero-label" data-breakdown="netWorth" tabindex="0" role="button">Net Worth</div>
+      <div class="hero-value" id="wealthHeroNetWorthValue" data-breakdown="netWorth" tabindex="0" role="button">—</div>
+      <div class="hero-delta" id="wealthHeroNetWorthDelta"></div>
+      <div class="hero-breakdown" id="wealthHeroNetWorthBreakdown"></div>
+      <div class="hero-sparkline" id="wealthHeroSparkline"></div>
+    </div>
+
     <div class="card">
       <h2>Add an Account</h2>
       <form class="form-grid" id="accountForm" novalidate>
@@ -1344,13 +1478,15 @@
     </div>
 
     <div class="card">
-      <h2>Jar Balances</h2>
+      <h2>Give Every Rupee a Job.</h2>
+      <p class="hint">Every jar shows what's available, what's been spent this month, and whether you're on track against any limit you've set below.</p>
       <div class="jar-grid" id="jarGrid"></div>
     </div>
 
     <div class="card">
       <h2>📊 Budget Limits (This Month)</h2>
       <p class="hint">Set an optional monthly spending limit per Jar and/or per Category — leave blank for no limit. You'll get a warning toast when an expense pushes one past 80%, and another once it goes over.</p>
+      <div class="budget-summary-grid" id="budgetSummary"></div>
       <div class="stat-section-label" style="margin-top:4px;">By Jar</div>
       <div class="settings-grid" id="jarBudgetInputs"></div>
       <div id="jarBudgetBars" style="margin-top:10px;"></div>
@@ -1360,8 +1496,13 @@
     </div>
 
     <div class="card">
-      <h2>🎯 Financial Freedom Account (FFA) Tracker</h2>
-      <p class="hint">Money in the FFA jar is never spent — only invested to build passive income. Set your Financial Freedom Number and watch your progress.</p>
+      <h2>🌱 Financial Freedom — Your Number</h2>
+      <p class="hint">Money in the FFA jar is never spent — only invested to build passive income. This is the one number that tells you how close you are to not needing a paycheck.</p>
+      <div class="hero-card ffa-hero" id="freedomHero">
+        <div class="hero-label" data-breakdown="jar:FFA" tabindex="0" role="button">Financial Freedom Account</div>
+        <div class="hero-value" data-breakdown="jar:FFA" tabindex="0" role="button" id="ffaHeroValue">—</div>
+        <div class="hero-delta" id="ffaHeroPct"></div>
+      </div>
       <div class="settings-grid" style="margin-bottom:10px;">
         <div class="field">
           <label>Financial Freedom target</label>
@@ -1374,6 +1515,7 @@
           <span id="ffaPctLabel"></span>
         </div>
         <div class="ff-bar-track"><div class="ff-bar-fill" id="ffaBarFill" style="width:0%;"></div></div>
+        <div class="hint" id="ffaProjectionLabel" style="margin-top:8px;"></div>
       </div>
     </div>
 
@@ -1913,6 +2055,21 @@
   </div>
 </div>
 
+<!-- Quick Add bottom sheet — reuses the real #addTxCard form (moved in via JS,
+     not duplicated) so there is exactly one place transaction-adding logic
+     lives. Opens instantly from the FAB from any tab, closes and puts the
+     form back after a successful save. See openQuickAddSheet()/closeQuickAddSheet(). -->
+<div class="modal-overlay bottom-sheet-overlay" id="quickAddSheet">
+  <div class="bottom-sheet" id="quickAddSheetBody">
+    <div class="bottom-sheet-handle"></div>
+    <div class="bottom-sheet-header">
+      <h2>Add a Transaction</h2>
+      <button type="button" class="ghost small" id="quickAddSheetClose" aria-label="Close">✕</button>
+    </div>
+    <div id="quickAddSheetContent"></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="confirmModal">
   <div class="modal">
     <h2 id="confirmModalTitle">Are you sure?</h2>
@@ -2067,12 +2224,12 @@
 
   /* ================= Constants ================= */
   var JARS = [
-    { key: "NEC",  name: "Necessities",              desc: "Rent, food, bills, transport — needs to live.", varName: "--series-1" },
-    { key: "FFA",  name: "Financial Freedom Account", desc: "Never spent — only invested for passive income.", varName: "--series-2" },
-    { key: "LTSS", name: "Long-Term Savings",          desc: "Big future purchases: car, home, education.", varName: "--series-3" },
-    { key: "EDU",  name: "Education",                  desc: "Books, courses, coaching — investing in yourself.", varName: "--series-4" },
-    { key: "PLAY", name: "Play",                        desc: "Guilt-free fun — spent every month, on you.", varName: "--series-5" },
-    { key: "GIVE", name: "Give",                        desc: "Charity, tithing, helping others.", varName: "--series-6" }
+    { key: "NEC",  name: "Necessities",              desc: "Rent, food, bills, transport — needs to live.", varName: "--series-1", icon: "🛡️" },
+    { key: "FFA",  name: "Financial Freedom Account", desc: "Never spent — only invested for passive income.", varName: "--series-2", icon: "🌱" },
+    { key: "LTSS", name: "Long-Term Savings",          desc: "Big future purchases: car, home, education.", varName: "--series-3", icon: "🏛️" },
+    { key: "EDU",  name: "Education",                  desc: "Books, courses, coaching — investing in yourself.", varName: "--series-4", icon: "🎓" },
+    { key: "PLAY", name: "Play",                        desc: "Guilt-free fun — spent every month, on you.", varName: "--series-5", icon: "🎉" },
+    { key: "GIVE", name: "Give",                        desc: "Charity, tithing, helping others.", varName: "--series-6", icon: "🎁" }
   ];
   var DEFAULT_PCT = { NEC: 55, FFA: 10, LTSS: 10, EDU: 10, PLAY: 10, GIVE: 5 };
 
@@ -2360,6 +2517,7 @@
   function liabilityById(id) { for (var i = 0; i < state.liabilities.length; i++) if (state.liabilities[i].id === id) return state.liabilities[i]; return null; }
 
   function jarColor(key) { return getComputedStyle(document.documentElement).getPropertyValue(jarByKey(key).varName).trim(); }
+  function jarTint(key) { return getComputedStyle(document.documentElement).getPropertyValue(jarByKey(key).varName + "-tint").trim(); }
   function expenseColor() { return getComputedStyle(document.documentElement).getPropertyValue("--series-8").trim(); }
   function incomeColor() { return getComputedStyle(document.documentElement).getPropertyValue("--series-1").trim(); }
   function liabilityColor() { return getComputedStyle(document.documentElement).getPropertyValue("--series-7").trim(); }
@@ -4021,10 +4179,22 @@
     } else {
       deltaEl.textContent = "Add an account to start tracking your net worth over time.";
     }
-    $("heroNetWorthBreakdown").innerHTML =
+    var breakdownHtml =
       '<div class="item">Assets<span class="amt">' + fmtMoney(nw.assets + nw.lendings) + '</span></div>' +
       '<div class="item">Debt<span class="amt">' + fmtMoney(nw.cardDebt + nw.liabilities) + '</span></div>';
+    $("heroNetWorthBreakdown").innerHTML = breakdownHtml;
     renderSparkline("heroSparkline", state.accounts.length > 0 ? history : [], "#ffffff");
+
+    // Second render target — the same Net Worth hero, mirrored onto the Wealth
+    // group's Accounts tab (see wealthNetWorthHero in the HTML). Guarded so this
+    // is a no-op wherever that markup doesn't exist.
+    var wealthValueEl = $("wealthHeroNetWorthValue");
+    if (wealthValueEl) {
+      wealthValueEl.textContent = fmtMoney(nw.netWorth);
+      $("wealthHeroNetWorthDelta").innerHTML = deltaEl.innerHTML;
+      $("wealthHeroNetWorthBreakdown").innerHTML = breakdownHtml;
+      renderSparkline("wealthHeroSparkline", state.accounts.length > 0 ? history : [], "#ffffff");
+    }
   }
 
   // Same-window totals for "this month" vs. "the same days last month",
@@ -4457,25 +4627,51 @@
 
   /* ================= Rendering: jars ================= */
   function renderJarGrid() {
+    // "Available" balance per jar is exactly computeJarBalances() — untouched
+    // money math. "Spent this month" reuses the same computeMonthJarSpent()
+    // that already powers Budget Limits, so nothing new is calculated here,
+    // just displayed. The progress bar only claims "on track" against a real
+    // limit the user actually set (state.jarBudgets) — with no limit set it's
+    // shown as a plain balance indicator instead of a fabricated target.
     var bal = computeJarBalances();
+    var spentThisMonth = computeMonthJarSpent();
     var maxAbs = Math.max.apply(null, JARS.map(function (j) { return Math.abs(bal[j.key]); }).concat([1]));
     $("jarGrid").innerHTML = JARS.map(function (j) {
-      var b = bal[j.key]; var pctWidth = Math.min(100, (Math.abs(b) / maxAbs) * 100); var color = jarColor(j.key);
-      return '<div class="jar-card clickable" data-breakdown="jar:' + j.key + '" tabindex="0" role="button"><div class="jar-head"><span class="jar-name"><span class="swatch-dot" style="background:' + color + ';"></span>' + j.name + '</span>' +
-        '<span class="jar-target">' + (state.jarPct[j.key] || 0) + '%</span></div>' +
-        '<div class="jar-balance" style="color:' + (b < 0 ? "var(--status-critical)" : "inherit") + ';">' + fmtMoney(b) + '</div>' +
-        '<div class="bar-track"><div class="bar-fill" style="width:' + pctWidth + '%;background:' + color + ';"></div></div>' +
-        '<div class="jar-desc">' + j.desc + '</div>' +
+      var b = bal[j.key]; var color = jarColor(j.key); var tint = jarTint(j.key);
+      var spent = spentThisMonth[j.key] || 0;
+      var limit = state.jarBudgets[j.key] || 0;
+      var hasLimit = limit > 0;
+      var pctWidth = hasLimit ? Math.min(100, (spent / limit) * 100) : Math.min(100, (Math.abs(b) / maxAbs) * 100);
+      var barColor = hasLimit ? (pctWidth >= 100 ? "var(--status-critical)" : pctWidth >= 80 ? "var(--status-warning)" : color) : color;
+      var spentLine = hasLimit
+        ? fmtMoney(spent) + ' spent of ' + fmtMoney(limit) + ' this month (' + pctWidth.toFixed(0) + '%)'
+        : fmtMoney(spent) + ' spent this month';
+      return '<div class="jar-card-v2 clickable" data-breakdown="jar:' + j.key + '" tabindex="0" role="button" style="--jar-color:' + color + ';--jar-tint:' + tint + ';">' +
+        '<div class="jar-v2-head"><div class="jar-v2-icon">' + j.icon + '</div>' +
+        '<div class="jar-v2-name">' + j.name + '</div>' +
+        '<div class="jar-v2-pct">' + (state.jarPct[j.key] || 0) + '%</div></div>' +
+        '<div class="jar-v2-balance" style="color:' + (b < 0 ? "var(--status-critical)" : "inherit") + ';">' + fmtMoney(b) + '<span class="jar-v2-balance-label">available</span></div>' +
+        '<div class="bar-track"><div class="bar-fill" style="width:' + pctWidth + '%;background:' + barColor + ';"></div></div>' +
+        '<div class="jar-v2-spent">' + spentLine + '</div>' +
+        '<div class="jar-v2-desc">' + j.desc + '</div>' +
         '<div class="sub" style="color:var(--series-1);font-size:11px;margin-top:6px;">Tap for breakdown →</div></div>';
     }).join("");
   }
 
   /* ================= Rendering: budget limits ================= */
+  // Single source of truth for the Healthy / Approaching limit / Over limit
+  // thresholds — same 80% / 100% cutoffs already used by checkBudgetAlerts(),
+  // just also surfaced as text (not color alone) per accessibility guidance.
+  function budgetStatus(pct) {
+    if (pct >= 100) return { label: "Over limit", color: "var(--status-critical)" };
+    if (pct >= 80) return { label: "Approaching limit", color: "var(--status-warning)" };
+    return { label: "Healthy", color: "var(--status-good)" };
+  }
   function budgetBarHtml(label, spent, limit) {
     var pct = limit > 0 ? (spent / limit) * 100 : 0;
-    var color = pct >= 100 ? "var(--status-critical)" : pct >= 80 ? "var(--status-warning)" : "var(--status-good)";
-    return '<div class="budget-row"><div class="budget-label"><span>' + escapeHtml(label) + '</span><span>' + fmtMoney(spent) + ' of ' + fmtMoney(limit) + ' (' + pct.toFixed(0) + '%)</span></div>' +
-      '<div class="budget-bar-track"><div class="budget-bar-fill" style="width:' + Math.min(100, pct) + '%;background:' + color + ';"></div></div></div>';
+    var status = budgetStatus(pct);
+    return '<div class="budget-row"><div class="budget-label"><span>' + escapeHtml(label) + '</span><span>' + fmtMoney(spent) + ' of ' + fmtMoney(limit) + ' (' + pct.toFixed(0) + '%) · <span style="color:' + status.color + ';font-weight:600;">' + status.label + '</span></span></div>' +
+      '<div class="budget-bar-track"><div class="budget-bar-fill" style="width:' + Math.min(100, pct) + '%;background:' + status.color + ';"></div></div></div>';
   }
 
   // Rebuilds the editable limit <input> fields — call on tab-level re-renders,
@@ -4501,6 +4697,63 @@
     var catBarsHtml = state.expenseCategories.filter(function (c) { return (state.categoryBudgets[c] || 0) > 0; })
       .map(function (c) { return budgetBarHtml(c, catSpent[c] || 0, state.categoryBudgets[c]); }).join("");
     $("categoryBudgetBars").innerHTML = catBarsHtml || '<div class="hint">No category limits set yet.</div>';
+
+    renderBudgetSummary(jarSpent, catSpent);
+  }
+
+  // "Control center" summary strip at the top of Budget Limits — Budgeted /
+  // Spent / Remaining / % used / a same-pace projected month-end total, per
+  // dimension (Jar, Category). Jar and Category limits are two separate,
+  // possibly-overlapping views of the SAME transactions (one tx has exactly
+  // one jar AND, optionally, one category), so their totals are kept in two
+  // separate tiles rather than added together — adding them would double-
+  // count spend and show a fabricated combined number. Only limits the user
+  // actually set are included; nothing here is estimated except the clearly-
+  // labeled "Projected" figure, which is a plain same-daily-pace extrapolation
+  // of REAL spend-so-far, shown only once there's something to extrapolate.
+  function budgetSummaryTileHtml(title, limitTotal, spentTotal) {
+    if (limitTotal <= 0) {
+      return '<div class="budget-summary-tile"><div class="budget-summary-title">' + title + '</div>' +
+        '<div class="hint" style="margin:4px 0 0;">No limits set yet.</div></div>';
+    }
+    var pct = (spentTotal / limitTotal) * 100;
+    var status = budgetStatus(pct);
+    var remaining = limitTotal - spentTotal;
+    var now = new Date();
+    var dayOfMonth = now.getDate();
+    var daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    var projectedHtml = "";
+    if (spentTotal > 0 && dayOfMonth < daysInMonth) {
+      var projected = spentTotal * (daysInMonth / dayOfMonth);
+      projectedHtml = '<div class="budget-summary-projected">Projected by month end: ~' + fmtMoney(projected) +
+        (projected > limitTotal ? ' <span style="color:var(--status-warning);font-weight:600;">(on pace to go over)</span>' : "") + '</div>';
+    }
+    return '<div class="budget-summary-tile">' +
+      '<div class="budget-summary-title">' + title + '<span class="budget-status-badge" style="color:' + status.color + ';border-color:' + status.color + ';">' + status.label + '</span></div>' +
+      '<div class="budget-summary-figures">' +
+      '<div><span class="budget-summary-num">' + fmtMoney(spentTotal) + '</span><span class="budget-summary-sub">spent</span></div>' +
+      '<div><span class="budget-summary-num">' + fmtMoney(limitTotal) + '</span><span class="budget-summary-sub">budgeted</span></div>' +
+      '<div><span class="budget-summary-num" style="color:' + (remaining < 0 ? "var(--status-critical)" : "inherit") + ';">' + fmtMoney(remaining) + '</span><span class="budget-summary-sub">remaining</span></div>' +
+      '</div>' +
+      '<div class="bar-track" style="margin:8px 0 2px;"><div class="bar-fill" style="width:' + Math.min(100, pct) + '%;background:' + status.color + ';"></div></div>' +
+      '<div class="budget-summary-pct">' + pct.toFixed(0) + '% of this month\'s budgeted total</div>' +
+      projectedHtml +
+      '</div>';
+  }
+  function renderBudgetSummary(jarSpent, catSpent) {
+    var el = $("budgetSummary"); if (!el) return;
+    var jarLimitTotal = 0, jarSpentTotal = 0;
+    JARS.forEach(function (j) {
+      var limit = state.jarBudgets[j.key] || 0;
+      if (limit > 0) { jarLimitTotal += limit; jarSpentTotal += (jarSpent[j.key] || 0); }
+    });
+    var catLimitTotal = 0, catSpentTotal = 0;
+    state.expenseCategories.forEach(function (c) {
+      var limit = state.categoryBudgets[c] || 0;
+      if (limit > 0) { catLimitTotal += limit; catSpentTotal += (catSpent[c] || 0); }
+    });
+    el.innerHTML = budgetSummaryTileHtml("By Jar", jarLimitTotal, jarSpentTotal) +
+      budgetSummaryTileHtml("By Category", catLimitTotal, catSpentTotal);
   }
 
   function setupBudgets() {
@@ -4509,6 +4762,7 @@
       var val = parseFloat(evt.target.value);
       if (!val || val <= 0) delete state.jarBudgets[key]; else state.jarBudgets[key] = val;
       renderBudgetBars();
+      renderJarGrid();
     });
     $("categoryBudgetInputs").addEventListener("input", function (evt) {
       var key = evt.target.getAttribute("data-category-budget"); if (!key) return;
@@ -4542,6 +4796,22 @@
     if (messages.length) toast(messages.join(" · "), messages.some(function (m) { return m.indexOf("over budget") !== -1; }) ? "error" : "warning");
   }
 
+  // Real 3-month average of income actually allocated to the FFA jar (same
+  // computeJarBalances()-style split math, just windowed) — used only to
+  // project a payoff date. If there's no contribution history, no projection
+  // is shown rather than guessing.
+  function computeAvgMonthlyFFAContribution() {
+    var since = new Date(); since.setMonth(since.getMonth() - 3);
+    var sinceStr = since.toISOString().slice(0, 10);
+    var total = 0;
+    state.transactions.forEach(function (t) {
+      if (t.type === "income" && !t.isBusiness && !t.skipJars && (t.date || "") >= sinceStr) {
+        total += txAmountInHome(t) * ((state.jarPct.FFA || 0) / 100);
+      }
+    });
+    return total / 3;
+  }
+
   function renderFreedomTracker() {
     var bal = computeJarBalances(); var ffa = bal.FFA; var target = state.freedomTarget || 0;
     var pct = target > 0 ? Math.min(100, Math.max(0, (ffa / target) * 100)) : 0;
@@ -4549,6 +4819,28 @@
     $("ffaPctLabel").textContent = target > 0 ? pct.toFixed(1) + "% of goal" : "Set a target below";
     $("ffaBarFill").style.width = pct + "%";
     $("freedomTarget").value = state.freedomTarget;
+
+    if ($("ffaHeroValue")) {
+      $("ffaHeroValue").textContent = fmtMoney(ffa);
+      $("ffaHeroPct").textContent = target > 0 ? pct.toFixed(1) + "% of your Financial Freedom target" : "Set a target below to track progress";
+    }
+    var projEl = $("ffaProjectionLabel");
+    if (projEl) {
+      if (target > 0 && ffa >= target) {
+        projEl.textContent = "🎉 You've reached your Financial Freedom target!";
+      } else if (target > 0) {
+        var avgMonthly = computeAvgMonthlyFFAContribution();
+        if (avgMonthly > 0) {
+          var monthsLeft = Math.ceil((target - ffa) / avgMonthly);
+          var yearsTxt = monthsLeft >= 12 ? (monthsLeft / 12).toFixed(1) + " years" : monthsLeft + " months";
+          projEl.textContent = "At your average pace over the last 3 months (" + fmtMoney(avgMonthly) + "/mo into FFA), you'd reach your target in about " + yearsTxt + ".";
+        } else {
+          projEl.textContent = "Log income to start seeing a projected date here.";
+        }
+      } else {
+        projEl.textContent = "";
+      }
+    }
   }
 
   /* ================= Savings Goals (named sub-goals of the LTSS jar) ================= */
@@ -4694,12 +4986,33 @@
 
   /* ================= Rendering: liabilities ================= */
   function liabilityCardHtml(l) {
+    // Everything here is derived from data already recorded: computeLiabilityBalance()
+    // is the exact same untouched running balance used everywhere else (Net
+    // Worth, statements). "Paid down" only appears when the liability actually
+    // has a recorded starting balance to compare against (l.openingBalance) —
+    // no invented baseline. If the balance has grown instead of shrunk (e.g.
+    // interest outpacing payments), that's shown plainly instead of a fake
+    // "% paid" figure.
     var bal = computeLiabilityBalance(l.id);
     var meta = liabilityTypeMeta(l.type);
-    return '<div class="liability-card"><div class="l-head"><span class="l-name">' + meta.icon + ' ' + escapeHtml(l.name) + '</span></div>' +
-      '<div class="l-type">' + meta.label + '</div>' +
+    var progressHtml = "";
+    if (typeof l.openingBalance === "number" && l.openingBalance > 0) {
+      if (bal <= l.openingBalance) {
+        var paidPct = Math.min(100, ((l.openingBalance - bal) / l.openingBalance) * 100);
+        progressHtml = '<div class="bar-track"><div class="bar-fill" style="width:' + paidPct + '%;background:var(--status-good);"></div></div>' +
+          '<div class="l-progress-label">' + paidPct.toFixed(0) + '% paid down since added (' + fmtMoney(l.openingBalance) + ' → ' + fmtMoney(bal) + ')</div>';
+      } else {
+        progressHtml = '<div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--status-critical);"></div></div>' +
+          '<div class="l-progress-label" style="color:var(--status-critical);">Grown since added — interest is outpacing payments (' + fmtMoney(l.openingBalance) + ' → ' + fmtMoney(bal) + ')</div>';
+      }
+    }
+    var metaBits = ["Interest: " + (l.interestRate || 0) + "% / year", "Min payment: " + fmtMoney(l.minPayment || 0) + "/mo"];
+    if (l.dueDayOfMonth) metaBits.push("Due day " + l.dueDayOfMonth);
+    return '<div class="liability-card-v2"><div class="l2-head"><div class="l2-icon">' + meta.icon + '</div>' +
+      '<div><div class="l2-name">' + escapeHtml(l.name) + '</div><div class="l-type">' + meta.label + '</div></div></div>' +
       '<div class="l-balance">' + fmtMoney(bal) + '</div>' +
-      '<div class="l-meta">Interest: ' + (l.interestRate || 0) + '% / year &middot; Min payment: ' + fmtMoney(l.minPayment || 0) + '/mo</div>' +
+      progressHtml +
+      '<div class="l-meta">' + metaBits.join(" &middot; ") + '</div>' +
       '<div class="card-actions">' +
       '<button type="button" class="ghost small" data-record-interest="' + l.id + '">Record Interest</button>' +
       '<button type="button" class="ghost small" data-record-payment="' + l.id + '">Record Payment</button>' +
@@ -5360,9 +5673,13 @@
     var rows = getFilteredTransactions();
     renderTxFilterSummary(rows);
 
-    if (rows.length === 0) { $("txTableBody").innerHTML = ""; $("txEmptyState").style.display = "block"; }
-    else {
+    if (rows.length === 0) {
+      $("txTableBody").innerHTML = "";
+      if ($("txCardList")) $("txCardList").innerHTML = "";
+      $("txEmptyState").style.display = "block";
+    } else {
       $("txEmptyState").style.display = "none";
+      var cardHtml = [];
       $("txTableBody").innerHTML = rows.map(function (t) {
         var jarCell = t.isBusiness ? '<span class="tag">💼 Business</span>' :
           t.type === "income" ? (t.skipJars ? '<span class="tag">🚫 Not split</span>' : '<span class="tag">Split × 6</span>') :
@@ -5373,11 +5690,28 @@
           (t.category ? '<span class="tag">' + escapeHtml(t.category) + '</span>' : "") + (t.note ? (t.category ? " " : "") + escapeHtml(t.note) : (t.category ? "" : "—"));
         var cur = acc ? accountCurrency(acc) : state.homeCurrency;
         var amtCell = fmtMoneyIn(t.amount, cur) + (acc && isForeignAccount(acc) ? '<div style="font-size:10px;color:var(--text-muted);font-weight:400;">≈ ' + fmtMoney(txAmountInHome(t)) + '</div>' : "");
+
+        // Mobile card version of the exact same row — same data, no separate
+        // fetch/compute, just a second HTML target (see .tx-card-list CSS).
+        var icon = t.isBusiness ? "💼" : (t.type === "income" ? "💰" : "🧾");
+        var desc = t.type === "income" ? (t.source || "Income") : (t.category || "Expense");
+        var metaParts = [fmtDate(t.date)];
+        if (acc) metaParts.push(acc.name);
+        if (!t.isBusiness && t.type === "expense" && jarByKey(t.jar)) metaParts.push(jarByKey(t.jar).name);
+        cardHtml.push('<div class="recent-tx-row tx-card">' +
+          '<div class="tx-ic">' + icon + '</div>' +
+          '<div class="tx-main"><div class="tx-desc">' + escapeHtml(desc) + (t.note ? " — " + escapeHtml(t.note) : "") + '</div>' +
+          '<div class="tx-meta">' + metaParts.map(escapeHtml).join(" · ") + '</div></div>' +
+          '<div class="tx-amt ' + (t.type === "income" ? "income" : "") + '">' + (t.type === "income" ? "+" : "-") + amtCell + '</div>' +
+          '<div class="tx-card-actions"><button data-edit-tx="' + t.id + '" class="ghost small">Edit' + (state.isPro ? "" : " 🔒") + '</button><button data-del-tx="' + t.id + '" class="ghost small">Delete</button></div>' +
+          '</div>');
+
         return '<tr><td>' + fmtDate(t.date) + '</td><td>' + (t.type === "income" ? "Income" : "Expense") + '</td><td>' + jarCell + '</td>' +
           '<td>' + accCell + '</td><td>' + noteCell + '</td>' +
           '<td class="' + (t.type === "income" ? "amt-income" : "amt-expense") + '">' + (t.type === "income" ? "+" : "-") + amtCell + '</td>' +
           '<td class="row-actions"><button data-edit-tx="' + t.id + '" class="ghost small">Edit' + (state.isPro ? "" : " 🔒") + '</button><button data-del-tx="' + t.id + '" class="ghost small">Delete</button></td></tr>';
       }).join("");
+      if ($("txCardList")) $("txCardList").innerHTML = cardHtml.join("");
     }
   }
 
@@ -5928,6 +6262,8 @@
       $("txAmount").value = ""; $("txNote").value = "";
       renderTxNoteHistory();
       renderAll();
+      closeQuickAddSheetIfOpen();
+      toast(currentTxType === "income" ? "✅ Income added" : "✅ Expense added", "good");
       if (currentTxType === "income" && state.pyfEnabled && !isBusiness && !skipJars) openPyfModal(tx);
       checkBudgetAlerts(tx);
     }
@@ -6638,26 +6974,40 @@
     $("pyfModal").addEventListener("click", function (evt) { if (evt.target === $("pyfModal")) closePyfModal(); });
   }
 
-  /* ================= Floating quick-add buttons ================= */
-  function quickAdd(type) {
+  /* ================= Quick Add bottom sheet =================
+     Opens the real #addTxCard form (moved in, not duplicated — see the
+     addTxCardAnchor comment in the HTML) in a bottom sheet from wherever the
+     user currently is, so adding a transaction never requires navigating
+     tabs first. closeQuickAddSheet() puts the form back exactly where it
+     started so nothing else that references #addTxCard by id is affected. */
+  function openQuickAddSheet(type) {
     if (state.accounts.length === 0) {
       toast("Add an account first.", "error");
       activateTab("accounts");
       return;
     }
-    activateTab("dashboard");
+    var card = $("addTxCard"), content = $("quickAddSheetContent");
+    if (card && content && card.parentNode !== content) content.appendChild(card);
     setTxType(type);
-    setTimeout(function () {
-      var card = $("addTxCard");
-      if (card) {
-        card.scrollIntoView({ behavior: "smooth", block: "center" });
-        card.classList.remove("jump-highlight");
-        void card.offsetWidth; // restart the animation even if it just played
-        card.classList.add("jump-highlight");
-        setTimeout(function () { card.classList.remove("jump-highlight"); }, 1700);
-      }
-      $("txAmount").focus();
-    }, 60);
+    $("quickAddSheet").classList.add("show");
+    setTimeout(function () { var amt = $("txAmount"); if (amt) amt.focus(); }, 80);
+  }
+  function closeQuickAddSheet() {
+    var card = $("addTxCard"), anchor = $("addTxCardAnchor");
+    if (card && anchor && anchor.parentNode) anchor.parentNode.insertBefore(card, anchor.nextSibling);
+    $("quickAddSheet").classList.remove("show");
+  }
+  function closeQuickAddSheetIfOpen() {
+    if ($("quickAddSheet").classList.contains("show")) closeQuickAddSheet();
+  }
+  function setupQuickAddSheet() {
+    $("quickAddSheetClose").addEventListener("click", closeQuickAddSheet);
+    $("quickAddSheet").addEventListener("click", function (evt) { if (evt.target === $("quickAddSheet")) closeQuickAddSheet(); });
+  }
+
+  /* ================= Floating quick-add buttons ================= */
+  function quickAdd(type) {
+    openQuickAddSheet(type);
   }
   function quickAddTransfer() {
     if (state.accounts.length < 2) {
@@ -8341,6 +8691,7 @@
     setupReports();
     setupReportsAdvanced();
     setupFabButtons();
+    setupQuickAddSheet();
     setupCloudSync();
     setupReferralCard();
     setupDriveBackup();
