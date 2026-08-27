@@ -162,13 +162,6 @@
     max-height: 140px; opacity: 1; pointer-events: auto; padding: 10px 12px; border-width: 1px; margin-bottom: 16px !important;
   }
 
-  .bg-theme-row { display: flex; align-items: center; gap: 7px; padding: 4px 2px; }
-  .bg-swatch {
-    width: 22px; height: 22px; border-radius: 50%; padding: 0; border: 2px solid transparent;
-    box-shadow: 0 0 0 1px var(--border) inset;
-  }
-  .bg-swatch.active { border-color: var(--text-primary); }
-
   #splashOverlay {
     position: fixed; inset: 0; z-index: 99999;
     background: #bebdc0;
@@ -251,17 +244,11 @@
   .dash-greeting h2 { font-size: 22px; margin: 0 0 2px; letter-spacing: -0.015em; }
   .dash-greeting .dash-date { font-size: 12.5px; color: var(--text-secondary); }
 
-  /* Hero card colors are CSS variables so the Background Style picker (see
-     .bg-swatch / setupBgThemePicker()) can just override these two stops
-     instead of touching the gradient rule itself. Unset (default) keeps
-     today's exact look — picking a style is purely opt-in. */
+  /* Hero card colors are CSS variables — kept as variables (rather than
+     hardcoded in the gradient rule) purely so hero-negative/-positive below
+     can override just these two stops. */
   :root { --hero-grad-1: var(--series-1); --hero-grad-2: #1d5aa8; }
   :root[data-theme="dark"], :root:not([data-theme="light"]) { --hero-grad-1: #1d5aa8; --hero-grad-2: #123a6e; }
-
-  :root[data-bg-theme="navy"]   { --hero-grad-1: #274978; --hero-grad-2: #0d1b2e; }
-  :root[data-bg-theme="ocean"]  { --hero-grad-1: #12799c; --hero-grad-2: #123a52; }
-  :root[data-bg-theme="forest"] { --hero-grad-1: #1baf7a; --hero-grad-2: #0f4a34; }
-  :root[data-bg-theme="sunset"] { --hero-grad-1: #d9703c; --hero-grad-2: #6e2b12; }
   .hero-card {
     background: linear-gradient(155deg, var(--hero-grad-1) 0%, var(--hero-grad-2) 100%);
     color: #fff; border: none; border-radius: var(--radius-card);
@@ -269,12 +256,11 @@
     position: relative; overflow: hidden;
   }
   .hero-card.ffa-hero, :root[data-theme="dark"] .hero-card.ffa-hero, :root:not([data-theme="light"]) .hero-card.ffa-hero { background: linear-gradient(155deg, var(--series-2) 0%, #7a3414 100%); }
-  /* Net Worth hero cards grade by sign instead of the Background Style picker
-     once there's real data — negative net worth (more debt than assets) reads
-     as a warning, positive reads as healthy. Two classes beat .hero-card's
-     one on specificity, so this wins regardless of --hero-grad-1/2 or theme.
-     See renderNetWorthHero(); the Background Style picker still applies to
-     every OTHER hero card (and to this one before any accounts exist). */
+  /* Net Worth hero cards grade by sign once there's real data — negative net
+     worth (more debt than assets) reads as a warning, positive reads as
+     healthy. Two classes beat .hero-card's one on specificity, so this wins
+     regardless of theme. See renderNetWorthHero(); before any accounts
+     exist it keeps the neutral default blue above instead of flashing green. */
   .hero-card.hero-negative { background: linear-gradient(155deg, #d64545 0%, #7a1f1f 100%); }
   .hero-card.hero-positive { background: linear-gradient(155deg, #1fa855 0%, #0f5c30 100%); }
   .hero-card .hero-label { font-size: 12.5px; opacity: 0.85; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; cursor: pointer; }
@@ -987,17 +973,6 @@
       <div class="top-controls toolbar-drawer" id="toolbarDrawer">
         <select id="currencySelect" title="Currency"></select>
         <button id="themeToggle" class="ghost" title="Toggle dark mode">🌙</button>
-        <!-- Background Style — purely cosmetic, changes the two hero card
-             gradients (Net Worth, Wealth) via CSS variables (see --hero-grad-1/2
-             above). Device-local only, like the theme toggle right above it;
-             see setupBgThemePicker(). -->
-        <div class="bg-theme-row" id="bgThemeRow" role="group" aria-label="Background style">
-          <button type="button" class="bg-swatch active" data-bg-theme="" title="Default" style="background:linear-gradient(135deg,#2a78d6,#1d5aa8);"></button>
-          <button type="button" class="bg-swatch" data-bg-theme="navy" title="Navy" style="background:linear-gradient(135deg,#274978,#0d1b2e);"></button>
-          <button type="button" class="bg-swatch" data-bg-theme="ocean" title="Ocean" style="background:linear-gradient(135deg,#12799c,#123a52);"></button>
-          <button type="button" class="bg-swatch" data-bg-theme="forest" title="Forest" style="background:linear-gradient(135deg,#1baf7a,#0f4a34);"></button>
-          <button type="button" class="bg-swatch" data-bg-theme="sunset" title="Sunset" style="background:linear-gradient(135deg,#d9703c,#6e2b12);"></button>
-        </div>
         <button id="exportBtn" class="ghost" title="Download a backup of your data">⬇ Save Data</button>
         <button id="importBtn" class="ghost" title="Restore data from a backup file">⬆ Load Data</button>
         <input type="file" id="importFile" class="file-input-hidden" accept="application/json">
@@ -4651,13 +4626,15 @@
       return '<div class="month-delta ' + (good ? "up" : "down") + '">' + (up ? "▲" : "▼") + " " + Math.abs(change).toFixed(0) + "% vs. last month</div>";
     }
     var tiles = [
-      { label: "Income", value: fmtMoney(s.income), cls: "good", delta: deltaHtml(s.incomeChange, true) },
-      { label: "Expenses", value: fmtMoney(s.expense), cls: "bad", delta: deltaHtml(s.expenseChange, false) },
-      { label: "Net", value: fmtMoney(s.net), cls: s.net >= 0 ? "good" : "bad", delta: "" },
+      { label: "Income", value: fmtMoney(s.income), cls: "good", delta: deltaHtml(s.incomeChange, true), breakdown: "monthIncome" },
+      { label: "Expenses", value: fmtMoney(s.expense), cls: "bad", delta: deltaHtml(s.expenseChange, false), breakdown: "monthExpense" },
+      { label: "Net", value: fmtMoney(s.net), cls: s.net >= 0 ? "good" : "bad", delta: "", breakdown: "monthNet" },
       { label: "Savings Rate", value: (s.income > 0 ? s.savingsRate.toFixed(1) : "0.0") + "%", cls: s.savingsRate >= 20 ? "good" : "", delta: "" }
     ];
     grid.innerHTML = tiles.map(function (t) {
-      return '<div class="stat-tile"><div class="label">' + t.label + '</div><div class="value ' + t.cls + '">' + t.value + '</div>' + t.delta + '</div>';
+      return '<div class="stat-tile' + (t.breakdown ? ' clickable' : '') + '"' + (t.breakdown ? ' data-breakdown="' + t.breakdown + '" tabindex="0" role="button"' : '') +
+        '><div class="label">' + t.label + '</div><div class="value ' + t.cls + '">' + t.value + '</div>' + t.delta +
+        (t.breakdown ? '<div class="sub" style="color:var(--series-1);">Tap for breakdown →</div>' : "") + '</div>';
     }).join("");
   }
 
@@ -6649,6 +6626,48 @@
     list.innerHTML = notes.map(function (n) { return '<option value="' + escapeHtml(n) + '">'; }).join("");
   }
 
+  // Hoisted to top-level (was previously nested inside setupTxForm()) so that
+  // setupAmountKeypad()'s "Quick Save" button — a sibling function, not a
+  // closure over setupTxForm() — can also call it. Nested inside setupTxForm()
+  // it was invisible outside that function, so tapping "Quick Save" on the
+  // number-pad threw "submitTxForm is not defined" and silently dropped the
+  // entry (closeAmountKeypad() had already run, so the keypad closed as if it
+  // worked, giving no visible error) — a real bug affecting the FAB quick-add
+  // flow, likely a contributor to entries mysteriously not showing up.
+  function submitTxForm() {
+    var amount = evalAmount($("txAmount").value);
+    if (!amount || isNaN(amount) || amount <= 0) { toast("Please enter an amount greater than 0 (numbers or a sum like 100+50 both work).", "error"); $("txAmount").focus(); return; }
+    amount = Math.round(amount * 100) / 100;
+    if (state.accounts.length === 0) { toast("Add an account first.", "error"); return; }
+    var accountId = $("txAccount").value;
+    if (!accountId) { toast("Please choose an account.", "error"); return; }
+    var date = $("txDate").value || new Date().toISOString().slice(0, 10);
+    var note = $("txNote").value.trim();
+    var isBusiness = $("txIsBusiness").checked;
+    var skipJars = currentTxType === "income" && !isBusiness && !!($("txSkipJars") && $("txSkipJars").checked);
+    if (currentTxType === "income" && $("txSource").value === ADD_SOURCE_VALUE) { toast("Please finish adding the new source, or pick an existing one.", "error"); return; }
+    if (currentTxType === "expense" && $("txCategory").value === ADD_CATEGORY_VALUE) { toast("Please finish adding the new category, or pick an existing one.", "error"); return; }
+    var tx = { id: uid(), type: currentTxType, amount: amount, date: date, note: note, accountId: accountId, isBusiness: isBusiness };
+    if (currentTxType === "expense") {
+      tx.category = $("txCategory").value;
+      if (!isBusiness) tx.jar = $("txJar").value;
+    } else {
+      tx.source = $("txSource").value;
+      if (skipJars) tx.skipJars = true;
+    }
+    if (pendingTxTags.length) tx.tags = pendingTxTags.slice();
+    if (pendingTxReceiptDataUrl) tx.receipt = pendingTxReceiptDataUrl;
+
+    state.transactions.push(tx);
+    $("txAmount").value = ""; $("txNote").value = "";
+    resetTxDetails();
+    renderTxNoteHistory();
+    renderAll();
+    closeQuickAddSheetIfOpen();
+    toast(currentTxType === "income" ? "✅ Income added" : "✅ Expense added", "good");
+    if (currentTxType === "income" && state.pyfEnabled && !isBusiness && !skipJars) openPyfModal(tx);
+    checkBudgetAlerts(tx);
+  }
   function setupTxForm() {
     $("txDate").value = new Date().toISOString().slice(0, 10);
     renderTxNoteHistory();
@@ -6663,40 +6682,6 @@
     $("txIsBusiness").addEventListener("change", function () { updateJarFieldVisibility(); renderSplitPreview(); });
     if ($("txSkipJars")) $("txSkipJars").addEventListener("change", renderSplitPreview);
 
-    function submitTxForm() {
-      var amount = evalAmount($("txAmount").value);
-      if (!amount || isNaN(amount) || amount <= 0) { toast("Please enter an amount greater than 0 (numbers or a sum like 100+50 both work).", "error"); $("txAmount").focus(); return; }
-      amount = Math.round(amount * 100) / 100;
-      if (state.accounts.length === 0) { toast("Add an account first.", "error"); return; }
-      var accountId = $("txAccount").value;
-      if (!accountId) { toast("Please choose an account.", "error"); return; }
-      var date = $("txDate").value || new Date().toISOString().slice(0, 10);
-      var note = $("txNote").value.trim();
-      var isBusiness = $("txIsBusiness").checked;
-      var skipJars = currentTxType === "income" && !isBusiness && !!($("txSkipJars") && $("txSkipJars").checked);
-      if (currentTxType === "income" && $("txSource").value === ADD_SOURCE_VALUE) { toast("Please finish adding the new source, or pick an existing one.", "error"); return; }
-      if (currentTxType === "expense" && $("txCategory").value === ADD_CATEGORY_VALUE) { toast("Please finish adding the new category, or pick an existing one.", "error"); return; }
-      var tx = { id: uid(), type: currentTxType, amount: amount, date: date, note: note, accountId: accountId, isBusiness: isBusiness };
-      if (currentTxType === "expense") {
-        tx.category = $("txCategory").value;
-        if (!isBusiness) tx.jar = $("txJar").value;
-      } else {
-        tx.source = $("txSource").value;
-        if (skipJars) tx.skipJars = true;
-      }
-      if (pendingTxTags.length) tx.tags = pendingTxTags.slice();
-      if (pendingTxReceiptDataUrl) tx.receipt = pendingTxReceiptDataUrl;
-
-      state.transactions.push(tx);
-      $("txAmount").value = ""; $("txNote").value = "";
-      resetTxDetails();
-      renderTxNoteHistory();
-      renderAll();
-      closeQuickAddSheetIfOpen();
-      toast(currentTxType === "income" ? "✅ Income added" : "✅ Expense added", "good");
-      if (currentTxType === "income" && state.pyfEnabled && !isBusiness && !skipJars) openPyfModal(tx);
-      checkBudgetAlerts(tx);
-    }
     // Use plain button clicks (not native form submission) — some embedded/artifact
     // viewers sandbox iframes without "allow-forms", which silently blocks the
     // browser's form-submit algorithm even though regular button clicks still work.
@@ -7304,44 +7289,18 @@
     });
   }
 
-  // Restores the saved light/dark theme and hero-card background style as early
-  // in init() as possible (both are device-local-only preferences — never synced
-  // to the cloud, same as everything else in this block). Falls back to today's
-  // exact defaults ("light" theme, no bg-theme override) if nothing was saved
-  // yet, so a first-time visitor sees no change at all.
+  // Restores the saved light/dark theme as early in init() as possible (a
+  // device-local-only preference — never synced to the cloud, same as
+  // everything else in this block). Falls back to today's exact default
+  // ("light" theme) if nothing was saved yet, so a first-time visitor sees
+  // no change at all.
   function applySavedThemePrefs() {
-    var savedTheme = null, savedBg = null;
+    var savedTheme = null;
     try { savedTheme = localStorage.getItem("finora_theme"); } catch (e) { /* private mode */ }
-    try { savedBg = localStorage.getItem("finora_bg_theme"); } catch (e) { /* private mode */ }
     state.theme = (savedTheme === "dark" || savedTheme === "light") ? savedTheme : state.theme;
     document.documentElement.setAttribute("data-theme", state.theme);
     var toggleBtn = $("themeToggle");
     if (toggleBtn) toggleBtn.textContent = state.theme === "light" ? "🌙" : "☀️";
-    if (savedBg) document.documentElement.setAttribute("data-bg-theme", savedBg);
-    else document.documentElement.removeAttribute("data-bg-theme");
-    var swatches = document.querySelectorAll("#bgThemeRow .bg-swatch");
-    for (var i = 0; i < swatches.length; i++) {
-      swatches[i].classList.toggle("active", (swatches[i].getAttribute("data-bg-theme") || "") === (savedBg || ""));
-    }
-  }
-
-  // Background Style swatches (below the dark-mode toggle in the toolbar drawer).
-  // Purely cosmetic: swaps the --hero-grad-1/2 CSS variables used by the Net
-  // Worth / Wealth hero cards. Never touches state.transactions or anything
-  // synced to the cloud — same device-local pattern as the theme toggle.
-  function setupBgThemePicker() {
-    var row = $("bgThemeRow");
-    if (!row) return;
-    row.addEventListener("click", function (evt) {
-      var btn = evt.target.closest ? evt.target.closest(".bg-swatch") : null;
-      if (!btn || !row.contains(btn)) return;
-      var value = btn.getAttribute("data-bg-theme") || "";
-      if (value) document.documentElement.setAttribute("data-bg-theme", value);
-      else document.documentElement.removeAttribute("data-bg-theme");
-      try { localStorage.setItem("finora_bg_theme", value); } catch (e) { /* private mode */ }
-      var swatches = row.querySelectorAll(".bg-swatch");
-      for (var i = 0; i < swatches.length; i++) swatches[i].classList.toggle("active", swatches[i] === btn);
-    });
   }
 
   /* ================= Left-side navigation drawer =================
@@ -8037,7 +7996,22 @@
       else if (kind === "filteredIncome") openBreakdownModal("Filtered Income — by Source", computeFilteredIncomeBreakdown(getFilteredTransactions()));
       else if (kind === "filteredExpense") openBreakdownModal("Filtered Expense — by Category", computeFilteredExpenseBreakdown(getFilteredTransactions()));
       else if (kind === "filteredNet") openBreakdownModal("Net — Breakdown", computeFilteredNetBreakdown(getFilteredTransactions()));
-      else if (kind === "reportIncome" && lastReportContext) {
+      else if (kind === "monthIncome") {
+        openBreakdownModal("Income — This Month — by Source",
+          computeIncomeBreakdownForPeriod(thisMonthRange().start, thisMonthRange().end),
+          { txType: "income", startDate: thisMonthRange().start, endExclusive: thisMonthRange().end });
+      } else if (kind === "monthExpense") {
+        var mcs = computePeriodTotals(thisMonthRange().start, thisMonthRange().end).categorySpend;
+        openBreakdownModal("Expenses — This Month — by Category",
+          Object.keys(mcs).map(function (k) { return { key: k, label: k, value: mcs[k] }; }),
+          { txType: "expense", startDate: thisMonthRange().start, endExclusive: thisMonthRange().end });
+      } else if (kind === "monthNet") {
+        var mpt = computePeriodTotals(thisMonthRange().start, thisMonthRange().end);
+        openBreakdownModal("Net — This Month", [
+          { key: "income", label: "Income", value: mpt.income },
+          { key: "expense", label: "Expense", value: -mpt.expense }
+        ]);
+      } else if (kind === "reportIncome" && lastReportContext) {
         openBreakdownModal("Income — " + lastReportContext.periodLabel + " — by Source",
           computeIncomeBreakdownForPeriod(lastReportContext.startDate, lastReportContext.endExclusive),
           { txType: "income", startDate: lastReportContext.startDate, endExclusive: lastReportContext.endExclusive });
@@ -8741,24 +8715,41 @@
       .then(function () { try { localStorage.removeItem("finora_pending_referral"); } catch (e) {} });
   }
 
+  // Tracks the updated_at of whatever we last know to be in the cloud (from
+  // either our own successful save or a pull) so cloudAutoPull() can tell
+  // "another device saved something newer" apart from "nothing's changed" —
+  // see cloudAutoPull() below.
+  var cloudLastKnownUpdatedAt = null;
+
   function cloudSaveNow() {
     if (!cloudEnabled || !cloudSession || !activeOwnerId || cloudSyncInFlight) return;
     cloudSyncInFlight = true;
+    var updatedAt = new Date().toISOString();
     supaClient.from("user_data").upsert({
       user_id: activeOwnerId,
       data: cloudStateSnapshot(),
-      updated_at: new Date().toISOString()
+      updated_at: updatedAt
     }).then(function (res) {
       cloudSyncInFlight = false;
-      if (res.error) { toast("Cloud sync failed: " + res.error.message, "error"); return; }
+      if (res.error) { toast("Cloud sync failed: " + res.error.message, "error"); scheduleCloudSave(); return; }
+      cloudLastKnownUpdatedAt = updatedAt;
       cloudLastSyncedAt = new Date();
       updateCloudUi();
+    }).catch(function () {
+      // A rejected promise (offline, timeout, CORS hiccup) never reaches the
+      // .then() above, which is the only place that was resetting this flag —
+      // without this catch, one dropped connection permanently disables every
+      // future auto-save for the rest of the session with no visible error.
+      // Reset and retry instead of losing the change silently.
+      cloudSyncInFlight = false;
+      toast("Cloud sync failed — will retry.", "error");
+      scheduleCloudSave();
     });
   }
 
   function cloudLoadNow(skipConfirm) {
     if (!cloudEnabled || !cloudSession || !activeOwnerId) return;
-    supaClient.from("user_data").select("data").eq("user_id", activeOwnerId).maybeSingle().then(function (res) {
+    supaClient.from("user_data").select("data,updated_at").eq("user_id", activeOwnerId).maybeSingle().then(function (res) {
       if (res.error) { toast("Couldn't load cloud data: " + res.error.message, "error"); return; }
       if (res.data && res.data.data) {
         var hasLocalData = state.transactions.length || state.accounts.length || state.liabilities.length;
@@ -8779,17 +8770,42 @@
         // else's) — show an empty workspace rather than silently keep the old data.
         applyImportedState(emptyCloudState());
       }
+      cloudLastKnownUpdatedAt = res.data ? res.data.updated_at : new Date().toISOString();
       cloudLastSyncedAt = new Date();
       updateCloudUi();
       maybeShowOnboarding();
       maybeFireReminder();
-    });
+    }).catch(function () { /* best-effort — the periodic cloudAutoPull() below will try again shortly */ });
   }
 
   function scheduleCloudSave() {
     if (!cloudEnabled || !cloudSession || cloudSuppressAutoSave) return;
     if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
-    cloudSyncTimer = setTimeout(cloudSaveNow, 2500);
+    cloudSyncTimer = setTimeout(function () { cloudSyncTimer = null; cloudSaveNow(); }, 2500);
+  }
+
+  // Silent background refresh so a second (or third) device that's already
+  // open picks up changes from elsewhere without the user having to reload
+  // or tap Sync Now — see setupCloudSync() for what schedules this (a
+  // periodic interval, plus an immediate check whenever the tab/window
+  // regains focus, which is the moment a "was this changed elsewhere?" check
+  // actually matters most). Skips quietly — no dialog, no toast on failure —
+  // and steps aside whenever this device has its own save in flight or
+  // queued, so it can never race a local edit that hasn't reached the cloud
+  // yet. Only replaces local state when the cloud row is strictly newer than
+  // the last save/load this device already knows about.
+  function cloudAutoPull() {
+    if (!cloudEnabled || !cloudSession || !activeOwnerId || cloudSyncInFlight || cloudSyncTimer) return;
+    if (document.hidden) return;
+    supaClient.from("user_data").select("data,updated_at").eq("user_id", activeOwnerId).maybeSingle().then(function (res) {
+      if (res.error || !res.data || !res.data.data) return;
+      if (cloudLastKnownUpdatedAt && res.data.updated_at && new Date(res.data.updated_at) <= new Date(cloudLastKnownUpdatedAt)) return;
+      applyImportedState(res.data.data); // already wraps itself in cloudSuppressAutoSave — see applyImportedState()
+      cloudLastKnownUpdatedAt = res.data.updated_at;
+      cloudLastSyncedAt = new Date();
+      updateCloudUi();
+      toast("Synced the latest changes from another device.", "good");
+    }).catch(function () { /* best-effort — next interval tick tries again */ });
   }
 
   function renderWorkspaceBanner() {
@@ -9115,6 +9131,15 @@
         toast("Signed in.", "good");
       }
     });
+
+    // Keeps this device's view current with other devices without waiting for
+    // a manual "Sync Now" or a full page reload — see cloudAutoPull(). The
+    // interval is the fallback; regaining focus/visibility is the case that
+    // actually matters (you switch back to a tab/app that's been sitting open
+    // since before you made a change somewhere else).
+    setInterval(cloudAutoPull, 45000);
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) cloudAutoPull(); });
+    window.addEventListener("focus", cloudAutoPull);
   }
 
   /* ================= Google Drive Backup =================
@@ -9527,7 +9552,6 @@
     setupReceiptViewer();
     setupToolbarDrawer();
     setupWelcomeCard();
-    setupBgThemePicker();
     setupSideDrawer();
     setupBottomNavToggle();
     setupCloudSync();
