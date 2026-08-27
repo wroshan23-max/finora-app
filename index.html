@@ -581,11 +581,27 @@
   .bottom-sheet-header h2 { margin: 0; font-size: 16px; }
   .bottom-sheet #addTxCard { border: none; box-shadow: none; padding: 0; margin: 0; }
   .bottom-sheet #addTxCard > h2 { display: none; }
+  /* form.tx-form's 6-column grid (below) only collapses to 2 columns under a
+     max-width:980px *viewport* media query — fine when the form lives in the
+     full-width Add Data tab, but the Quick Add sheet squeezes the same form
+     into a ~440px-wide card regardless of viewport size, so on desktop
+     (viewport > 980px, sheet still narrow) the 6 columns rendered fields on
+     top of each other and overflowed past the card edge. Force the narrow
+     layout here unconditionally since this container is always narrow. */
+  #quickAddSheet form.tx-form { grid-template-columns: 1fr 1fr; }
   @media (min-width: 641px) {
     #quickAddSheet, #amountKeypadSheet, #txDetailsSheet { align-items: center; }
     .bottom-sheet { border-radius: var(--radius-card, 14px); }
     .bottom-sheet-handle { display: none; }
   }
+  /* The number-pad and "Add More Details" sheets can open on top of the Quick
+     Add sheet — two stacked .modal-overlay backdrops (each its own semi-
+     transparent black) double up and let the sheet underneath show through,
+     looking like a broken, overlapping layout (most visible on wider screens
+     where the Quick Add card isn't a full-width bottom sheet). Hiding the
+     lower sheet while a sheet is open on top of it keeps only one backdrop
+     visible at a time — see openAmountKeypad()/openTxDetailsSheet(). */
+  .behind-overlay { visibility: hidden; }
 
   /* ================= Amount keypad ================= */
   .keypad-sheet { max-width: 360px; }
@@ -1177,8 +1193,9 @@
         <div class="field">
           <label>Amount <span id="txAmountCurrencyLabel" style="color:var(--text-muted);font-weight:400;"></span></label>
           <div style="display:flex;gap:6px;">
-            <input type="text" inputmode="decimal" id="txAmount" placeholder="Tap to enter amount" readonly style="flex:1;min-width:0;cursor:pointer;">
+            <input type="text" inputmode="decimal" id="txAmount" placeholder="e.g. 1500 or 100+50" style="flex:1;min-width:0;">
             <button type="button" class="ghost" id="txCalcBtn" title="Calculate a sum, e.g. 100+50-20" style="display:none;">🧮</button>
+            <button type="button" class="ghost" id="txKeypadBtn" title="Open number pad" aria-label="Open number pad">🔢</button>
           </div>
         </div>
         <div class="field" id="jarFieldWrap">
@@ -6581,6 +6598,7 @@
     renderHousehold();
     renderAdSlot();
     renderReport();
+    refreshOpenBreakdownDrill();
     scheduleCloudSave();
   }
 
@@ -6824,6 +6842,13 @@
     }
     $("actionModalTitle").textContent = title;
     $("actionModalBody").innerHTML = body;
+    // The new Edit button inside the breakdown drill-down (see
+    // openBreakdownDrillDetail()) opens this modal while #breakdownModal is
+    // still open underneath — both are equal-z-index .modal-overlay elements,
+    // and #breakdownModal comes later in the HTML, so it would otherwise paint
+    // on top and block Save. Hide it behind this one (same .behind-overlay
+    // technique as the Quick Add sheet) and restore it in closeActionModal().
+    if ($("breakdownModal").classList.contains("show")) $("breakdownModal").classList.add("behind-overlay");
     $("actionModal").classList.add("show");
     if (mode === "editAccount" && $("m_currency")) {
       $("m_currency").addEventListener("change", function () {
@@ -6851,7 +6876,11 @@
       if ($(fid)) attachCalculator(fid, null);
     });
   }
-  function closeActionModal() { $("actionModal").classList.remove("show"); modalState = { mode: null, contextId: null }; }
+  function closeActionModal() {
+    $("actionModal").classList.remove("show");
+    $("breakdownModal").classList.remove("behind-overlay");
+    modalState = { mode: null, contextId: null };
+  }
 
   function setupActionModal() {
     $("actionModalCancel").addEventListener("click", closeActionModal);
@@ -7641,13 +7670,21 @@
     $("keypadTitle").textContent = currentTxType === "income" ? "Add Income" : "Add Expense";
     $("keypadCurrency").textContent = $("txAmountCurrencyLabel") ? $("txAmountCurrencyLabel").textContent : "";
     keypadRefreshDisplay();
+    // See the .behind-overlay CSS comment — avoid a double-dimmed stacked-modal
+    // look when this opens on top of the Quick Add sheet.
+    if ($("quickAddSheet").classList.contains("show")) $("quickAddSheet").classList.add("behind-overlay");
     $("amountKeypadSheet").classList.add("show");
   }
-  function closeAmountKeypad() { $("amountKeypadSheet").classList.remove("show"); }
+  function closeAmountKeypad() {
+    $("amountKeypadSheet").classList.remove("show");
+    $("quickAddSheet").classList.remove("behind-overlay");
+  }
   function setupAmountKeypad() {
-    $("txAmount").setAttribute("readonly", "readonly");
-    $("txAmount").addEventListener("focus", function () { this.blur(); openAmountKeypad(this); });
-    $("txAmount").addEventListener("click", function () { openAmountKeypad(this); });
+    // #txAmount is a normal typable field (keyboard input works directly, and
+    // mobile browsers show their native numeric keypad via inputmode="decimal")
+    // — the on-screen number pad below is an optional, explicitly-opened
+    // alternative via #txKeypadBtn, not the only way to enter an amount.
+    if ($("txKeypadBtn")) $("txKeypadBtn").addEventListener("click", function () { openAmountKeypad($("txAmount")); });
     $("keypadCloseBtn").addEventListener("click", closeAmountKeypad);
     $("amountKeypadSheet").addEventListener("click", function (evt) { if (evt.target === $("amountKeypadSheet")) closeAmountKeypad(); });
     $("amountKeypadBody").querySelectorAll(".keypad-key").forEach(function (btn) {
@@ -7702,9 +7739,15 @@
   function openTxDetailsSheet() {
     renderTxTagChips();
     updateTxDetailsSummaryBtn();
+    // See the .behind-overlay CSS comment — avoid a double-dimmed stacked-modal
+    // look when this opens on top of the Quick Add sheet.
+    if ($("quickAddSheet").classList.contains("show")) $("quickAddSheet").classList.add("behind-overlay");
     $("txDetailsSheet").classList.add("show");
   }
-  function closeTxDetailsSheet() { $("txDetailsSheet").classList.remove("show"); }
+  function closeTxDetailsSheet() {
+    $("txDetailsSheet").classList.remove("show");
+    $("quickAddSheet").classList.remove("behind-overlay");
+  }
   // Downscales a receipt photo client-side before it ever becomes a data URL —
   // a full phone-camera photo can be 4-8MB, which is far too big to carry
   // around inside every sync payload and JSON backup. Capped to a max
@@ -7885,8 +7928,20 @@
   // the drill-down detail view's "Back" button can restore the category/source list
   // exactly as it was, and so a row click knows what transactions to filter for.
   var lastBreakdownModal = null;
+  // Tracks whether the breakdown modal is currently showing a level-2 drill
+  // (individual transactions behind one slice), and which slice — so renderAll()
+  // can silently refresh it in place after a data change (e.g. editing one of
+  // the listed entries) instead of leaving stale numbers on screen. Reset to
+  // null whenever we're back at level 1 or the modal is closed.
+  var lastBreakdownDrillKey = null, lastBreakdownDrillLabel = null;
+  function refreshOpenBreakdownDrill() {
+    if (lastBreakdownDrillKey !== null && $("breakdownModal").classList.contains("show")) {
+      openBreakdownDrillDetail(lastBreakdownDrillKey, lastBreakdownDrillLabel);
+    }
+  }
   function openBreakdownModal(title, items, drillDown) {
     lastBreakdownModal = { title: title, items: items, drillDown: drillDown || null };
+    lastBreakdownDrillKey = null; lastBreakdownDrillLabel = null;
     var total = items.reduce(function (s, i) { return s + i.value; }, 0);
     $("breakdownModalTitle").textContent = title;
     if (items.length === 0) {
@@ -7946,14 +8001,20 @@
   }
   function openBreakdownDrillDetail(key, label) {
     if (!lastBreakdownModal || !lastBreakdownModal.drillDown) return;
+    lastBreakdownDrillKey = key; lastBreakdownDrillLabel = label;
     var txs = computeBreakdownDrillTransactions(lastBreakdownModal.drillDown, key);
     var total = txs.reduce(function (s, t) { return s + breakdownDrillAmount(t); }, 0);
     var rowsHtml = txs.length ? txs.map(function (t) {
       var acc = state.accounts.find(function (a) { return a.id === (t.type === "transfer" ? t.fromAccountId : t.accountId); });
       var meta = [t.date, acc ? acc.name : null].filter(Boolean).join(" · ");
       var rowLabel = t.type === "transfer" ? (t.note || "Bank charge / fee") : (t.note || label);
+      // Reuses the exact same data-edit-tx hook + Pro gate as the Transactions
+      // table's row-level Edit button (see setupDelegatedEvents()) — clicking
+      // it here opens the same edit modal; a non-Pro user sees the same
+      // "editing entries requires Pro" prompt instead of the modal.
       return '<div class="drill-tx-row"><div><div>' + escapeHtml(rowLabel) + '</div><div class="meta">' + escapeHtml(meta) + '</div></div>' +
-        '<div class="amt" style="font-weight:600;white-space:nowrap;">' + fmtMoney(breakdownDrillAmount(t)) + '</div></div>';
+        '<div style="display:flex;align-items:center;gap:8px;"><div class="amt" style="font-weight:600;white-space:nowrap;">' + fmtMoney(breakdownDrillAmount(t)) + '</div>' +
+        '<button type="button" data-edit-tx="' + t.id + '" class="ghost small">Edit' + (state.isPro ? "" : " 🔒") + '</button></div></div>';
     }).join("") : '<p class="hint">No individual entries found — they may have been edited or removed since.</p>';
     $("breakdownModalTitle").textContent = label;
     $("breakdownModalBody").innerHTML =
