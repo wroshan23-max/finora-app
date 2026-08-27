@@ -143,13 +143,16 @@
   body.toolbar-compact .toolbar-drawer {
     position: absolute; top: calc(100% + 6px); right: 0; z-index: 320;
     background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-card, 12px);
-    box-shadow: var(--shadow-md); padding: 10px; flex-direction: column; align-items: stretch;
-    width: max-content; max-width: 260px;
-    max-height: 0; opacity: 0; overflow: hidden; pointer-events: none;
+    box-shadow: var(--shadow-md); padding: 10px; flex-direction: row; flex-wrap: nowrap; align-items: center;
+    width: max-content; max-width: calc(100vw - 24px);
+    overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    max-height: 0; opacity: 0; pointer-events: none;
     transition: max-height .18s ease, opacity .15s ease;
   }
+  body.toolbar-compact .toolbar-drawer::-webkit-scrollbar { display: none; }
+  body.toolbar-compact .toolbar-drawer > * { flex-shrink: 0; }
   body.toolbar-compact.toolbar-hover .toolbar-drawer, body.toolbar-compact.toolbar-pinned .toolbar-drawer {
-    max-height: 320px; opacity: 1; pointer-events: auto;
+    max-height: 64px; opacity: 1; pointer-events: auto;
   }
   body.toolbar-compact #persistenceNote {
     max-height: 0; opacity: 0; overflow: hidden; padding: 0 12px; margin: 0 !important; border-width: 0;
@@ -266,6 +269,14 @@
     position: relative; overflow: hidden;
   }
   .hero-card.ffa-hero, :root[data-theme="dark"] .hero-card.ffa-hero, :root:not([data-theme="light"]) .hero-card.ffa-hero { background: linear-gradient(155deg, var(--series-2) 0%, #7a3414 100%); }
+  /* Net Worth hero cards grade by sign instead of the Background Style picker
+     once there's real data — negative net worth (more debt than assets) reads
+     as a warning, positive reads as healthy. Two classes beat .hero-card's
+     one on specificity, so this wins regardless of --hero-grad-1/2 or theme.
+     See renderNetWorthHero(); the Background Style picker still applies to
+     every OTHER hero card (and to this one before any accounts exist). */
+  .hero-card.hero-negative { background: linear-gradient(155deg, #d64545 0%, #7a1f1f 100%); }
+  .hero-card.hero-positive { background: linear-gradient(155deg, #1fa855 0%, #0f5c30 100%); }
   .hero-card .hero-label { font-size: 12.5px; opacity: 0.85; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; cursor: pointer; }
   .hero-card .hero-value { font-size: 34px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; cursor: pointer; }
   .hero-card .hero-delta { font-size: 12.5px; opacity: 0.92; margin-top: 4px; }
@@ -386,17 +397,32 @@
   .group-nav button .group-ic { font-size: 16px; }
   .group-nav button.active { background: var(--series-1-tint); color: var(--series-1); }
   .group-nav button:hover { background: var(--grid); }
+  .bottom-nav-toggle-btn { display: none; }
   @media (max-width: 640px) {
     .group-nav {
       position: fixed; left: 0; right: 0; bottom: 0; z-index: 400;
       background: var(--surface-1); border-top: 1px solid var(--border); border-bottom: none;
       margin: 0; gap: 0; padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
-      box-shadow: 0 -2px 14px rgba(0,0,0,0.12);
+      box-shadow: 0 -2px 14px rgba(0,0,0,0.12); transition: transform .2s ease;
     }
     .group-nav button { flex: 1; flex-direction: column; gap: 2px; padding: 6px 2px; font-size: 10.5px; border-radius: 8px; }
     .group-nav button .group-ic { font-size: 19px; }
-    body { padding-bottom: 74px; }
-    .fab-stack { bottom: 84px; }
+    body { padding-bottom: 74px; transition: padding-bottom .2s ease; }
+    .fab-stack { bottom: 84px; transition: bottom .2s ease; }
+    /* Small handle above the bar — tap to collapse it out of the way (freeing
+       screen space) or bring it back. See setupBottomNavToggle(). */
+    .bottom-nav-toggle-btn {
+      display: flex; align-items: center; justify-content: center;
+      position: fixed; left: 50%; bottom: 70px; transform: translateX(-50%);
+      width: 36px; height: 18px; padding: 0; font-size: 11px; line-height: 1;
+      border-radius: 8px 8px 0 0; border: 1px solid var(--border); border-bottom: none;
+      background: var(--surface-1); box-shadow: 0 -2px 8px rgba(0,0,0,0.10);
+      z-index: 401; transition: bottom .2s ease;
+    }
+    body.bottomnav-minimized .group-nav { transform: translateY(100%); }
+    body.bottomnav-minimized .bottom-nav-toggle-btn { bottom: 0; }
+    body.bottomnav-minimized { padding-bottom: 18px; }
+    body.bottomnav-minimized .fab-stack { bottom: 20px; }
   }
   /* Wide screens get a persistent left sidebar instead of the horizontal top
      bar — same buttons, same activateTab() logic, just repositioned via CSS
@@ -1001,6 +1027,13 @@
     <button data-group="reports"><span class="group-ic">📊</span> Reports</button>
     <button data-group="more"><span class="group-ic">⚙️</span> More</button>
   </nav>
+
+  <!-- Mobile-only handle that collapses the fixed bottom tab bar down to just
+       this small tab, freeing screen space — tap again to bring it back. Pure
+       CSS/JS toggle (body.bottomnav-minimized), doesn't touch group-nav's own
+       tab-switching logic. See setupBottomNavToggle(). Desktop's sidebar
+       variant of .group-nav has no equivalent since it isn't a bottom bar. -->
+  <button type="button" class="bottom-nav-toggle-btn" id="bottomNavToggleBtn" title="Minimize tabs" aria-label="Minimize tabs" aria-expanded="true">▾</button>
 
   <nav class="tabs" id="tabsNav" style="display:none;">
     <button data-tab="dashboard" class="active"><span class="tab-ic">🏠</span> Dashboard</button>
@@ -4537,11 +4570,23 @@
       '</svg>';
   }
 
+  // Applies/clears the value-based grading classes (see .hero-card.hero-negative/
+  // -positive) on a Net Worth hero card. Only once there's real data — with no
+  // accounts yet, netWorth is a meaningless 0, so it keeps the neutral default
+  // (Background Style picker) color instead of flashing green.
+  function applyHeroValueGrading(cardEl, value, hasData) {
+    if (!cardEl) return;
+    cardEl.classList.remove("hero-negative", "hero-positive");
+    if (!hasData) return;
+    cardEl.classList.add(value < 0 ? "hero-negative" : "hero-positive");
+  }
+
   function renderNetWorthHero() {
     var valueEl = $("heroNetWorthValue");
     if (!valueEl) return;
     var nw = computeNetWorth();
     valueEl.textContent = fmtMoney(nw.netWorth);
+    applyHeroValueGrading($("netWorthHero"), nw.netWorth, state.accounts.length > 0);
     var history = computeNetWorthHistory(6);
     var deltaEl = $("heroNetWorthDelta");
     if (state.accounts.length > 0 && history.length >= 2) {
@@ -4564,6 +4609,7 @@
     var wealthValueEl = $("wealthHeroNetWorthValue");
     if (wealthValueEl) {
       wealthValueEl.textContent = fmtMoney(nw.netWorth);
+      applyHeroValueGrading($("wealthNetWorthHero"), nw.netWorth, state.accounts.length > 0);
       $("wealthHeroNetWorthDelta").innerHTML = deltaEl.innerHTML;
       $("wealthHeroNetWorthBreakdown").innerHTML = breakdownHtml;
       renderSparkline("wealthHeroSparkline", state.accounts.length > 0 ? history : [], "#ffffff");
@@ -7384,6 +7430,20 @@
     });
   }
 
+  // Mobile-only handle (see .bottom-nav-toggle-btn, max-width:640px) that
+  // collapses the fixed bottom tab bar out of the way to free screen space.
+  // Pure display toggle — doesn't touch group-nav's own tab logic.
+  function setupBottomNavToggle() {
+    var btn = $("bottomNavToggleBtn");
+    if (!btn) return;
+    btn.addEventListener("click", function () {
+      var minimized = document.body.classList.toggle("bottomnav-minimized");
+      btn.textContent = minimized ? "▴" : "▾";
+      btn.setAttribute("aria-expanded", minimized ? "false" : "true");
+      btn.title = minimized ? "Show tabs" : "Minimize tabs";
+    });
+  }
+
   /* ================= Settings ================= */
   function setupSettings() {
     $("jarPctInputs").addEventListener("input", function (evt) {
@@ -9469,6 +9529,7 @@
     setupWelcomeCard();
     setupBgThemePicker();
     setupSideDrawer();
+    setupBottomNavToggle();
     setupCloudSync();
     setupReferralCard();
     setupDriveBackup();
