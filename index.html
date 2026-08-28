@@ -2930,11 +2930,28 @@
     <div class="full-report-toolbar">
       <h2>📄 Finora Full Report</h2>
       <div style="display:flex;gap:8px;">
+        <button type="button" class="ghost small" id="reportCustomizeBtn">⚙️ Customize</button>
         <button type="button" class="ghost small" id="fullReportPrintBtn">🖨️ Print / Save as PDF</button>
         <button type="button" class="ghost small" id="fullReportCloseBtn">Close</button>
       </div>
     </div>
     <div id="fullReportBody"></div>
+  </div>
+</div>
+
+<!-- Customize which optional Full Report sections are shown. The cover page is
+     always included. This only decides which finished pages get stitched
+     together in renderFullReportHtml — every section's own visual format is
+     completely untouched. -->
+<div class="modal-overlay" id="reportCustomizeModal">
+  <div class="modal" style="max-width:400px;">
+    <h2>⚙️ Customize Report</h2>
+    <p>Pick which sections to include. The report's look stays exactly the same — this only shows or hides whole sections.</p>
+    <div id="reportCustomizeList" style="display:flex;flex-direction:column;gap:2px;max-height:50vh;overflow-y:auto;"></div>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button type="button" class="ghost small" id="reportCustomizeAllBtn">Select All</button>
+      <button type="button" class="primary" id="reportCustomizeCloseBtn">Done</button>
+    </div>
   </div>
 </div>
 
@@ -3469,6 +3486,12 @@
     // 0 / blank / missing = no limit set for that jar or category.
     jarBudgets: {},
     categoryBudgets: {},
+    // Full Report customization — which of the 10 optional report sections the
+    // user has turned OFF, by key (see FULL_REPORT_SECTIONS). Stored as a
+    // disabled-list (not an enabled-list) on purpose: empty/missing means
+    // "nothing hidden," which is exactly today's behavior, so existing users
+    // need zero migration to get this feature.
+    fullReportDisabledSections: [],
     settlement: { extraPayment: 0 },
     // Named sub-goals within the LTSS jar — { id, name, targetAmount, allocated }.
     // "allocated" is a manually-set number the user moves up/down themselves; it's
@@ -6027,6 +6050,27 @@
     return (pct >= 0 ? "+" : "") + pct.toFixed(0) + "%";
   }
 
+  // Customize Reports — the 10 optional sections a user can show/hide in the
+  // Full Report (see setupReportCustomize). The cover page is not in this list
+  // because it's always shown. `band` is the exact text renderFullReportHtml()
+  // puts in that section's .report-section-band, used to find/strip that page
+  // out of the final HTML without touching how any section itself looks.
+  var FULL_REPORT_SECTIONS = [
+    { key: "score", icon: "💯", label: "Financial Health Score" },
+    { key: "netWorth", icon: "🧾", label: "Net Worth Statement" },
+    { key: "cashFlow", icon: "💵", label: "Cash Flow Statement" },
+    { key: "spending", icon: "🔎", label: "Spending Analysis" },
+    { key: "budget", icon: "📊", label: "Budget Performance" },
+    { key: "debt", icon: "💳", label: "Debt & Liabilities" },
+    { key: "goalsFixed", icon: "🎯", label: "Goals & Fixed Obligations" },
+    { key: "insights", icon: "🧠", label: "Behavioral Insights" },
+    { key: "topTx", icon: "🏆", label: "Top Transactions" },
+    { key: "txList", icon: "📜", label: "Transaction List — Appendix" }
+  ];
+  function isReportSectionEnabled(key) {
+    return (state.fullReportDisabledSections || []).indexOf(key) === -1;
+  }
+
   function renderFullReportHtml(d) {
     var pageCover =
       '<div class="report-page">' +
@@ -6224,7 +6268,19 @@
       }).join("") : '<div class="report-empty">No transactions in this period.</div>') +
       '</div>';
 
-    return pageCover + pageScore + pageNetWorth + pageCashFlow + pageSpending + pageBudget + pageDebt + pageGoalsFixed + pageInsights + pageTopTx + pageTxList;
+    var sectionPages = {
+      score: pageScore, netWorth: pageNetWorth, cashFlow: pageCashFlow, spending: pageSpending,
+      budget: pageBudget, debt: pageDebt, goalsFixed: pageGoalsFixed, insights: pageInsights,
+      topTx: pageTopTx, txList: pageTxList
+    };
+    // Cover page is always included; each other section only appears if the
+    // user hasn't switched it off via ⚙️ Customize. Every section's own HTML
+    // (pageScore, pageNetWorth, ...) is completely untouched above — this only
+    // decides which finished pages get stitched together, so the report's
+    // existing visual format never changes.
+    return pageCover + FULL_REPORT_SECTIONS.map(function (s) {
+      return isReportSectionEnabled(s.key) ? sectionPages[s.key] : "";
+    }).join("");
   }
 
   function renderFullReport() {
@@ -6242,6 +6298,50 @@
     $("fullReportModal").classList.remove("show");
   }
 
+  // Used by the Lending/Liability/Assets "View Report" jump buttons so they
+  // never land on a report with their target section hidden, even if the
+  // user had switched it off earlier via ⚙️ Customize.
+  function forceEnableReportSection(key) {
+    var idx = (state.fullReportDisabledSections || []).indexOf(key);
+    if (idx !== -1) state.fullReportDisabledSections.splice(idx, 1);
+  }
+
+  function renderReportCustomizeList() {
+    if (!$("reportCustomizeList")) return;
+    $("reportCustomizeList").innerHTML = FULL_REPORT_SECTIONS.map(function (s) {
+      var checked = isReportSectionEnabled(s.key) ? " checked" : "";
+      return '<label style="display:flex;align-items:center;gap:10px;padding:8px 4px;cursor:pointer;">' +
+        '<input type="checkbox" data-report-section-toggle="' + s.key + '"' + checked + '>' +
+        '<span>' + s.icon + ' ' + escapeHtml(s.label) + '</span></label>';
+    }).join("");
+  }
+
+  function setupReportCustomize() {
+    if (!$("reportCustomizeBtn")) return;
+    $("reportCustomizeBtn").addEventListener("click", function () {
+      renderReportCustomizeList();
+      $("reportCustomizeModal").classList.add("show");
+    });
+    $("reportCustomizeCloseBtn").addEventListener("click", function () { $("reportCustomizeModal").classList.remove("show"); });
+    $("reportCustomizeModal").addEventListener("click", function (evt) { if (evt.target === $("reportCustomizeModal")) $("reportCustomizeModal").classList.remove("show"); });
+    $("reportCustomizeList").addEventListener("change", function (evt) {
+      var key = evt.target.getAttribute && evt.target.getAttribute("data-report-section-toggle");
+      if (!key) return;
+      if (!state.fullReportDisabledSections) state.fullReportDisabledSections = [];
+      var idx = state.fullReportDisabledSections.indexOf(key);
+      if (evt.target.checked && idx !== -1) state.fullReportDisabledSections.splice(idx, 1);
+      else if (!evt.target.checked && idx === -1) state.fullReportDisabledSections.push(key);
+      renderFullReport();
+      scheduleCloudSave();
+    });
+    $("reportCustomizeAllBtn").addEventListener("click", function () {
+      state.fullReportDisabledSections = [];
+      renderReportCustomizeList();
+      renderFullReport();
+      scheduleCloudSave();
+    });
+  }
+
   function setupFullReport() {
     if (!$("fullReportOpenBtn")) return;
     $("fullReportOpenBtn").addEventListener("click", function () { openFullReport(); });
@@ -6254,6 +6354,7 @@
     window.addEventListener("afterprint", function () { document.body.classList.remove("printing-full-report"); });
     if ($("lendingViewReportBtn")) {
       $("lendingViewReportBtn").addEventListener("click", function () {
+        forceEnableReportSection("debt");
         openFullReport();
         setTimeout(function () {
           var band = Array.prototype.filter.call(document.querySelectorAll("#fullReportBody .report-section-band"), function (el) { return el.textContent.indexOf("Debt") !== -1; })[0];
@@ -6267,6 +6368,7 @@
     // this jumps straight there, exactly like the Lending tab's button above.
     if ($("liabilityViewReportBtn")) {
       $("liabilityViewReportBtn").addEventListener("click", function () {
+        forceEnableReportSection("debt");
         openFullReport();
         setTimeout(function () {
           var band = Array.prototype.filter.call(document.querySelectorAll("#fullReportBody .report-section-band"), function (el) { return el.textContent.indexOf("Debt") !== -1; })[0];
@@ -6276,6 +6378,7 @@
     }
     if ($("assetsViewReportBtn")) {
       $("assetsViewReportBtn").addEventListener("click", function () {
+        forceEnableReportSection("netWorth");
         openFullReport();
         setTimeout(function () {
           var band = Array.prototype.filter.call(document.querySelectorAll("#fullReportBody .report-section-band"), function (el) { return el.textContent.indexOf("Net Worth") !== -1; })[0];
@@ -6283,6 +6386,7 @@
         }, 60);
       });
     }
+    setupReportCustomize();
   }
 
   /* ================= Rendering: jars ================= */
@@ -9218,6 +9322,7 @@
         state.jarPct = Object.assign({}, DEFAULT_PCT, incoming.jarPct || {});
         state.jarBudgets = incoming.jarBudgets || {};
         state.categoryBudgets = incoming.categoryBudgets || {};
+        state.fullReportDisabledSections = incoming.fullReportDisabledSections || [];
         state.homeCurrency = incoming.homeCurrency || incoming.currency || guessDefaultCurrency();
         state.freedomTarget = incoming.freedomTarget || 0;
         state.pyfEnabled = incoming.pyfEnabled !== undefined ? incoming.pyfEnabled : true;
@@ -10716,6 +10821,7 @@
     state.jarPct = Object.assign({}, DEFAULT_PCT, incoming.jarPct || {});
     state.jarBudgets = incoming.jarBudgets || {};
     state.categoryBudgets = incoming.categoryBudgets || {};
+    state.fullReportDisabledSections = incoming.fullReportDisabledSections || [];
     state.homeCurrency = incoming.homeCurrency || incoming.currency || guessDefaultCurrency();
     state.freedomTarget = incoming.freedomTarget || 0;
     state.pyfEnabled = incoming.pyfEnabled !== undefined ? incoming.pyfEnabled : true;
@@ -10778,6 +10884,7 @@
       expenseCategoriesMigratedV1: true,
       jarPct: Object.assign({}, DEFAULT_PCT),
       jarBudgets: {}, categoryBudgets: {},
+      fullReportDisabledSections: [],
       homeCurrency: state.homeCurrency, freedomTarget: 0,
       pyfEnabled: true, confirmBeforeDelete: true, settlement: { extraPayment: 0 },
       savingsGoals: [], recurringTemplates: [], paymentReminders: [], lendings: [],
@@ -10801,6 +10908,7 @@
       jarPct: state.jarPct,
       jarBudgets: state.jarBudgets,
       categoryBudgets: state.categoryBudgets,
+      fullReportDisabledSections: state.fullReportDisabledSections,
       homeCurrency: state.homeCurrency,
       freedomTarget: state.freedomTarget,
       pyfEnabled: state.pyfEnabled,
