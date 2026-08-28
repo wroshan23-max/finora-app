@@ -612,8 +612,10 @@
      openQuickAddSheet()/closeQuickAddSheet() in the script. */
   /* #quickAddSheet (id selector, not just .bottom-sheet-overlay) so this beats
      the later .modal-overlay { align-items: center; } rule regardless of
-     source order — both classes are present on the same element. */
-  #quickAddSheet { align-items: flex-end; }
+     source order — both classes are present on the same element. #addDataSheet
+     gets the same treatment — it's just as tall (often taller, with its icon
+     grid), so it needs the same bottom-anchored/scrollable mobile behaviour. */
+  #quickAddSheet, #addDataSheet { align-items: flex-end; }
   .bottom-sheet {
     background: var(--surface-1); width: 100%; max-width: 480px;
     border-radius: var(--radius-card, 14px) var(--radius-card, 14px) 0 0;
@@ -636,7 +638,7 @@
      layout here unconditionally since this container is always narrow. */
   #quickAddSheet form.tx-form { grid-template-columns: 1fr 1fr; }
   @media (min-width: 641px) {
-    #quickAddSheet, #amountKeypadSheet, #txDetailsSheet { align-items: center; }
+    #quickAddSheet, #amountKeypadSheet, #txDetailsSheet, #addDataSheet { align-items: center; }
     .bottom-sheet { border-radius: var(--radius-card, 14px); }
     .bottom-sheet-handle { display: none; }
   }
@@ -830,13 +832,64 @@
   .fab-income { background: var(--status-good); }
   .fab-expense { background: var(--status-critical); }
   .fab-transfer { background: var(--series-1); font-size: 22px; }
-  .fab-adddata { background: var(--series-7, #4a3aa7); font-size: 22px; width: 48px; height: 48px; box-shadow: var(--shadow-md); }
+  /* Add Data FAB — a slow-flowing multi-colour gradient (not a hard colour
+     swap) so it reads as "alive"/inviting without ever flashing or being
+     distracting; the gradient itself already contains every stop, so the
+     animation just slides the visible window across it (background-position),
+     which is smoother and cheaper than animating discrete colours. Reduced
+     to a static gradient for anyone who's asked the OS to cut down on motion. */
+  .fab-adddata {
+    background: linear-gradient(135deg, #4a3aa7, #2a78d6, #1baf7a, #eda100, #eb6834, #e87ba4, #4a3aa7);
+    background-size: 300% 300%;
+    animation: fabAddDataCycle 10s ease infinite;
+    font-size: 22px; width: 48px; height: 48px; box-shadow: var(--shadow-md);
+  }
+  @keyframes fabAddDataCycle {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  @media (prefers-reduced-motion: reduce) { .fab-adddata { animation: none; background-position: 0% 50%; } }
   @media (max-width: 560px) {
     .fab-stack { right: 14px; bottom: 84px; } /* raised above the fixed bottom group-nav bar */
     .fab { width: 50px; height: 50px; font-size: 24px; }
     .fab-transfer { font-size: 19px; }
     .fab-adddata { width: 42px; height: 42px; font-size: 19px; }
   }
+
+  /* ================= Add Data launcher sheet =================
+     Opened from the Add Data FAB — a compact icon-grid "quick actions" sheet
+     (grouped the same as the full Add Data tab) so every input method is one
+     tap away without leaving whatever tab you're on. See openAddDataSheet(). */
+  .add-launcher-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 8px;
+    margin: 2px 0 20px;
+  }
+  .add-launcher-tile {
+    display: flex; flex-direction: column; align-items: center; gap: 7px;
+    background: none; border: none; cursor: pointer; padding: 2px; font: inherit;
+  }
+  .add-launcher-tile-icon {
+    width: 50px; height: 50px; border-radius: 15px; color: #fff; font-size: 22px;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .12s ease, filter .12s ease;
+  }
+  .add-launcher-tile:hover .add-launcher-tile-icon, .add-launcher-tile:focus-visible .add-launcher-tile-icon {
+    transform: translateY(-2px) scale(1.05); filter: brightness(1.07);
+  }
+  .add-launcher-tile-label { font-size: 11.5px; font-weight: 600; text-align: center; line-height: 1.25; color: var(--text-primary); }
+  .add-launcher-cta-row { display: flex; gap: 10px; margin-top: 4px; }
+  .add-launcher-cta {
+    flex: 1; border: none; border-radius: 14px; padding: 14px 8px; color: #fff;
+    font-weight: 700; font-size: 13.5px; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    transition: transform .12s, filter .12s;
+  }
+  .add-launcher-cta:hover { transform: translateY(-1px); filter: brightness(1.05); }
+  .add-launcher-cta:active { transform: scale(0.98); }
+  .add-launcher-cta-income { background: linear-gradient(155deg, #1fa855 0%, #0f5c30 100%); }
+  .add-launcher-cta-expense { background: linear-gradient(155deg, #d64545 0%, #7a1f1f 100%); }
+  .add-launcher-cta-icon { font-size: 20px; }
 
   .ff-progress-wrap { margin-top: 8px; }
   .ff-bar-track { height: 14px; border-radius: 8px; background: var(--grid); overflow: hidden; }
@@ -1446,6 +1499,13 @@
           <span class="quick-add-method-desc">Move money between accounts — not income or expense</span>
         </span>
       </button>
+      <button type="button" class="quick-add-method" id="goSellConvertBtn">
+        <span class="quick-add-method-icon">💱</span>
+        <span class="quick-add-method-text">
+          <span class="quick-add-method-title">Sell / Convert Currency</span>
+          <span class="quick-add-method-desc">Turn foreign-currency earnings (USD, etc.) into Rupee income</span>
+        </span>
+      </button>
     </div>
 
     <div class="stat-section-label">Set up once</div>
@@ -1455,6 +1515,13 @@
         <span class="quick-add-method-text">
           <span class="quick-add-method-title">Add an Account</span>
           <span class="quick-add-method-desc">Cash, bank, card — every transaction belongs to one</span>
+        </span>
+      </button>
+      <button type="button" class="quick-add-method" data-goto-tab="assets">
+        <span class="quick-add-method-icon">🏠</span>
+        <span class="quick-add-method-text">
+          <span class="quick-add-method-title">Add an Asset</span>
+          <span class="quick-add-method-desc">Property, vehicles, gold — anything you own outside a bank account</span>
         </span>
       </button>
       <button type="button" class="quick-add-method" data-goto-tab="liabilities">
@@ -2569,6 +2636,105 @@
   </div>
 </div>
 
+<!-- Add Data launcher — the FAB's own quick-actions grid. Every tile here maps
+     1:1 to a tile on the full Add Data tab (panel-add); this is just a faster,
+     more visual way to reach the same destinations without leaving the
+     current tab. See openAddDataSheet()/setupAddDataSheet(). -->
+<div class="modal-overlay bottom-sheet-overlay" id="addDataSheet">
+  <div class="bottom-sheet" id="addDataSheetBody">
+    <div class="bottom-sheet-handle"></div>
+    <div class="bottom-sheet-header">
+      <h2>➕ Quick Add</h2>
+      <button type="button" class="ghost small" id="addDataSheetClose" aria-label="Close">✕</button>
+    </div>
+
+    <div class="stat-section-label">Transactions</div>
+    <div class="add-launcher-grid">
+      <button type="button" class="add-launcher-tile" data-adddata-action="txn">
+        <span class="add-launcher-tile-icon" style="background:var(--series-1);">➕</span>
+        <span class="add-launcher-tile-label">Add a Transaction</span>
+      </button>
+      <button type="button" class="add-launcher-tile" data-adddata-action="import">
+        <span class="add-launcher-tile-icon" style="background:var(--series-4);">📥</span>
+        <span class="add-launcher-tile-label">Import CSV</span>
+      </button>
+      <button type="button" class="add-launcher-tile" data-adddata-action="sms">
+        <span class="add-launcher-tile-icon" style="background:var(--series-5);">💬</span>
+        <span class="add-launcher-tile-label">Paste SMS</span>
+      </button>
+      <button type="button" class="add-launcher-tile" data-adddata-action="recurring">
+        <span class="add-launcher-tile-icon" style="background:var(--series-6);">🔁</span>
+        <span class="add-launcher-tile-label">Recurring</span>
+      </button>
+    </div>
+
+    <div class="stat-section-label">Between Your Own Accounts</div>
+    <div class="add-launcher-grid">
+      <button type="button" class="add-launcher-tile" data-goto-tab="transfers">
+        <span class="add-launcher-tile-icon" style="background:var(--series-1);">⇄</span>
+        <span class="add-launcher-tile-label">Transfer</span>
+      </button>
+      <button type="button" class="add-launcher-tile" data-adddata-action="sell">
+        <span class="add-launcher-tile-icon" style="background:var(--series-2);">💱</span>
+        <span class="add-launcher-tile-label">Sell / Convert</span>
+      </button>
+    </div>
+
+    <div class="stat-section-label">Wealth</div>
+    <div class="add-launcher-grid">
+      <button type="button" class="add-launcher-tile" data-goto-tab="accounts">
+        <span class="add-launcher-tile-icon" style="background:var(--series-1);">🏦</span>
+        <span class="add-launcher-tile-label">Add an Account</span>
+      </button>
+      <button type="button" class="add-launcher-tile" data-goto-tab="assets">
+        <span class="add-launcher-tile-icon" style="background:var(--series-2);">🏠</span>
+        <span class="add-launcher-tile-label">Add an Asset</span>
+      </button>
+      <button type="button" class="add-launcher-tile" data-goto-tab="liabilities">
+        <span class="add-launcher-tile-icon" style="background:var(--series-7);">📉</span>
+        <span class="add-launcher-tile-label">Add a Liability</span>
+      </button>
+      <button type="button" class="add-launcher-tile" data-goto-tab="lending">
+        <span class="add-launcher-tile-icon" style="background:var(--series-4);">🤝</span>
+        <span class="add-launcher-tile-label">Lend Money</span>
+      </button>
+    </div>
+
+    <div class="stat-section-label">Track &amp; Plan</div>
+    <div class="add-launcher-grid">
+      <button type="button" class="add-launcher-tile" data-goto-tab="jars">
+        <span class="add-launcher-tile-icon" style="background:var(--series-3);">🎯</span>
+        <span class="add-launcher-tile-label">Savings Goal</span>
+      </button>
+      <button type="button" class="add-launcher-tile" data-goto-tab="calendar">
+        <span class="add-launcher-tile-icon" style="background:var(--series-8);">📅</span>
+        <span class="add-launcher-tile-label">Payment Reminder</span>
+      </button>
+      <button type="button" class="add-launcher-tile" data-goto-tab="shopping">
+        <span class="add-launcher-tile-icon" style="background:var(--series-5);">🛒</span>
+        <span class="add-launcher-tile-label">Shopping List</span>
+      </button>
+      <button type="button" class="add-launcher-tile" data-goto-tab="events">
+        <span class="add-launcher-tile-icon" style="background:var(--series-6);">🎉</span>
+        <span class="add-launcher-tile-label">Event Budget</span>
+      </button>
+      <button type="button" class="add-launcher-tile" data-goto-tab="planner">
+        <span class="add-launcher-tile-icon" style="background:var(--series-3);">💰</span>
+        <span class="add-launcher-tile-label">Salary Plan</span>
+      </button>
+    </div>
+
+    <div class="add-launcher-cta-row">
+      <button type="button" class="add-launcher-cta add-launcher-cta-income" data-adddata-action="income">
+        <span class="add-launcher-cta-icon">⬆</span> Add Income
+      </button>
+      <button type="button" class="add-launcher-cta add-launcher-cta-expense" data-adddata-action="expense">
+        <span class="add-launcher-cta-icon">⬇</span> Add Expense
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Amount keypad — a calculator-style face over #txAmount instead of the OS
      keyboard. It edits the exact same field submitTxForm() already reads and
      resolves through the exact same evalAmount()/evalExpr() math used by the
@@ -3158,6 +3324,34 @@
       var newUrl = window.location.pathname + (rest ? "?" + rest : "") + window.location.hash;
       window.history.replaceState({}, "", newUrl);
     } catch (e) { /* localStorage/history blocked — referral just won't be attributed */ }
+  })();
+
+  // Google's OAuth redirect (and Supabase itself, if the provider/redirect
+  // isn't configured quite right) reports a failed/blocked/cancelled sign-in
+  // purely by appending error/error_description to the URL — no code of ours
+  // is ever called. With nothing reading that, the page just silently reloads
+  // signed out, which is indistinguishable from "the button did nothing" —
+  // very likely what's behind reports of Continue with Google occasionally
+  // not working on mobile (a Google-side block or an OAuth consent screen
+  // still in "Testing" mode both fail exactly this way: Google redirects back
+  // with an error instead of ever creating a session). Errors can land in
+  // either the query string (PKCE flow, the modern default) or the hash
+  // (older implicit-flow-style redirects), so both are checked. Captured here
+  // (same URL-cleanup pattern as captureReferralLink() above) and surfaced as
+  // a toast later in setupCloudSync(), once the DOM/toast() are ready.
+  var pendingOAuthError = null;
+  (function captureOAuthError() {
+    try {
+      var qp = new URLSearchParams(window.location.search);
+      var hp = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+      var raw = qp.get("error_description") || hp.get("error_description") || qp.get("error") || hp.get("error");
+      if (!raw) return;
+      pendingOAuthError = decodeURIComponent(raw.replace(/\+/g, " "));
+      ["error", "error_description", "error_code"].forEach(function (k) { qp.delete(k); hp.delete(k); });
+      var restQ = qp.toString(), restH = hp.toString();
+      var newUrl = window.location.pathname + (restQ ? "?" + restQ : "") + (restH ? "#" + restH : "");
+      window.history.replaceState({}, "", newUrl);
+    } catch (e) { /* URL parsing blocked — sign-in still just silently fails, no worse than before */ }
   })();
 
   // Best-effort guess at a new visitor's home currency from their browser locale/
@@ -9000,6 +9194,41 @@
     $("quickAddSheet").addEventListener("click", function (evt) { if (evt.target === $("quickAddSheet")) closeQuickAddSheet(); });
   }
 
+  /* ================= Add Data launcher sheet =================
+     The Add Data FAB's own quick-actions grid (see the #addDataSheet HTML,
+     right after #quickAddSheet). Every tile is either a plain [data-goto-tab]
+     (handled entirely by the existing generic tab-jump listener in
+     setupTabs() — this code just has to close the sheet first so it isn't
+     still open over whatever tab that lands on) or a [data-adddata-action]
+     that reuses an existing function one-for-one with the full Add Data tab
+     (panel-add) and the fab-income/fab-expense FABs — no new add-data logic,
+     just a faster way to reach the same handful of entry points. */
+  function openAddDataSheet() {
+    $("addDataSheet").classList.add("show");
+  }
+  function closeAddDataSheet() {
+    $("addDataSheet").classList.remove("show");
+  }
+  function setupAddDataSheet() {
+    $("addDataSheetClose").addEventListener("click", closeAddDataSheet);
+    $("addDataSheet").addEventListener("click", function (evt) { if (evt.target === $("addDataSheet")) closeAddDataSheet(); });
+    $("addDataSheetBody").addEventListener("click", function (evt) {
+      var gotoBtn = evt.target.closest && evt.target.closest("[data-goto-tab]");
+      if (gotoBtn) { closeAddDataSheet(); return; } // the generic [data-goto-tab] listener (setupTabs) handles the actual navigation
+      var actionBtn = evt.target.closest && evt.target.closest("[data-adddata-action]");
+      if (!actionBtn) return;
+      var action = actionBtn.getAttribute("data-adddata-action");
+      closeAddDataSheet();
+      if (action === "txn") goAddTransaction();
+      else if (action === "recurring") goRecurring();
+      else if (action === "sell") goSellConvert();
+      else if (action === "import") $("csvImportFile").click();
+      else if (action === "sms") openSmsPasteModal();
+      else if (action === "income") quickAdd("income");
+      else if (action === "expense") quickAdd("expense");
+    });
+  }
+
   /* ================= Amount keypad =================
      Purely a different way to type into #txAmount — it appends characters to
      the exact same field and, on "=" or Quick Save, resolves through the same
@@ -9299,7 +9528,7 @@
     }, 60);
   }
   function setupFabButtons() {
-    $("fabAddData").addEventListener("click", function () { activateTab("add"); });
+    $("fabAddData").addEventListener("click", openAddDataSheet);
     $("fabIncome").addEventListener("click", function () { quickAdd("income"); });
     $("fabExpense").addEventListener("click", function () { quickAdd("expense"); });
     $("fabTransfer").addEventListener("click", quickAddTransfer);
@@ -10038,27 +10267,41 @@
 
   /* ================= Add Data hub (panel-add) =================
      A few of these tiles just jump tabs via the generic [data-goto-tab] handler
-     (setupTabs) — no listener needed here. These two need to land on a specific
-     form and focus it, so they get their own small handlers. */
+     (setupTabs) — no listener needed here. These three need to land on a
+     specific form/element and focus or scroll it, so they get named functions
+     — shared with the Add Data launcher sheet (openAddDataSheet()) so both
+     entry points do exactly the same thing instead of duplicating the logic. */
+  function goAddTransaction() {
+    activateTab("dashboard");
+    setTimeout(function () {
+      $("txAmount").scrollIntoView({ behavior: "smooth", block: "center" });
+      $("txAmount").focus();
+    }, 150);
+  }
+  function goRecurring() {
+    activateTab("transactions");
+    setTimeout(function () {
+      $("recurringCard").scrollIntoView({ behavior: "smooth", block: "start" });
+      $("recName").focus();
+    }, 150);
+  }
+  // "Sell / Convert" isn't its own form — it's a button that appears on each
+  // foreign-currency account's own card (see accountCardHtml()'s
+  // data-sell-currency) — so the closest thing to "a form to land on" is
+  // jumping to Accounts and, if one already exists, scrolling straight to its
+  // Sell/Convert button; otherwise the user lands where they'd add one.
+  function goSellConvert() {
+    activateTab("accounts");
+    setTimeout(function () {
+      var btn = document.querySelector("[data-sell-currency]");
+      if (btn) { btn.scrollIntoView({ behavior: "smooth", block: "center" }); }
+      else { toast("Add a foreign-currency account first, then Sell/Convert appears on its card.", "good"); }
+    }, 150);
+  }
   function setupAddHub() {
-    if ($("goAddTransactionBtn")) {
-      $("goAddTransactionBtn").addEventListener("click", function () {
-        activateTab("dashboard");
-        setTimeout(function () {
-          $("txAmount").scrollIntoView({ behavior: "smooth", block: "center" });
-          $("txAmount").focus();
-        }, 150);
-      });
-    }
-    if ($("goRecurringBtn")) {
-      $("goRecurringBtn").addEventListener("click", function () {
-        activateTab("transactions");
-        setTimeout(function () {
-          $("recurringCard").scrollIntoView({ behavior: "smooth", block: "start" });
-          $("recName").focus();
-        }, 150);
-      });
-    }
+    if ($("goAddTransactionBtn")) $("goAddTransactionBtn").addEventListener("click", goAddTransaction);
+    if ($("goRecurringBtn")) $("goRecurringBtn").addEventListener("click", goRecurring);
+    if ($("goSellConvertBtn")) $("goSellConvertBtn").addEventListener("click", goSellConvert);
   }
 
   /* ================= Category Picker (icon grid for Income Source / Expense Category) =================
@@ -11023,6 +11266,16 @@
     });
     updateCloudUi();
 
+    // See captureOAuthError() near the top of this script — a failed/blocked/
+    // cancelled Google sign-in reports itself only via the URL, never through
+    // any code path of ours, so without this it looks exactly like "the
+    // button did nothing." Surfaced here (rather than at parse time) because
+    // toast()/the DOM are only guaranteed ready once init() reaches this point.
+    if (pendingOAuthError) {
+      toast("Google sign-in didn't finish: " + pendingOAuthError, "error");
+      pendingOAuthError = null;
+    }
+
     // Restore an existing session (e.g. a returning visitor) so Pro status is picked
     // back up automatically without needing to sign in again every visit.
     supaClient.auth.getSession().then(function (res) {
@@ -11468,6 +11721,7 @@
     setupReportsAdvanced();
     setupFabButtons();
     setupQuickAddSheet();
+    setupAddDataSheet();
     setupAmountKeypad();
     setupTxDetailsSheet();
     setupReceiptViewer();
