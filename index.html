@@ -2940,7 +2940,8 @@
     "rent income": "🏠", "bonus": "🎉", "commission": "🤝", "interest": "🏦",
     "savings interest": "🏦", "refund": "↩️", "cashback": "↩️", "pension": "👴",
     "royalties": "📚", "consulting": "🧑‍💼", "tuition income": "🎓",
-    "allowance": "🪙", "loan received": "🏧", "other": "📦"
+    "allowance": "🪙", "loan received": "🏧", "currency exchange": "💱",
+    "forex": "💱", "trading": "📊", "other": "📦"
   };
   var INCOME_SOURCE_ICON_FALLBACK = "💰";
   function incomeSourceIcon(name) {
@@ -3363,6 +3364,13 @@
       } else if (t.type === "lendingRepayment" && t.accountId === accountId) {
         bal += accountDelta(acc.type, "in", t.amount);
       }
+      // A "Sell / Convert" income transaction (see openActionModal's
+      // sellCurrency mode) also deducts the foreign amount sold from the
+      // SOURCE account — separate from the branches above, which only ever
+      // credit its own (destination) accountId.
+      if (t.fx && t.fx.fromAccountId === accountId) {
+        bal += accountDelta(acc.type, "out", t.fx.foreignAmount);
+      }
     });
     return bal;
   }
@@ -3596,6 +3604,13 @@
         bal += accountDelta(acc.type, "out", t.amount);
       } else if (t.type === "lendingRepayment" && t.accountId === accountId) {
         bal += accountDelta(acc.type, "in", t.amount);
+      }
+      // A "Sell / Convert" income transaction (see openActionModal's
+      // sellCurrency mode) also deducts the foreign amount sold from the
+      // SOURCE account — separate from the branches above, which only ever
+      // credit its own (destination) accountId.
+      if (t.fx && t.fx.fromAccountId === accountId) {
+        bal += accountDelta(acc.type, "out", t.fx.foreignAmount);
       }
     });
     return bal;
@@ -5020,13 +5035,32 @@
   // budget-limit and event-budget overages into one prioritized list — see the
   // Aug 2026 UX audit's "Needs Your Attention" recommendation.
   function computeNeedsAttention() {
-    // Liability/lending due-date reminders are NOT repeated here — they already
-    // get their own prominent banner right at the top of the Dashboard
-    // (renderBillReminders() / #billRemindersBanner), so listing them a second
-    // time in this digest just showed the exact same line twice on screen.
-    // This digest instead covers everything that has no other dedicated spot:
-    // spending anomalies, jar/category budget overruns, event overruns.
+    // Liability/lending due-date reminders ARE also listed here (as well as
+    // in the prominent #billRemindersBanner strip above) — a brief attempt to
+    // de-duplicate them out of this digest made "Needs Your Attention" say
+    // "all caught up" even while a repayment banner was visibly overdue right
+    // above it, which read as more confusing than the original repetition.
     var items = [];
+    computeUpcomingLiabilityDues().forEach(function (d) {
+      var when = d.daysUntil < 0 ? "was due " + Math.abs(d.daysUntil) + (Math.abs(d.daysUntil) === 1 ? " day ago" : " days ago")
+        : d.daysUntil === 0 ? "is due today" : "due in " + d.daysUntil + (d.daysUntil === 1 ? " day" : " days");
+      items.push({
+        severity: d.daysUntil < 0 ? "urgent" : d.daysUntil <= 2 ? "warning" : "opportunity",
+        icon: d.daysUntil < 0 ? "🔴" : d.daysUntil <= 2 ? "🟠" : "🟡",
+        text: "<strong>" + escapeHtml(d.liability.name) + "</strong> payment " + when + " — " + fmtMoney(d.balance) + " owed",
+        tab: "liabilities"
+      });
+    });
+    computeUpcomingLendingReminders().forEach(function (d) {
+      var when = d.daysUntil < 0 ? "was expected " + Math.abs(d.daysUntil) + (Math.abs(d.daysUntil) === 1 ? " day ago" : " days ago")
+        : d.daysUntil === 0 ? "is expected today" : "expected in " + d.daysUntil + (d.daysUntil === 1 ? " day" : " days");
+      items.push({
+        severity: d.daysUntil < 0 ? "urgent" : d.daysUntil <= 2 ? "warning" : "opportunity",
+        icon: d.daysUntil < 0 ? "🔴" : d.daysUntil <= 2 ? "🟠" : "🟡",
+        text: "Repayment from <strong>" + escapeHtml(d.lending.name) + "</strong> " + when + " — " + fmtMoney(d.balance) + " owed to you",
+        tab: "lending"
+      });
+    });
     computeSpendingAnomalies().forEach(function (a) {
       items.push({
         severity: "warning", icon: "📈",
@@ -6153,9 +6187,18 @@
     var foreign = isForeignAccount(a);
     var displayBal = a.type === "creditcard" ? -bal : bal; // show as negative when you owe, for consistency
     var cls = displayBal < 0 ? "bad" : "good";
+    // "+ Add Funds" (a direct, non-Income deposit) and "Sell / Convert" don't
+    // have sensible meanings against a credit card's debt balance — both are
+    // for cash/bank-style asset accounts. "Sell / Convert" additionally needs
+    // a Home Currency account to actually convert into, so it stays hidden
+    // rather than opening to a dead end when none exists yet.
+    var notCard = a.type !== "creditcard";
+    var hasHomeCurrencyDestination = notCard && foreign && state.accounts.some(function (o) { return o.id !== a.id && accountCurrency(o) === state.homeCurrency; });
     var actions = forDashboard ? "" :
       '<div class="card-actions">' +
       '<button type="button" class="ghost small" data-edit-account="' + a.id + '">Edit</button>' +
+      (notCard ? '<button type="button" class="ghost small" data-add-funds="' + a.id + '">+ Add Funds</button>' : "") +
+      (hasHomeCurrencyDestination ? '<button type="button" class="ghost small" data-sell-currency="' + a.id + '">💱 Sell / Convert</button>' : "") +
       '<button type="button" class="ghost small" data-adjust-account="' + a.id + '">Adjust Balance</button>' +
       '<button type="button" class="ghost small" data-toggle-hide="' + a.id + '">' + (a.hidden ? "Unhide" : "Hide") + '</button>' +
       '<button type="button" class="ghost small danger" data-delete-account="' + a.id + '">Delete</button>' +
@@ -6924,6 +6967,11 @@
         var extrasCell = (t.tags && t.tags.length ? t.tags.map(function (tg) { return '<span class="tag tag-mini">' + escapeHtml(tg) + '</span>'; }).join(" ") : "") +
           (t.receipt ? ' <span class="tag tag-mini" data-view-receipt="' + t.id + '" style="cursor:pointer;" title="View receipt">📎</span>' : "");
         if (extrasCell) noteCell += " " + extrasCell;
+        if (t.fx) {
+          var fxGl = t.fx.gainLoss || 0;
+          var fxGlHtml = fxGl === 0 ? "" : (fxGl > 0 ? ' — <span style="color:var(--status-good);">gain ' + fmtMoney(fxGl) + '</span>' : ' — <span style="color:var(--status-critical);">loss ' + fmtMoney(Math.abs(fxGl)) + '</span>');
+          noteCell += '<div style="font-size:11px;color:var(--text-muted);">Sold ' + fmtMoneyIn(t.fx.foreignAmount, t.fx.foreignCurrency) + ' @ ' + t.fx.rateUsed + fxGlHtml + '</div>';
+        }
         var cur = acc ? accountCurrency(acc) : state.homeCurrency;
         var amtCell = fmtMoneyIn(t.amount, cur) + (acc && isForeignAccount(acc) ? '<div style="font-size:10px;color:var(--text-muted);font-weight:400;">≈ ' + fmtMoney(txAmountInHome(t)) + '</div>' : "");
 
@@ -7599,6 +7647,33 @@
         '<div class="form-grid"><div class="field"><label>Correct balance should be (' + accCur + ')</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="m_target" value="' + displayBal.toFixed(2) + '" required style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="m_target" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' +
         '<div class="field"><label>Reason (optional)</label><input type="text" id="m_reason" placeholder="e.g. Bank statement reconciliation"></div>' +
         '<div class="field"><label>Date</label><input type="date" id="m_date" value="' + new Date().toISOString().slice(0, 10) + '"></div></div>';
+    } else if (mode === "addFunds") {
+      var fundsAcc = accountById(contextId);
+      var fundsCur = accountCurrency(fundsAcc);
+      title = "Add Funds — " + escapeHtml(fundsAcc.name);
+      body = '<p class="hint">Adds straight to the balance — it won\'t count as Income in your reports (use "💱 Sell / Convert" below for the step where it actually becomes ' + state.homeCurrency + ' income). Good for crediting things like trading earnings or a deposit made directly in this account\'s own currency.</p>' +
+        '<div class="form-grid">' +
+        '<div class="field"><label>Amount to add (' + fundsCur + ')</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="m_amount" required style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="m_amount" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' +
+        '<div class="field"><label>Note (optional)</label><input type="text" id="m_reason" placeholder="e.g. Binary trading earnings"></div>' +
+        '<div class="field"><label>Date</label><input type="date" id="m_date" value="' + new Date().toISOString().slice(0, 10) + '"></div>' +
+        '</div>';
+    } else if (mode === "sellCurrency") {
+      var fxAcc = accountById(contextId);
+      var fxCur = accountCurrency(fxAcc);
+      var fxBal = computeAccountBalance(contextId);
+      var fxDestOpts = state.accounts.filter(function (o) { return o.id !== fxAcc.id && accountCurrency(o) === state.homeCurrency; })
+        .map(function (o) { return '<option value="' + o.id + '">' + accountTypeMeta(o.type).icon + ' ' + escapeHtml(o.name) + '</option>'; }).join("");
+      title = "Sell / Convert — " + escapeHtml(fxAcc.name);
+      body = '<p class="hint">Records the ' + state.homeCurrency + ' you receive as Income, reduces this account by the ' + fxCur + ' amount sold, and updates this account\'s exchange rate to today\'s rate — so it stays current without needing a live rate feed. Any difference from the previous rate is recorded as an exchange gain or loss.</p>' +
+        '<p>Current balance: <strong>' + fmtMoneyIn(fxBal, fxCur) + '</strong> · current rate: 1 ' + fxCur + ' = ' + (fxAcc.exchangeRate || 0) + ' ' + state.homeCurrency + '</p>' +
+        '<div class="form-grid">' +
+        '<div class="field"><label>Deposit into</label><select id="m_toAccount">' + fxDestOpts + '</select></div>' +
+        '<div class="field"><label>Amount sold (' + fxCur + ')</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="m_fxAmount" required style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="m_fxAmount" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' +
+        '<div class="field"><label>Rate today (1 ' + fxCur + ' = ? ' + state.homeCurrency + ')</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="m_fxRate" value="' + (fxAcc.exchangeRate || "") + '" required style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="m_fxRate" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' +
+        '<div class="field"><label>You\'ll receive (' + state.homeCurrency + ')</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="m_fxReceived" style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="m_fxReceived" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' +
+        '<div class="field"><label>Date</label><input type="date" id="m_date" value="' + new Date().toISOString().slice(0, 10) + '"></div>' +
+        '<div class="field wide"><label>Note (optional)</label><input type="text" id="m_note" placeholder="e.g. Deriv withdrawal to NTB"></div>' +
+        '</div>';
     } else if (mode === "recordInterest") {
       var l1 = liabilityById(contextId);
       var suggested = (computeLiabilityBalance(contextId) * ((l1.interestRate || 0) / 100 / 12)).toFixed(2);
@@ -7725,9 +7800,31 @@
         if ($("m_isBusiness").checked && $("m_skipJars")) $("m_skipJars").checked = false;
       });
     }
-    ["m_opening", "m_target", "m_amount", "m_rate", "m_fee", "m_minPay"].forEach(function (fid) {
+    ["m_opening", "m_target", "m_amount", "m_rate", "m_fee", "m_minPay", "m_fxAmount", "m_fxRate", "m_fxReceived"].forEach(function (fid) {
       if ($(fid)) attachCalculator(fid, null);
     });
+    // Sell / Convert: "amount sold" × "rate" ⇄ "amount received" stay in sync
+    // both ways, since some people know the rate they got and others just
+    // know the exact rupee amount that landed in their bank account.
+    if (mode === "sellCurrency" && $("m_fxAmount") && $("m_fxRate") && $("m_fxReceived")) {
+      var fxSyncing = false;
+      function fxRecompute(from) {
+        if (fxSyncing) return;
+        fxSyncing = true;
+        var amt = evalAmount($("m_fxAmount").value) || 0;
+        var rate = evalAmount($("m_fxRate").value) || 0;
+        var received = evalAmount($("m_fxReceived").value) || 0;
+        if (from === "received" && amt > 0) {
+          $("m_fxRate").value = (received / amt).toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
+        } else if (amt > 0 && rate > 0) {
+          $("m_fxReceived").value = (amt * rate).toFixed(2);
+        }
+        fxSyncing = false;
+      }
+      $("m_fxAmount").addEventListener("input", function () { fxRecompute("amount"); });
+      $("m_fxRate").addEventListener("input", function () { fxRecompute("rate"); });
+      $("m_fxReceived").addEventListener("input", function () { fxRecompute("received"); });
+    }
   }
   function closeActionModal() {
     $("actionModal").classList.remove("show");
@@ -7763,6 +7860,39 @@
         var diff = target - curDisplay; // in display terms
         var delta = acc.type === "creditcard" ? -diff : diff; // convert back to internal balance convention
         state.transactions.push({ id: uid(), type: "adjustment", accountId: id, delta: delta, date: $("m_date").value || new Date().toISOString().slice(0, 10), note: $("m_reason").value.trim() || "Balance adjustment" });
+      } else if (mode === "addFunds") {
+        var fundsAmt = evalAmount($("m_amount").value);
+        if (!fundsAmt || isNaN(fundsAmt) || fundsAmt <= 0) { toast("Please enter an amount greater than 0.", "error"); return; }
+        state.transactions.push({
+          id: uid(), type: "adjustment", accountId: id, delta: Math.round(fundsAmt * 100) / 100,
+          date: $("m_date").value || new Date().toISOString().slice(0, 10), note: $("m_reason").value.trim() || "Funds added"
+        });
+        toast("Funds added — this won't count as Income until you convert it.", "good");
+      } else if (mode === "sellCurrency") {
+        var fxFromAcc = accountById(id);
+        var fxToId = $("m_toAccount").value;
+        if (!fxToId) { toast("Choose an account to deposit into.", "error"); return; }
+        var fxAmountSold = evalAmount($("m_fxAmount").value);
+        if (!fxAmountSold || isNaN(fxAmountSold) || fxAmountSold <= 0) { toast("Please enter an amount greater than 0.", "error"); return; }
+        var fxRateUsed = evalAmount($("m_fxRate").value);
+        if (!fxRateUsed || isNaN(fxRateUsed) || fxRateUsed <= 0) { toast("Please enter a valid exchange rate.", "error"); return; }
+        var fxReceivedAmt = evalAmount($("m_fxReceived").value);
+        if (!fxReceivedAmt || isNaN(fxReceivedAmt) || fxReceivedAmt <= 0) fxReceivedAmt = fxAmountSold * fxRateUsed;
+        fxAmountSold = Math.round(fxAmountSold * 100) / 100;
+        fxReceivedAmt = Math.round(fxReceivedAmt * 100) / 100;
+        var fxCurBefore = accountCurrency(fxFromAcc);
+        var fxPriorRate = fxFromAcc.exchangeRate || 0;
+        var fxGainLoss = Math.round((fxRateUsed - fxPriorRate) * fxAmountSold * 100) / 100;
+        if (state.incomeSources.indexOf("Currency Exchange") === -1) state.incomeSources.push("Currency Exchange");
+        state.transactions.push({
+          id: uid(), type: "income", accountId: fxToId, amount: fxReceivedAmt,
+          source: "Currency Exchange", sourceDetail: fxFromAcc.name, skipJars: true,
+          date: $("m_date").value || new Date().toISOString().slice(0, 10), note: $("m_note").value.trim(),
+          fx: { fromAccountId: id, foreignAmount: fxAmountSold, foreignCurrency: fxCurBefore, rateUsed: fxRateUsed, priorRate: fxPriorRate, gainLoss: fxGainLoss }
+        });
+        fxFromAcc.exchangeRate = fxRateUsed; // "auto-updates" from your own real transactions, no live rate feed needed
+        var fxGainLossMsg = fxGainLoss === 0 ? "" : fxGainLoss > 0 ? (" Exchange gain: " + fmtMoney(fxGainLoss) + ".") : (" Exchange loss: " + fmtMoney(Math.abs(fxGainLoss)) + ".");
+        toast("Recorded as income: " + fmtMoneyIn(fxReceivedAmt, state.homeCurrency) + " from " + fmtMoneyIn(fxAmountSold, fxCurBefore) + "." + fxGainLossMsg, "good");
       } else if (mode === "recordInterest") {
         var amt = evalAmount($("m_amount").value);
         if (!amt || isNaN(amt) || amt <= 0) { toast("Please enter an interest amount greater than 0.", "error"); return; }
@@ -7936,6 +8066,10 @@
       if (editAcc) { openActionModal("editAccount", editAcc); return; }
       var adjAcc = evt.target.getAttribute && evt.target.getAttribute("data-adjust-account");
       if (adjAcc) { openActionModal("adjustAccount", adjAcc); return; }
+      var addFundsAcc = evt.target.getAttribute && evt.target.getAttribute("data-add-funds");
+      if (addFundsAcc) { openActionModal("addFunds", addFundsAcc); return; }
+      var sellCurAcc = evt.target.getAttribute && evt.target.getAttribute("data-sell-currency");
+      if (sellCurAcc) { openActionModal("sellCurrency", sellCurAcc); return; }
       var toggleHide = evt.target.getAttribute && evt.target.getAttribute("data-toggle-hide");
       if (toggleHide) { var a = accountById(toggleHide); if (a) a.hidden = !a.hidden; renderAll(); return; }
       var delAcc = evt.target.getAttribute && evt.target.getAttribute("data-delete-account");
