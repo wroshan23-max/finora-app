@@ -1195,7 +1195,7 @@
           <div style="display:flex;gap:6px;">
             <input type="text" inputmode="decimal" id="txAmount" placeholder="e.g. 1500 or 100+50" style="flex:1;min-width:0;">
             <button type="button" class="ghost" id="txCalcBtn" title="Calculate a sum, e.g. 100+50-20" style="display:none;">🧮</button>
-            <button type="button" class="ghost" id="txKeypadBtn" title="Open number pad" aria-label="Open number pad">🔢</button>
+            <button type="button" class="ghost" id="txKeypadBtn" data-keypad-for="txAmount" title="Open number pad" aria-label="Open number pad">🔢</button>
           </div>
         </div>
         <div class="field" id="jarFieldWrap">
@@ -1396,7 +1396,7 @@
             <button type="button" data-rec-type="expense">Expense</button>
           </div>
         </div>
-        <div class="field"><label>Amount</label><input type="text" inputmode="decimal" id="recAmount" placeholder="0.00"></div>
+        <div class="field"><label>Amount</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="recAmount" placeholder="0.00" style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="recAmount" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>
         <div class="field"><label>Account</label><select id="recAccount"></select></div>
         <div class="field" id="recSourceWrap"><label>Income Source</label><select id="recSource"></select></div>
         <div class="field" id="recJarWrap" style="display:none;"><label>Jar</label><select id="recJar"></select></div>
@@ -1494,11 +1494,15 @@
           <div style="display:flex;gap:6px;">
             <input type="text" inputmode="decimal" id="tfAmount" placeholder="0.00 or 100+50" style="flex:1;min-width:0;">
             <button type="button" class="ghost" id="tfCalcBtn" title="Calculate a sum, e.g. 100+50-20">🧮</button>
+            <button type="button" class="ghost" data-keypad-for="tfAmount" title="Open number pad" aria-label="Open number pad">🔢</button>
           </div>
         </div>
         <div class="field">
           <label>Bank charge / fee (optional)</label>
-          <input type="text" inputmode="decimal" id="tfFee" value="0">
+          <div style="display:flex;gap:6px;">
+            <input type="text" inputmode="decimal" id="tfFee" value="0" style="flex:1;min-width:0;">
+            <button type="button" class="ghost" data-keypad-for="tfFee" title="Open number pad" aria-label="Open number pad">🔢</button>
+          </div>
         </div>
         <div class="field">
           <label>Date</label>
@@ -1558,7 +1562,10 @@
         </div>
         <div class="field">
           <label id="accOpeningLabel">Opening balance</label>
-          <input type="text" inputmode="decimal" id="accOpening" value="0" required>
+          <div style="display:flex;gap:6px;">
+            <input type="text" inputmode="decimal" id="accOpening" value="0" required style="flex:1;min-width:0;">
+            <button type="button" class="ghost" data-keypad-for="accOpening" title="Open number pad" aria-label="Open number pad">🔢</button>
+          </div>
         </div>
         <div class="field">
           <label id="accBalanceDateLabel">Balance as of</label>
@@ -1570,7 +1577,10 @@
         </div>
         <div class="field" id="accRateWrap" style="display:none;">
           <label id="accRateLabel">Exchange rate</label>
-          <input type="text" inputmode="decimal" id="accRate" placeholder="e.g. 300">
+          <div style="display:flex;gap:6px;">
+            <input type="text" inputmode="decimal" id="accRate" placeholder="e.g. 300" style="flex:1;min-width:0;">
+            <button type="button" class="ghost" data-keypad-for="accRate" title="Open number pad" aria-label="Open number pad">🔢</button>
+          </div>
         </div>
         <div class="checkbox-field">
           <input type="checkbox" id="accHidden">
@@ -1610,19 +1620,32 @@
         </div>
         <div class="field">
           <label>Current balance owed</label>
-          <input type="number" id="liOpening" min="0" step="0.01" required>
+          <div style="display:flex;gap:6px;">
+            <input type="text" inputmode="decimal" id="liOpening" placeholder="0.00" required style="flex:1;min-width:0;">
+            <button type="button" class="ghost" data-keypad-for="liOpening" title="Open number pad" aria-label="Open number pad">🔢</button>
+          </div>
         </div>
         <div class="field">
           <label>Annual interest rate (%)</label>
-          <input type="number" id="liRate" min="0" step="0.01" value="0">
+          <div style="display:flex;gap:6px;">
+            <input type="text" inputmode="decimal" id="liRate" value="0" style="flex:1;min-width:0;">
+            <button type="button" class="ghost" data-keypad-for="liRate" title="Open number pad" aria-label="Open number pad">🔢</button>
+          </div>
         </div>
         <div class="field">
           <label>Minimum monthly payment</label>
-          <input type="number" id="liMinPay" min="0" step="0.01" value="0">
+          <div style="display:flex;gap:6px;">
+            <input type="text" inputmode="decimal" id="liMinPay" value="0" style="flex:1;min-width:0;">
+            <button type="button" class="ghost" data-keypad-for="liMinPay" title="Open number pad" aria-label="Open number pad">🔢</button>
+          </div>
         </div>
         <div class="field">
           <label>Payment due day of month (optional)</label>
           <input type="number" id="liDueDay" min="1" max="31" step="1" placeholder="e.g. 15">
+        </div>
+        <div class="field wide">
+          <label>Note (optional)</label>
+          <input type="text" id="liNote" placeholder="e.g. 5-year fixed, HNB Colombo branch">
         </div>
         <div class="field wide">
           <label style="font-weight:600;">Just received cash for this? (optional)</label>
@@ -1633,7 +1656,10 @@
         </div>
         <div class="field">
           <label>Amount received</label>
-          <input type="number" id="liDepositAmount" min="0" step="0.01" placeholder="Defaults to balance owed above">
+          <div style="display:flex;gap:6px;">
+            <input type="text" inputmode="decimal" id="liDepositAmount" placeholder="Defaults to balance owed above" style="flex:1;min-width:0;">
+            <button type="button" class="ghost" data-keypad-for="liDepositAmount" title="Open number pad" aria-label="Open number pad">🔢</button>
+          </div>
         </div>
         <div class="field">
           <label>&nbsp;</label>
@@ -1654,7 +1680,10 @@
       <div class="form-grid" style="max-width:320px;">
         <div class="field">
           <label>Extra payment available per month</label>
-          <input type="number" id="settleExtra" min="0" step="0.01" value="0">
+          <div style="display:flex;gap:6px;">
+            <input type="text" inputmode="decimal" id="settleExtra" value="0" style="flex:1;min-width:0;">
+            <button type="button" class="ghost" data-keypad-for="settleExtra" title="Open number pad" aria-label="Open number pad">🔢</button>
+          </div>
         </div>
       </div>
       <div class="settle-compare" id="settleCompare"></div>
@@ -1677,11 +1706,17 @@
         </div>
         <div class="field">
           <label>Amount lent</label>
-          <input type="number" id="lendAmount" min="0" step="0.01" required>
+          <div style="display:flex;gap:6px;">
+            <input type="text" inputmode="decimal" id="lendAmount" placeholder="0.00" required style="flex:1;min-width:0;">
+            <button type="button" class="ghost" data-keypad-for="lendAmount" title="Open number pad" aria-label="Open number pad">🔢</button>
+          </div>
         </div>
         <div class="field">
           <label>Annual interest rate (%) — optional</label>
-          <input type="number" id="lendRate" min="0" step="0.01" value="0">
+          <div style="display:flex;gap:6px;">
+            <input type="text" inputmode="decimal" id="lendRate" value="0" style="flex:1;min-width:0;">
+            <button type="button" class="ghost" data-keypad-for="lendRate" title="Open number pad" aria-label="Open number pad">🔢</button>
+          </div>
         </div>
         <div class="field">
           <label>Expected repayment day of month (optional)</label>
@@ -1759,7 +1794,10 @@
       <div class="settings-grid" style="margin-bottom:10px;">
         <div class="field">
           <label>Financial Freedom target</label>
-          <input type="number" id="freedomTarget" min="0" step="1">
+          <div style="display:flex;gap:6px;">
+            <input type="text" inputmode="decimal" id="freedomTarget" style="flex:1;min-width:0;">
+            <button type="button" class="ghost" data-keypad-for="freedomTarget" title="Open number pad" aria-label="Open number pad">🔢</button>
+          </div>
         </div>
       </div>
       <div class="ff-progress-wrap">
@@ -1777,7 +1815,7 @@
       <p class="hint">Give your Long-Term Savings (LTSS) jar named targets — e.g. "New Laptop — Rs 150,000" — and track progress toward each one separately. Allocating funds here is just a way to mentally sub-divide your LTSS jar; it doesn't move any money on its own.</p>
       <form class="settings-grid" id="goalForm" novalidate style="margin-bottom:12px;">
         <div class="field"><label>Goal name</label><input type="text" id="goalName" placeholder="e.g. New Laptop"></div>
-        <div class="field"><label>Target amount</label><input type="number" id="goalTarget" min="0" step="0.01"></div>
+        <div class="field"><label>Target amount</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="goalTarget" style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="goalTarget" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>
         <div class="field"><label>&nbsp;</label><button type="button" class="primary" id="goalAddBtn">Add Goal</button></div>
       </form>
       <div id="goalsList"></div>
@@ -1881,7 +1919,7 @@
       <p class="hint">Weddings, parties, holidays — set a spending limit for the whole event, then log expenses against it separately from your everyday budgets.</p>
       <form class="form-grid" id="eventForm" novalidate>
         <div class="field wide"><label>Event name</label><input type="text" id="evName" placeholder="e.g. Sister's Wedding"></div>
-        <div class="field"><label>Budget limit</label><input type="number" id="evBudget" min="0" step="0.01"></div>
+        <div class="field"><label>Budget limit</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="evBudget" style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="evBudget" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>
         <div class="field"><label>Event date (optional)</label><input type="date" id="evDate"></div>
         <div class="field"><label>&nbsp;</label><button type="button" class="primary" id="evAddBtn">Create Event</button></div>
       </form>
@@ -1896,7 +1934,7 @@
     <div class="card" id="eventExpenseCard" style="display:none;">
       <h2 id="evActiveTitle">Log an Expense</h2>
       <form class="form-grid" id="eventExpenseForm" novalidate>
-        <div class="field"><label>Amount</label><input type="number" id="evExpAmount" min="0" step="0.01"></div>
+        <div class="field"><label>Amount</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="evExpAmount" style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="evExpAmount" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>
         <div class="field wide"><label>What was it for?</label><input type="text" id="evExpNote" placeholder="e.g. Catering deposit"></div>
         <div class="field"><label>Date</label><input type="date" id="evExpDate"></div>
         <div class="field"><label>&nbsp;</label><button type="button" class="primary" id="evExpAddBtn">Add Expense</button></div>
@@ -1919,7 +1957,7 @@
       <div id="plannerSetupWrap" style="display:none;">
         <div class="form-grid" style="max-width:420px;">
           <div class="field"><label>Month</label><input type="month" id="planMonth"></div>
-          <div class="field"><label>Expected income this month</label><input type="number" id="planIncome" min="0" step="0.01"></div>
+          <div class="field"><label>Expected income this month</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="planIncome" style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="planIncome" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>
         </div>
         <div id="planAllocRows"></div>
         <datalist id="planLabelSuggestions"></datalist>
@@ -2363,6 +2401,12 @@
     <div class="keypad-actions">
       <button type="button" class="ghost" id="keypadMoreDetailsBtn">🏷️ Add More Details</button>
       <button type="button" class="primary" id="keypadQuickSaveBtn">Quick Save</button>
+      <!-- Shown instead of the two buttons above when the keypad is opened for
+           any amount field other than #txAmount (liability balance, interest
+           rate, lending amount, budget limits, etc.) — those forms have their
+           own Save/Add button elsewhere, so this just resolves the typed
+           amount into the field and closes, it doesn't submit anything. -->
+      <button type="button" class="primary" id="keypadDoneBtn" style="display:none;">Done</button>
     </div>
   </div>
 </div>
@@ -3512,6 +3556,7 @@
     }
     $("recAddBtn").addEventListener("click", addRecurring);
     bindEnterKey($("recurringForm"), addRecurring);
+    attachCalculator("recAmount", null);
 
     document.addEventListener("click", function (evt) {
       var toggleBtn = evt.target.closest && evt.target.closest("[data-rec-toggle]");
@@ -5091,10 +5136,10 @@
   // NOT on every keystroke (that would steal focus mid-typing).
   function renderBudgetInputs() {
     $("jarBudgetInputs").innerHTML = JARS.map(function (j) {
-      return '<div class="field"><label>' + j.name + '</label><input type="number" min="0" step="1" data-jar-budget="' + j.key + '" value="' + (state.jarBudgets[j.key] || "") + '" placeholder="No limit"></div>';
+      return '<div class="field"><label>' + j.name + '</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" data-jar-budget="' + j.key + '" value="' + (state.jarBudgets[j.key] || "") + '" placeholder="No limit" style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="__prev" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>';
     }).join("");
     $("categoryBudgetInputs").innerHTML = state.expenseCategories.map(function (c) {
-      return '<div class="field"><label>' + escapeHtml(c) + '</label><input type="number" min="0" step="1" data-category-budget="' + escapeHtml(c) + '" value="' + (state.categoryBudgets[c] || "") + '" placeholder="No limit"></div>';
+      return '<div class="field"><label>' + escapeHtml(c) + '</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" data-category-budget="' + escapeHtml(c) + '" value="' + (state.categoryBudgets[c] || "") + '" placeholder="No limit" style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="__prev" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>';
     }).join("");
     renderBudgetBars();
   }
@@ -5172,15 +5217,15 @@
   function setupBudgets() {
     $("jarBudgetInputs").addEventListener("input", function (evt) {
       var key = evt.target.getAttribute("data-jar-budget"); if (!key) return;
-      var val = parseFloat(evt.target.value);
-      if (!val || val <= 0) delete state.jarBudgets[key]; else state.jarBudgets[key] = val;
+      var val = evalAmount(evt.target.value);
+      if (!val || isNaN(val) || val <= 0) delete state.jarBudgets[key]; else state.jarBudgets[key] = val;
       renderBudgetBars();
       renderJarGrid();
     });
     $("categoryBudgetInputs").addEventListener("input", function (evt) {
       var key = evt.target.getAttribute("data-category-budget"); if (!key) return;
-      var val = parseFloat(evt.target.value);
-      if (!val || val <= 0) delete state.categoryBudgets[key]; else state.categoryBudgets[key] = val;
+      var val = evalAmount(evt.target.value);
+      if (!val || isNaN(val) || val <= 0) delete state.categoryBudgets[key]; else state.categoryBudgets[key] = val;
       renderBudgetBars();
     });
   }
@@ -5295,7 +5340,7 @@
     if (!$("goalAddBtn")) return;
     function addGoal() {
       var name = $("goalName").value.trim();
-      var target = parseFloat($("goalTarget").value);
+      var target = evalAmount($("goalTarget").value);
       if (!name) { toast("Please enter a name for this goal.", "error"); $("goalName").focus(); return; }
       if (!(target > 0)) { toast("Please enter a target amount greater than 0.", "error"); $("goalTarget").focus(); return; }
       state.savingsGoals.push({ id: uid(), name: name, targetAmount: target, allocated: 0 });
@@ -5307,6 +5352,7 @@
       toast('Goal "' + name + '" added.', "good");
     }
     $("goalAddBtn").addEventListener("click", addGoal);
+    attachCalculator("goalTarget", null);
     document.addEventListener("click", function (evt) {
       var addBtn = evt.target.closest && evt.target.closest("[data-goal-add]");
       var removeBtn = evt.target.closest && evt.target.closest("[data-goal-remove]");
@@ -5421,6 +5467,7 @@
     }
     var metaBits = ["Interest: " + (l.interestRate || 0) + "% / year", "Min payment: " + fmtMoney(l.minPayment || 0) + "/mo"];
     if (l.dueDayOfMonth) metaBits.push("Due day " + l.dueDayOfMonth);
+    if (l.note) metaBits.push(escapeHtml(l.note));
     return '<div class="liability-card-v2"><div class="l2-head"><div class="l2-icon">' + meta.icon + '</div>' +
       '<div><div class="l2-name">' + escapeHtml(l.name) + '</div><div class="l-type">' + meta.label + '</div></div></div>' +
       '<div class="l-balance">' + fmtMoney(bal) + '</div>' +
@@ -5441,7 +5488,7 @@
   }
 
   function renderSettlementPlan() {
-    var extra = parseFloat($("settleExtra").value) || 0;
+    var extra = evalAmount($("settleExtra").value) || 0;
     state.settlement.extraPayment = extra;
     if (state.liabilities.length === 0) { $("settleCompare").innerHTML = '<div class="empty-state">Add a liability to see a payoff plan.</div>'; return; }
     var avalanche = simulateSettlement("avalanche", extra);
@@ -5486,7 +5533,7 @@
       '</div>' +
       '<div class="lend-repay-row" id="lendRepayRow-' + l.id + '" style="display:none;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);">' +
       '<div class="form-grid" style="margin-bottom:0;">' +
-      '<div class="field"><label>Amount received</label><input type="number" min="0" step="0.01" id="lendRepayAmount-' + l.id + '" placeholder="' + bal.toFixed(2) + '"></div>' +
+      '<div class="field"><label>Amount received</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="lendRepayAmount-' + l.id + '" placeholder="' + bal.toFixed(2) + '" style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="lendRepayAmount-' + l.id + '" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' +
       '<div class="field"><label>Into account</label><select id="lendRepayAccount-' + l.id + '"></select></div>' +
       '<div class="field"><label>&nbsp;</label><button type="button" class="primary small" data-lend-repay-confirm="' + l.id + '">Confirm</button></div>' +
       '</div></div>' +
@@ -5515,12 +5562,13 @@
       var name = $("lendName").value.trim();
       if (!name) { toast("Please enter the borrower's name.", "error"); $("lendName").focus(); return; }
       var amountRaw = $("lendAmount").value;
-      if (amountRaw === "" || isNaN(parseFloat(amountRaw)) || parseFloat(amountRaw) <= 0) { toast("Please enter the amount lent.", "error"); $("lendAmount").focus(); return; }
-      var amount = Math.round(parseFloat(amountRaw) * 100) / 100;
+      var amountParsed = evalAmount(amountRaw);
+      if (amountRaw === "" || isNaN(amountParsed) || amountParsed <= 0) { toast("Please enter the amount lent.", "error"); $("lendAmount").focus(); return; }
+      var amount = Math.round(amountParsed * 100) / 100;
       var dueDayRaw = parseInt($("lendDueDay").value, 10);
       state.lendings.push({
         id: uid(), name: name, openingAmount: amount,
-        interestRate: parseFloat($("lendRate").value) || 0,
+        interestRate: evalAmount($("lendRate").value) || 0,
         dueDayOfMonth: (dueDayRaw >= 1 && dueDayRaw <= 31) ? dueDayRaw : null,
         note: $("lendNote").value.trim(),
         createdDate: new Date().toISOString().slice(0, 10)
@@ -5548,6 +5596,8 @@
     }
     $("lendSubmitBtn").addEventListener("click", submitLendingForm);
     bindEnterKey($("lendingForm"), submitLendingForm);
+    attachCalculator("lendAmount", null);
+    attachCalculator("lendRate", null);
 
     document.addEventListener("click", function (evt) {
       var toggleBtn = evt.target.closest && evt.target.closest("[data-lend-repay-toggle]");
@@ -5566,7 +5616,7 @@
         var bal = computeLendingBalance(clid);
         var amtInput = $("lendRepayAmount-" + clid);
         var amtRaw = amtInput.value.trim();
-        var amt = amtRaw === "" ? bal : (parseFloat(amtRaw) || 0);
+        var amt = amtRaw === "" ? bal : (evalAmount(amtRaw) || 0);
         if (!amt || amt <= 0) { toast("Please enter a repayment amount greater than 0.", "error"); return; }
         var accSel = $("lendRepayAccount-" + clid);
         if (!accSel || !accSel.value) { toast("Please choose which account the money went into.", "error"); return; }
@@ -5775,7 +5825,7 @@
     function addEvent() {
       var name = $("evName").value.trim();
       if (!name) { toast("Please name this event.", "error"); $("evName").focus(); return; }
-      var budget = parseFloat($("evBudget").value) || 0;
+      var budget = evalAmount($("evBudget").value) || 0;
       var ev = { id: uid(), name: name, budget: budget, date: $("evDate").value || "", createdDate: new Date().toISOString().slice(0, 10), expenses: [] };
       state.events.push(ev);
       activeEventId = ev.id;
@@ -5786,11 +5836,12 @@
     }
     $("evAddBtn").addEventListener("click", addEvent);
     bindEnterKey($("eventForm"), addEvent);
+    attachCalculator("evBudget", null);
 
     function addExpense() {
       var ev = eventById(activeEventId);
       if (!ev) return;
-      var amount = parseFloat($("evExpAmount").value);
+      var amount = evalAmount($("evExpAmount").value);
       if (!amount || isNaN(amount) || amount <= 0) { toast("Please enter an amount greater than 0.", "error"); $("evExpAmount").focus(); return; }
       ev.expenses.push({ id: uid(), amount: Math.round(amount * 100) / 100, note: $("evExpNote").value.trim(), date: $("evExpDate").value || new Date().toISOString().slice(0, 10) });
       $("evExpAmount").value = ""; $("evExpNote").value = "";
@@ -5799,6 +5850,7 @@
     }
     $("evExpAddBtn").addEventListener("click", addExpense);
     bindEnterKey($("eventExpenseForm"), addExpense);
+    attachCalculator("evExpAmount", null);
 
     document.addEventListener("click", function (evt) {
       var delBtn = evt.target.closest && evt.target.closest("[data-event-del]");
@@ -5867,7 +5919,7 @@
   function planAllocRowHtml(label, amount) {
     return '<div class="form-grid plan-alloc-row" style="align-items:end;">' +
       '<div class="field wide"><label>Category / Loan name / Label</label><input type="text" class="plan-alloc-label" list="planLabelSuggestions" value="' + escapeHtml(label || "") + '" placeholder="e.g. Food & Groceries, Car Loan, Rent"></div>' +
-      '<div class="field"><label>Amount</label><input type="number" class="plan-alloc-amount" min="0" step="0.01" value="' + (amount ? amount : "") + '"></div>' +
+      '<div class="field"><label>Amount</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" class="plan-alloc-amount" value="' + (amount ? amount : "") + '" style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="__prev" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' +
       '<div class="field"><label>&nbsp;</label><button type="button" class="ghost small danger plan-alloc-remove">Remove</button></div>' +
       '</div>';
   }
@@ -5887,13 +5939,13 @@
 
   function readPlanAllocRows() {
     return Array.prototype.map.call(document.querySelectorAll("#planAllocRows .plan-alloc-row"), function (row) {
-      return { id: uid(), label: row.querySelector(".plan-alloc-label").value.trim(), amount: parseFloat(row.querySelector(".plan-alloc-amount").value) || 0 };
+      return { id: uid(), label: row.querySelector(".plan-alloc-label").value.trim(), amount: evalAmount(row.querySelector(".plan-alloc-amount").value) || 0 };
     }).filter(function (a) { return a.label; });
   }
 
   function updatePlanRemainingHint() {
     if (!$("planRemainingHint")) return;
-    var income = parseFloat($("planIncome").value) || 0;
+    var income = evalAmount($("planIncome").value) || 0;
     var allocated = readPlanAllocRows().reduce(function (s, a) { return s + a.amount; }, 0);
     var remaining = income - allocated;
     $("planRemainingHint").textContent = "Allocated " + fmtMoney(allocated) + " of " + fmtMoney(income) +
@@ -5962,6 +6014,7 @@
       renderPlanActual();
     });
     $("planIncome").addEventListener("input", updatePlanRemainingHint);
+    attachCalculator("planIncome", null, updatePlanRemainingHint);
     $("planAllocRows").addEventListener("input", function (evt) {
       if (evt.target.classList.contains("plan-alloc-amount") || evt.target.classList.contains("plan-alloc-label")) updatePlanRemainingHint();
     });
@@ -5976,7 +6029,7 @@
       if (!state.isPro) { toast("Planning a month's salary allocation is a Finora Pro feature.", "error"); return; }
       var month = $("planMonth").value;
       if (!month) { toast("Please choose a month.", "error"); return; }
-      var income = parseFloat($("planIncome").value) || 0;
+      var income = evalAmount($("planIncome").value) || 0;
       var allocations = readPlanAllocRows();
       var existing = salaryPlanForMonth(month);
       if (existing) { existing.income = income; existing.allocations = allocations; }
@@ -6760,10 +6813,10 @@
       title = "Edit Account";
       body = '<div class="form-grid">' +
         '<div class="field"><label>Name</label><input type="text" id="m_name" value="' + escapeHtml(a.name) + '" required></div>' +
-        '<div class="field"><label>Opening balance</label><input type="text" inputmode="decimal" id="m_opening" value="' + a.openingBalance + '" required></div>' +
+        '<div class="field"><label>Opening balance</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="m_opening" value="' + a.openingBalance + '" required style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="m_opening" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' +
         '<div class="field"><label>Balance as of</label><input type="date" id="m_balanceDate" value="' + (a.balanceDate || new Date().toISOString().slice(0, 10)) + '" required></div>' +
         '<div class="field"><label>Currency</label><select id="m_currency">' + CURRENCIES.map(function (c) { return '<option value="' + c.code + '"' + (c.code === aCur ? " selected" : "") + '>' + c.code + ' (' + c.symbol.trim() + ')</option>'; }).join("") + '</select></div>' +
-        '<div class="field" id="m_rateWrap" style="' + (aCur === state.homeCurrency ? "display:none;" : "") + '"><label>Exchange rate (1 ' + aCur + ' = ? ' + state.homeCurrency + ')</label><input type="text" inputmode="decimal" id="m_rate" value="' + (a.exchangeRate || 1) + '"></div>' +
+        '<div class="field" id="m_rateWrap" style="' + (aCur === state.homeCurrency ? "display:none;" : "") + '"><label>Exchange rate (1 ' + aCur + ' = ? ' + state.homeCurrency + ')</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="m_rate" value="' + (a.exchangeRate || 1) + '" style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="m_rate" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' +
         '</div>';
     } else if (mode === "adjustAccount") {
       var acc = accountById(contextId);
@@ -6772,21 +6825,21 @@
       var accCur = accountCurrency(acc);
       title = "Adjust Balance — " + escapeHtml(acc.name);
       body = '<p>Current computed balance: <strong>' + fmtMoneyIn(displayBal, accCur) + '</strong>' + (accCur !== state.homeCurrency ? ' (≈ ' + fmtMoney(toHomeAmount(displayBal, acc)) + ')' : '') + '</p>' +
-        '<div class="form-grid"><div class="field"><label>Correct balance should be (' + accCur + ')</label><input type="text" inputmode="decimal" id="m_target" value="' + displayBal.toFixed(2) + '" required></div>' +
+        '<div class="form-grid"><div class="field"><label>Correct balance should be (' + accCur + ')</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="m_target" value="' + displayBal.toFixed(2) + '" required style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="m_target" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' +
         '<div class="field"><label>Reason (optional)</label><input type="text" id="m_reason" placeholder="e.g. Bank statement reconciliation"></div>' +
         '<div class="field"><label>Date</label><input type="date" id="m_date" value="' + new Date().toISOString().slice(0, 10) + '"></div></div>';
     } else if (mode === "recordInterest") {
       var l1 = liabilityById(contextId);
       var suggested = (computeLiabilityBalance(contextId) * ((l1.interestRate || 0) / 100 / 12)).toFixed(2);
       title = "Record Interest — " + escapeHtml(l1.name);
-      body = '<div class="form-grid"><div class="field"><label>Interest amount</label><input type="text" inputmode="decimal" id="m_amount" value="' + suggested + '" required></div>' +
+      body = '<div class="form-grid"><div class="field"><label>Interest amount</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="m_amount" value="' + suggested + '" required style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="m_amount" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' +
         '<div class="field"><label>Date</label><input type="date" id="m_date" value="' + new Date().toISOString().slice(0, 10) + '"></div></div>' +
         '<p style="font-size:11px;">Suggested amount = current balance × monthly rate. Adjust if your statement differs.</p>';
     } else if (mode === "recordPayment") {
       var l2 = liabilityById(contextId);
       title = "Record Payment — " + escapeHtml(l2.name);
       var accOpts = state.accounts.map(function (a) { return '<option value="' + a.id + '">' + accountTypeMeta(a.type).icon + ' ' + escapeHtml(a.name) + '</option>'; }).join("");
-      body = '<div class="form-grid"><div class="field"><label>Payment amount</label><input type="text" inputmode="decimal" id="m_amount" required></div>' +
+      body = '<div class="form-grid"><div class="field"><label>Payment amount</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="m_amount" required style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="m_amount" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' +
         '<div class="field"><label>Pay from account</label><select id="m_account">' + accOpts + '</select></div>' +
         '<div class="field"><label>Date</label><input type="date" id="m_date" value="' + new Date().toISOString().slice(0, 10) + '"></div></div>';
       if (state.accounts.length === 0) body += '<p style="color:var(--status-critical);font-size:12px;">Add an account first.</p>';
@@ -6796,10 +6849,11 @@
       body = '<div class="form-grid">' +
         '<div class="field"><label>Name</label><input type="text" id="m_name" value="' + escapeHtml(l3.name) + '" required></div>' +
         '<div class="field"><label>Type</label><select id="m_liType">' + LIABILITY_TYPES.map(function (t) { return '<option value="' + t.key + '"' + (t.key === l3.type ? " selected" : "") + '>' + t.icon + ' ' + t.label + '</option>'; }).join("") + '</select></div>' +
-        '<div class="field"><label>Current balance owed</label><input type="text" inputmode="decimal" id="m_opening" value="' + l3.openingBalance + '" required></div>' +
-        '<div class="field"><label>Annual interest rate (%)</label><input type="text" inputmode="decimal" id="m_rate" value="' + (l3.interestRate || 0) + '"></div>' +
-        '<div class="field"><label>Minimum monthly payment</label><input type="text" inputmode="decimal" id="m_minPay" value="' + (l3.minPayment || 0) + '"></div>' +
+        '<div class="field"><label>Current balance owed</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="m_opening" value="' + l3.openingBalance + '" required style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="m_opening" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' +
+        '<div class="field"><label>Annual interest rate (%)</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="m_rate" value="' + (l3.interestRate || 0) + '" style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="m_rate" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' +
+        '<div class="field"><label>Minimum monthly payment</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="m_minPay" value="' + (l3.minPayment || 0) + '" style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="m_minPay" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' +
         '<div class="field"><label>Payment due day of month (optional)</label><input type="number" id="m_dueDay" min="1" max="31" step="1" value="' + (l3.dueDayOfMonth || "") + '"></div>' +
+        '<div class="field wide"><label>Note (optional)</label><input type="text" id="m_note" value="' + escapeHtml(l3.note || "") + '"></div>' +
         '</div>';
     } else if (mode === "editTransaction") {
       var tx = state.transactions.filter(function (x) { return x.id === contextId; })[0];
@@ -6821,7 +6875,7 @@
         '<input type="checkbox" id="m_skipJars"' + (tx.skipJars ? " checked" : "") + '><span>Don\'t split this into the 6 Jars (e.g. a one-off amount you don\'t want budgeted)</span></label></div>' : "";
       body = '<div class="form-grid">' +
         businessField + skipJarsField +
-        '<div class="field"><label>Amount</label><input type="text" inputmode="decimal" id="m_amount" value="' + tx.amount + '" required></div>' +
+        '<div class="field"><label>Amount</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="m_amount" value="' + tx.amount + '" required style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="m_amount" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' +
         '<div class="field"><label>Account</label><select id="m_account">' + mAccOpts + '</select></div>' +
         jarField + categoryField + sourceField +
         '<div class="field"><label>Date</label><input type="date" id="m_date" value="' + tx.date + '"></div>' +
@@ -6834,8 +6888,8 @@
       body = '<div class="form-grid">' +
         '<div class="field"><label>From account</label><select id="m_from">' + tfAccOpts + '</select></div>' +
         '<div class="field"><label>To account</label><select id="m_to">' + tfAccOpts + '</select></div>' +
-        '<div class="field"><label>Amount</label><input type="text" inputmode="decimal" id="m_amount" value="' + tf.amount + '" required></div>' +
-        '<div class="field"><label>Bank charge / fee</label><input type="text" inputmode="decimal" id="m_fee" value="' + (tf.fee || 0) + '"></div>' +
+        '<div class="field"><label>Amount</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="m_amount" value="' + tf.amount + '" required style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="m_amount" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' +
+        '<div class="field"><label>Bank charge / fee</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="m_fee" value="' + (tf.fee || 0) + '" style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="m_fee" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' +
         '<div class="field"><label>Date</label><input type="date" id="m_date" value="' + tf.date + '"></div>' +
         '<div class="field"><label>Note</label><input type="text" id="m_note" value="' + escapeHtml(tf.note || "") + '"></div>' +
         '</div>';
@@ -6872,7 +6926,7 @@
         if ($("m_isBusiness").checked && $("m_skipJars")) $("m_skipJars").checked = false;
       });
     }
-    ["m_opening", "m_target", "m_amount", "m_rate", "m_fee"].forEach(function (fid) {
+    ["m_opening", "m_target", "m_amount", "m_rate", "m_fee", "m_minPay"].forEach(function (fid) {
       if ($(fid)) attachCalculator(fid, null);
     });
   }
@@ -6934,6 +6988,7 @@
         lEdit.minPayment = evalAmount($("m_minPay").value) || 0;
         var dueDayEditRaw = parseInt($("m_dueDay").value, 10);
         lEdit.dueDayOfMonth = (dueDayEditRaw >= 1 && dueDayEditRaw <= 31) ? dueDayEditRaw : null;
+        if ($("m_note")) lEdit.note = $("m_note").value.trim();
         toast("Liability updated.", "good");
       } else if (mode === "editTransaction") {
         if (!state.isPro) { toast("Editing entries requires Pro.", "error"); return; }
@@ -7106,6 +7161,7 @@
       renderTxTable();
     });
     $("settleExtra").addEventListener("input", renderSettlementPlan);
+    attachCalculator("settleExtra", null, renderSettlementPlan);
   }
 
   /* ================= Forms: account / liability / transfer =================
@@ -7169,15 +7225,17 @@
       var name = $("liName").value.trim();
       if (!name) { toast("Please enter a name for this liability before saving.", "error"); $("liName").focus(); return; }
       var openingRaw = $("liOpening").value;
-      if (openingRaw === "" || isNaN(parseFloat(openingRaw))) { toast("Please enter the current balance owed.", "error"); $("liOpening").focus(); return; }
+      var openingParsed = evalAmount(openingRaw);
+      if (openingRaw === "" || isNaN(openingParsed)) { toast("Please enter the current balance owed.", "error"); $("liOpening").focus(); return; }
       var dueDayRaw = parseInt($("liDueDay").value, 10);
-      var openingBal = parseFloat($("liOpening").value) || 0;
+      var openingBal = openingParsed || 0;
       state.liabilities.push({
         id: uid(), name: name, type: $("liType").value,
         openingBalance: openingBal,
-        interestRate: parseFloat($("liRate").value) || 0,
-        minPayment: parseFloat($("liMinPay").value) || 0,
-        dueDayOfMonth: (dueDayRaw >= 1 && dueDayRaw <= 31) ? dueDayRaw : null
+        interestRate: evalAmount($("liRate").value) || 0,
+        minPayment: evalAmount($("liMinPay").value) || 0,
+        dueDayOfMonth: (dueDayRaw >= 1 && dueDayRaw <= 31) ? dueDayRaw : null,
+        note: $("liNote").value.trim()
       });
       // Optional: if cash actually landed in an account (e.g. gold pawning, a loan
       // paid out as cash), add it as an "adjustment" — not "income" — so it bumps
@@ -7189,7 +7247,7 @@
       var depositAccId = $("liDepositAccount") ? $("liDepositAccount").value : "";
       if (depositAccId) {
         var depositRaw = $("liDepositAmount").value;
-        var depositAmt = depositRaw === "" ? openingBal : (parseFloat(depositRaw) || 0);
+        var depositAmt = depositRaw === "" ? openingBal : (evalAmount(depositRaw) || 0);
         if (depositAmt > 0) {
           var depAcc = accountById(depositAccId);
           if (depAcc) {
@@ -7208,6 +7266,7 @@
     }
     $("liSubmitBtn").addEventListener("click", submitLiabilityForm);
     bindEnterKey($("liabilityForm"), submitLiabilityForm);
+    ["liOpening", "liRate", "liMinPay", "liDepositAmount"].forEach(function (fid) { attachCalculator(fid, null); });
   }
 
   function setupTransferForm() {
@@ -7445,7 +7504,8 @@
       state.jarPct = Object.assign({}, DEFAULT_PCT);
       renderJarPctInputs(); renderAllocationDonut(); renderJarGrid(); renderFreedomTracker(); renderSplitPreview();
     });
-    $("freedomTarget").addEventListener("input", function () { state.freedomTarget = parseFloat($("freedomTarget").value) || 0; renderFreedomTracker(); });
+    $("freedomTarget").addEventListener("input", function () { state.freedomTarget = evalAmount($("freedomTarget").value) || 0; renderFreedomTracker(); });
+    attachCalculator("freedomTarget", null, renderFreedomTracker);
     $("pyfToggle").addEventListener("change", function () { state.pyfEnabled = $("pyfToggle").checked; });
     $("deleteConfirmToggle").addEventListener("change", function () { state.confirmBeforeDelete = $("deleteConfirmToggle").checked; });
 
@@ -7626,6 +7686,14 @@
      uses this today, but it's written generically in case another amount
      field wants the same keypad later). */
   var keypadTarget = null;
+  // True right after opening the keypad on a field that already has a value
+  // (e.g. Financial Freedom target defaulting to 100000, or editing an
+  // existing liability's rate) or right after "="/Done resolves one — the
+  // next digit pressed then clears the display and starts fresh instead of
+  // appending to what's shown, same as a physical calculator. Pressing an
+  // operator first extends the existing value into an expression instead
+  // (e.g. opening on "100000" and pressing "+" gives "100000+").
+  var keypadFreshEntry = false;
   function keypadRefreshDisplay() {
     if (!keypadTarget) return;
     var raw = keypadTarget.value || "";
@@ -7640,15 +7708,17 @@
   function keypadPressKey(key) {
     if (!keypadTarget) return;
     var el = keypadTarget;
-    if (key === "clear") { el.value = ""; }
-    else if (key === "back") { el.value = el.value.slice(0, -1); }
+    if (key === "clear") { el.value = ""; keypadFreshEntry = false; }
+    else if (key === "back") { el.value = el.value.slice(0, -1); keypadFreshEntry = false; }
     else if (key === "=") { keypadResolve(); return; }
     else if (["+", "-", "*", "/"].indexOf(key) !== -1) {
       if (el.value === "") return; // don't start an amount with an operator
+      keypadFreshEntry = false;
       var last = el.value.slice(-1);
       if (["+", "-", "*", "/"].indexOf(last) !== -1) el.value = el.value.slice(0, -1) + key;
       else el.value += key;
     } else {
+      if (keypadFreshEntry) { el.value = ""; keypadFreshEntry = false; }
       el.value += key; // digit or "."
     }
     keypadRefreshDisplay();
@@ -7656,20 +7726,55 @@
   // Resolves whatever's typed (a plain number or an expression) down to a final
   // rounded value in the field, same rounding submitTxForm() already applies.
   // Returns the number, or null if there's nothing valid to resolve yet.
+  // Zero is allowed here (unlike the strict ">0" the main transaction amount
+  // needs) since this same keypad is now shared by fields where zero is a
+  // perfectly valid value — 0% interest, no minimum payment, no extra
+  // settlement payment, etc. submitTxForm() still separately enforces its own
+  // ">0" rule for the actual income/expense amount.
   function keypadResolve() {
     if (!keypadTarget) return null;
     var val = evalAmount(keypadTarget.value);
-    if (isNaN(val) || val <= 0) { toast("Enter an amount greater than 0.", "error"); return null; }
+    if (isNaN(val) || val < 0) { toast("Enter a valid amount.", "error"); return null; }
     val = Math.round(val * 100) / 100;
     keypadTarget.value = val.toFixed(2);
+    // Several fields (Financial Freedom target, settlement extra payment, jar/
+    // category budget limits) save themselves via their own "input" event
+    // listener rather than a form-submit button — setting .value in JS doesn't
+    // fire that event on its own, so without this, closing the keypad would
+    // leave the on-screen field updated but the underlying state untouched.
+    // Harmless no-op for fields with no such listener (e.g. the edit-modal
+    // fields, read fresh when their Save button is clicked instead).
+    keypadTarget.dispatchEvent(new Event("input", { bubbles: true }));
+    keypadFreshEntry = true;
     keypadRefreshDisplay();
     return val;
   }
   function openAmountKeypad(inputEl) {
     keypadTarget = inputEl;
-    $("keypadTitle").textContent = currentTxType === "income" ? "Add Income" : "Add Expense";
-    $("keypadCurrency").textContent = $("txAmountCurrencyLabel") ? $("txAmountCurrencyLabel").textContent : "";
+    keypadFreshEntry = (inputEl.value || "").trim() !== "";
+    var isTxAmount = inputEl.id === "txAmount";
+    if (isTxAmount) {
+      $("keypadTitle").textContent = currentTxType === "income" ? "Add Income" : "Add Expense";
+      $("keypadCurrency").textContent = $("txAmountCurrencyLabel") ? $("txAmountCurrencyLabel").textContent : "";
+    } else {
+      // Every other amount field (liability balance, interest rate, lending
+      // amount, budget limits, ...) — borrow that field's own <label> text as
+      // the keypad title instead of the income/expense wording above, and
+      // show the app's home currency since these aren't per-transaction
+      // amounts with their own currency picker.
+      var fieldWrap = inputEl.closest(".field");
+      var labelEl = fieldWrap ? fieldWrap.querySelector("label") : null;
+      $("keypadTitle").textContent = labelEl ? labelEl.textContent.replace(/\s*\(.*?\)\s*$/, "").trim() || "Enter Amount" : "Enter Amount";
+      $("keypadCurrency").textContent = state.homeCurrency || "";
+    }
     keypadRefreshDisplay();
+    // Quick Save / Add More Details act on the Add Transaction form specifically
+    // (they call submitTxForm()/openTxDetailsSheet()) — meaningless for any other
+    // field, which has its own Save/Add button elsewhere on its own form. Those
+    // fields get a plain Done that just resolves the amount and closes.
+    $("keypadQuickSaveBtn").style.display = isTxAmount ? "" : "none";
+    $("keypadMoreDetailsBtn").style.display = isTxAmount ? "" : "none";
+    $("keypadDoneBtn").style.display = isTxAmount ? "none" : "";
     // See the .behind-overlay CSS comment — avoid a double-dimmed stacked-modal
     // look when this opens on top of the Quick Add sheet.
     if ($("quickAddSheet").classList.contains("show")) $("quickAddSheet").classList.add("behind-overlay");
@@ -7680,11 +7785,25 @@
     $("quickAddSheet").classList.remove("behind-overlay");
   }
   function setupAmountKeypad() {
-    // #txAmount is a normal typable field (keyboard input works directly, and
-    // mobile browsers show their native numeric keypad via inputmode="decimal")
-    // — the on-screen number pad below is an optional, explicitly-opened
-    // alternative via #txKeypadBtn, not the only way to enter an amount.
-    if ($("txKeypadBtn")) $("txKeypadBtn").addEventListener("click", function () { openAmountKeypad($("txAmount")); });
+    // Every amount field in the app is a normal typable field (keyboard input
+    // works directly, and mobile browsers show their native numeric keypad via
+    // inputmode="decimal") — the on-screen number pad is an optional,
+    // explicitly-opened alternative via any button carrying data-keypad-for,
+    // not the only way to enter an amount. One delegated listener covers every
+    // such button on the page, including ones inside dynamically re-rendered
+    // lists (per-lending repayment rows, salary plan allocations) since those
+    // get regenerated with the same markup on every render. data-keypad-for
+    // is normally the id of the field to edit; some list rows are keyed by
+    // arbitrary user text (category names) that isn't safe to put in an id,
+    // so those instead use the sentinel "__prev" meaning "the input right
+    // before this button" (see renderBudgetInputs()).
+    document.addEventListener("click", function (evt) {
+      var btn = evt.target.closest && evt.target.closest("[data-keypad-for]");
+      if (!btn) return;
+      var forVal = btn.getAttribute("data-keypad-for");
+      var target = forVal === "__prev" ? btn.previousElementSibling : $(forVal);
+      if (target) openAmountKeypad(target);
+    });
     $("keypadCloseBtn").addEventListener("click", closeAmountKeypad);
     $("amountKeypadSheet").addEventListener("click", function (evt) { if (evt.target === $("amountKeypadSheet")) closeAmountKeypad(); });
     $("amountKeypadBody").querySelectorAll(".keypad-key").forEach(function (btn) {
@@ -7699,6 +7818,13 @@
       if (keypadResolve() === null) return;
       closeAmountKeypad();
       openTxDetailsSheet();
+    });
+    // Non-tx fields: only resolve if the user actually typed something — an
+    // empty field is left empty so placeholder-driven defaults elsewhere
+    // (e.g. "Amount received" defaulting to the balance owed) still work.
+    $("keypadDoneBtn").addEventListener("click", function () {
+      if (keypadTarget && keypadTarget.value.trim() !== "" && keypadResolve() === null) return;
+      closeAmountKeypad();
     });
   }
 
