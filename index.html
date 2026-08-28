@@ -595,15 +595,17 @@
   /* ================= Transaction history: table (desktop) / cards (mobile) =================
      Same data, same renderTxTable() loop, two render targets — below 720px the
      table hides and a card list takes over so nobody has to scroll a wide
-     table sideways on a phone. */
-  .tx-card-list { display: none; }
+     table sideways on a phone. Transfer History (renderTransferTable()) uses
+     the exact same .tx-card/.tx-card-actions styling — just its own wrap/list
+     ids — so both histories get identical mobile treatment. */
+  .tx-card-list, .tf-card-list { display: none; }
   .tx-card { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--grid); font-size: 13px; }
   .tx-card:last-child { border-bottom: none; }
   .tx-card .tx-card-actions { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
   .tx-card .tx-card-actions button { padding: 3px 8px; font-size: 11px; }
   @media (max-width: 720px) {
-    .tx-table-wrap { display: none; }
-    .tx-card-list { display: block; }
+    .tx-table-wrap, .tf-table-wrap { display: none; }
+    .tx-card-list, .tf-card-list { display: block; }
   }
 
   /* ================= Quick Add bottom sheet =================
@@ -1735,12 +1737,13 @@
     </div>
     <div class="card">
       <h2>Transfer History</h2>
-      <div style="overflow-x:auto;">
+      <div class="tf-table-wrap" style="overflow-x:auto;">
         <table id="tfTable">
           <thead><tr><th>Date</th><th>From</th><th>To</th><th>Amount</th><th>Fee</th><th>Note</th><th></th></tr></thead>
           <tbody id="tfTableBody"></tbody>
         </table>
       </div>
+      <div class="tf-card-list" id="tfCardList"></div>
       <div class="empty-state" id="tfEmptyState" style="display:none;">No transfers recorded yet.</div>
     </div>
   </section>
@@ -3159,7 +3162,40 @@
   // Expense Categories are a separate concept from the 6 Jars: a Jar is which broad
   // "bucket" of your budget an expense counts against, a Category is what the money
   // was actually spent on — lets you filter/report spending by merchant type.
-  var DEFAULT_EXPENSE_CATEGORIES = ["Food & Groceries", "Transport", "Bills & Utilities", "Shopping", "Health", "Entertainment", "Rent / Housing", "Other"];
+  var DEFAULT_EXPENSE_CATEGORIES_BASE = ["Food & Groceries", "Transport", "Bills & Utilities", "Shopping", "Health", "Entertainment", "Rent / Housing", "Other"];
+  // A much more granular set, added later, matching the kind of category list
+  // most bank/expense-tracker apps ship with by default (rent broken out from
+  // utilities, transport split into fuel/parking/vehicle, dining/health/home
+  // split into specifics, etc.) — for anyone who wants finer detail than the
+  // original 8 broad buckets without having to type each one in by hand. Kept
+  // as its own list (rather than folded permanently into
+  // DEFAULT_EXPENSE_CATEGORIES_BASE) so mergeInNewExpenseCategories() can add
+  // just these into an already-existing user's own category list once,
+  // without ever re-adding one of the original 8 they may have deliberately
+  // deleted. "Transport" is already in the base list, so it isn't repeated here.
+  var NEW_EXPENSE_CATEGORIES_V1 = [
+    "Rent", "Electricity", "Water", "Gas", "Garbage", "Groceries", "Phone", "Internet",
+    "TV", "Domestic Help", "Fuel", "Vehicle", "Parking", "Tuition", "Books", "Activities",
+    "Doctor", "Meds", "Insurance", "Dental", "Clothing", "Salon", "Gym", "Dining", "Movies",
+    "Travel", "Hobbies", "Credit Cards", "Savings", "Gifts", "Emergency", "Subs",
+    "Credit Card Interest", "Bank Charges"
+  ];
+  var DEFAULT_EXPENSE_CATEGORIES = DEFAULT_EXPENSE_CATEGORIES_BASE.concat(NEW_EXPENSE_CATEGORIES_V1);
+  // Appends any of NEW_EXPENSE_CATEGORIES_V1 not already present (case-
+  // insensitively) in an existing user's own category list — see
+  // expenseCategoriesMigratedV1 in applyImportedState()/importData() for where
+  // this runs, once, the first time a pre-existing account's data loads after
+  // this feature shipped. Never touches or re-adds anything from the original
+  // 8 (DEFAULT_EXPENSE_CATEGORIES_BASE) — a deliberate deletion of one of
+  // those stays deleted.
+  function mergeInNewExpenseCategories(list) {
+    var existing = (list || []).map(function (c) { return String(c).trim().toLowerCase(); });
+    var merged = (list || []).slice();
+    NEW_EXPENSE_CATEGORIES_V1.forEach(function (c) {
+      if (existing.indexOf(c.toLowerCase()) === -1) merged.push(c);
+    });
+    return merged;
+  }
 
   // Starter chips for the "Add More Details" tags row — a transaction's actual
   // tags (tx.tags) are just whatever's picked here plus any custom ones typed
@@ -3209,6 +3245,12 @@
     "pet care": "🐾", "insurance": "🛡️", "travel": "✈️", "hotel": "🏨",
     "childcare": "🍼", "gifts": "🎁", "donations": "❤️", "taxes": "🧾",
     "bank charges": "🏦", "beauty": "💄", "alcohol": "🍺", "tobacco": "🚬",
+    // Added alongside NEW_EXPENSE_CATEGORIES_V1 above.
+    "garbage": "🗑️", "tv": "📺", "domestic help": "🧹", "vehicle": "🚙",
+    "tuition": "🎓", "activities": "⚽", "doctor": "🩺", "meds": "💊",
+    "dental": "🦷", "salon": "💇", "gym": "🏋️", "dining": "🍽️", "hobbies": "🎨",
+    "credit cards": "💳", "savings": "🐷", "emergency": "🚨", "subs": "📺",
+    "credit card interest": "💸",
     "other": "📦"
   };
   var EXPENSE_CATEGORY_ICON_FALLBACK = "🏷️";
@@ -3397,6 +3439,12 @@
     incomeSourceIcons: {},
     expenseCategoryIcons: {},
     expenseCategories: DEFAULT_EXPENSE_CATEGORIES.slice(),
+    // A brand-new install already starts with the full, current default list
+    // above (base + NEW_EXPENSE_CATEGORIES_V1) — nothing to migrate — so this
+    // starts true. Only an existing account's data loaded from before this
+    // flag existed (see applyImportedState()/importData()) is missing it and
+    // gets the one-time merge. See mergeInNewExpenseCategories().
+    expenseCategoriesMigratedV1: true,
     jarPct: Object.assign({}, DEFAULT_PCT),
     homeCurrency: guessDefaultCurrency(),
     freedomTarget: 100000,
@@ -7441,16 +7489,34 @@
     var rows = state.transactions.filter(function (t) { return t.type === "transfer"; })
       .slice().sort(function (a, b) { return (b.date || "").localeCompare(a.date || ""); });
     $("tfEmptyState").style.display = rows.length ? "none" : "block";
+    var cardHtml = [];
     $("tfTableBody").innerHTML = rows.map(function (t) {
       var from = accountById(t.fromAccountId), to = accountById(t.toAccountId);
       var cur = from ? accountCurrency(from) : state.homeCurrency;
       var toCur = to ? accountCurrency(to) : state.homeCurrency;
       var amountCell = fmtMoneyIn(t.amount, cur);
       if (t.toAmount != null && toCur !== cur) amountCell += '<div style="font-size:11px;color:var(--text-muted);">→ ' + fmtMoneyIn(t.toAmount, toCur) + '</div>';
-      return '<tr><td>' + fmtDate(t.date) + '</td><td>' + (from ? escapeHtml(from.name) : "—") + '</td><td>' + (to ? escapeHtml(to.name) : "—") + '</td>' +
+
+      // Mobile card version of the exact same row — same data, no separate
+      // fetch/compute, just a second HTML target (same .tx-card styling the
+      // Income & Expense History cards already use — see .tf-card-list CSS).
+      var fromName = from ? from.name : "—", toName = to ? to.name : "—";
+      var cardMeta = [fmtDate(t.date)];
+      if (t.fee) cardMeta.push("Fee " + fmtMoneyIn(t.fee, cur));
+      if (t.note) cardMeta.push(t.note);
+      cardHtml.push('<div class="recent-tx-row tx-card">' +
+        '<div class="tx-ic">⇄</div>' +
+        '<div class="tx-main"><div class="tx-desc">' + escapeHtml(fromName) + ' → ' + escapeHtml(toName) + '</div>' +
+        '<div class="tx-meta">' + cardMeta.map(escapeHtml).join(" · ") + '</div></div>' +
+        '<div class="tx-amt">' + amountCell + '</div>' +
+        '<div class="tx-card-actions"><button data-edit-tx="' + t.id + '" class="ghost small">Edit' + (state.isPro ? "" : " 🔒") + '</button><button data-del-tx="' + t.id + '" class="ghost small">Delete</button></div>' +
+        '</div>');
+
+      return '<tr><td>' + fmtDate(t.date) + '</td><td>' + escapeHtml(fromName) + '</td><td>' + escapeHtml(toName) + '</td>' +
         '<td>' + amountCell + '</td><td>' + fmtMoneyIn(t.fee || 0, cur) + '</td><td>' + escapeHtml(t.note || "—") + '</td>' +
         '<td class="row-actions"><button data-edit-tx="' + t.id + '" class="ghost small">Edit' + (state.isPro ? "" : " 🔒") + '</button><button data-del-tx="' + t.id + '" class="ghost small">Delete</button></td></tr>';
     }).join("");
+    if ($("tfCardList")) $("tfCardList").innerHTML = cardHtml.join("");
   }
 
   /* ================= Rendering: settings / dropdowns ================= */
@@ -9096,6 +9162,8 @@
         state.incomeSourceIcons = incoming.incomeSourceIcons || {};
         state.expenseCategoryIcons = incoming.expenseCategoryIcons || {};
         state.expenseCategories = (incoming.expenseCategories && incoming.expenseCategories.length) ? incoming.expenseCategories : DEFAULT_EXPENSE_CATEGORIES.slice();
+        if (!incoming.expenseCategoriesMigratedV1) state.expenseCategories = mergeInNewExpenseCategories(state.expenseCategories);
+        state.expenseCategoriesMigratedV1 = true;
         state.jarPct = Object.assign({}, DEFAULT_PCT, incoming.jarPct || {});
         state.jarBudgets = incoming.jarBudgets || {};
         state.categoryBudgets = incoming.categoryBudgets || {};
@@ -10592,6 +10660,8 @@
     state.incomeSourceIcons = incoming.incomeSourceIcons || {};
     state.expenseCategoryIcons = incoming.expenseCategoryIcons || {};
     state.expenseCategories = (incoming.expenseCategories && incoming.expenseCategories.length) ? incoming.expenseCategories : DEFAULT_EXPENSE_CATEGORIES.slice();
+    if (!incoming.expenseCategoriesMigratedV1) state.expenseCategories = mergeInNewExpenseCategories(state.expenseCategories);
+    state.expenseCategoriesMigratedV1 = true;
     state.jarPct = Object.assign({}, DEFAULT_PCT, incoming.jarPct || {});
     state.jarBudgets = incoming.jarBudgets || {};
     state.categoryBudgets = incoming.categoryBudgets || {};
@@ -10654,6 +10724,7 @@
       incomeSourceIcons: {},
       expenseCategoryIcons: {},
       expenseCategories: DEFAULT_EXPENSE_CATEGORIES.slice(),
+      expenseCategoriesMigratedV1: true,
       jarPct: Object.assign({}, DEFAULT_PCT),
       jarBudgets: {}, categoryBudgets: {},
       homeCurrency: state.homeCurrency, freedomTarget: 0,
@@ -10675,6 +10746,7 @@
       incomeSourceIcons: state.incomeSourceIcons,
       expenseCategoryIcons: state.expenseCategoryIcons,
       expenseCategories: state.expenseCategories,
+      expenseCategoriesMigratedV1: state.expenseCategoriesMigratedV1,
       jarPct: state.jarPct,
       jarBudgets: state.jarBudgets,
       categoryBudgets: state.categoryBudgets,
