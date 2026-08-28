@@ -1573,7 +1573,6 @@
           <label>Amount</label>
           <div style="display:flex;gap:6px;">
             <input type="text" inputmode="decimal" id="tfAmount" placeholder="0.00 or 100+50" style="flex:1;min-width:0;">
-            <button type="button" class="ghost" id="tfCalcBtn" title="Calculate a sum, e.g. 100+50-20">🧮</button>
             <button type="button" class="ghost" data-keypad-for="tfAmount" title="Open number pad" aria-label="Open number pad">🔢</button>
           </div>
         </div>
@@ -1707,10 +1706,7 @@
         </div>
         <div class="field">
           <label>Annual interest rate (%)</label>
-          <div style="display:flex;gap:6px;">
-            <input type="text" inputmode="decimal" id="liRate" value="0" style="flex:1;min-width:0;">
-            <button type="button" class="ghost" data-keypad-for="liRate" title="Open number pad" aria-label="Open number pad">🔢</button>
-          </div>
+          <input type="text" inputmode="decimal" id="liRate" value="0">
         </div>
         <div class="field">
           <label>Minimum monthly payment</label>
@@ -1793,10 +1789,7 @@
         </div>
         <div class="field">
           <label>Annual interest rate (%) — optional</label>
-          <div style="display:flex;gap:6px;">
-            <input type="text" inputmode="decimal" id="lendRate" value="0" style="flex:1;min-width:0;">
-            <button type="button" class="ghost" data-keypad-for="lendRate" title="Open number pad" aria-label="Open number pad">🔢</button>
-          </div>
+          <input type="text" inputmode="decimal" id="lendRate" value="0">
         </div>
         <div class="field">
           <label>Expected repayment day of month (optional)</label>
@@ -6205,7 +6198,6 @@
     $("lendSubmitBtn").addEventListener("click", submitLendingForm);
     bindEnterKey($("lendingForm"), submitLendingForm);
     attachCalculator("lendAmount", null);
-    attachCalculator("lendRate", null);
     if ($("lendDate") && !$("lendDate").value) $("lendDate").value = new Date().toISOString().slice(0, 10);
 
     document.addEventListener("click", function (evt) {
@@ -7459,7 +7451,7 @@
         '<div class="field"><label>Name</label><input type="text" id="m_name" value="' + escapeHtml(l3.name) + '" required></div>' +
         '<div class="field"><label>Type</label><select id="m_liType">' + LIABILITY_TYPES.map(function (t) { return '<option value="' + t.key + '"' + (t.key === l3.type ? " selected" : "") + '>' + t.icon + ' ' + t.label + '</option>'; }).join("") + '</select></div>' +
         '<div class="field"><label>Current balance owed</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="m_opening" value="' + l3.openingBalance + '" required style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="m_opening" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' +
-        '<div class="field"><label>Annual interest rate (%)</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="m_rate" value="' + (l3.interestRate || 0) + '" style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="m_rate" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' +
+        '<div class="field"><label>Annual interest rate (%)</label><input type="text" inputmode="decimal" id="m_intRate" value="' + (l3.interestRate || 0) + '"></div>' +
         '<div class="field"><label>Minimum monthly payment</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="m_minPay" value="' + (l3.minPayment || 0) + '" style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="m_minPay" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' +
         '<div class="field"><label>Payment due day of month (optional)</label><input type="number" id="m_dueDay" min="1" max="31" step="1" value="' + (l3.dueDayOfMonth || "") + '"></div>' +
         '<div class="field wide"><label>Note (optional)</label><input type="text" id="m_note" value="' + escapeHtml(l3.note || "") + '"></div>' +
@@ -7470,7 +7462,7 @@
       body = '<div class="form-grid">' +
         '<div class="field"><label>Borrower\'s name</label><input type="text" id="m_name" value="' + escapeHtml(l4.name) + '" required></div>' +
         '<div class="field"><label>Amount lent</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="m_opening" value="' + l4.openingAmount + '" required style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="m_opening" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' +
-        '<div class="field"><label>Annual interest rate (%)</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="m_rate" value="' + (l4.interestRate || 0) + '" style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="m_rate" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' +
+        '<div class="field"><label>Annual interest rate (%)</label><input type="text" inputmode="decimal" id="m_intRate" value="' + (l4.interestRate || 0) + '"></div>' +
         '<div class="field"><label>Expected repayment day of month (optional)</label><input type="number" id="m_dueDay" min="1" max="31" step="1" value="' + (l4.dueDayOfMonth || "") + '"></div>' +
         '<div class="field"><label>Lending date</label><input type="date" id="m_lentDate" value="' + (l4.lentDate || l4.createdDate || new Date().toISOString().slice(0, 10)) + '"></div>' +
         '<div class="field"><label>Payment reminder date (optional)</label><input type="date" id="m_reminderDate" value="' + (l4.reminderDate || "") + '"></div>' +
@@ -7605,7 +7597,7 @@
         lEdit.name = liNameVal;
         lEdit.type = $("m_liType").value;
         lEdit.openingBalance = openingVal;
-        lEdit.interestRate = evalAmount($("m_rate").value) || 0;
+        lEdit.interestRate = evalAmount($("m_intRate").value) || 0;
         lEdit.minPayment = evalAmount($("m_minPay").value) || 0;
         var dueDayEditRaw = parseInt($("m_dueDay").value, 10);
         lEdit.dueDayOfMonth = (dueDayEditRaw >= 1 && dueDayEditRaw <= 31) ? dueDayEditRaw : null;
@@ -7620,7 +7612,7 @@
         var lendEdit = lendingById(id);
         lendEdit.name = lendNameVal;
         lendEdit.openingAmount = Math.round(lendOpeningVal * 100) / 100;
-        lendEdit.interestRate = evalAmount($("m_rate").value) || 0;
+        lendEdit.interestRate = evalAmount($("m_intRate").value) || 0;
         var lendDueDayEditRaw = parseInt($("m_dueDay").value, 10);
         lendEdit.dueDayOfMonth = (lendDueDayEditRaw >= 1 && lendDueDayEditRaw <= 31) ? lendDueDayEditRaw : null;
         lendEdit.lentDate = $("m_lentDate").value || lendEdit.lentDate;
@@ -7912,12 +7904,12 @@
     }
     $("liSubmitBtn").addEventListener("click", submitLiabilityForm);
     bindEnterKey($("liabilityForm"), submitLiabilityForm);
-    ["liOpening", "liRate", "liMinPay", "liDepositAmount"].forEach(function (fid) { attachCalculator(fid, null); });
+    ["liOpening", "liMinPay", "liDepositAmount"].forEach(function (fid) { attachCalculator(fid, null); });
   }
 
   function setupTransferForm() {
     $("tfDate").value = new Date().toISOString().slice(0, 10);
-    attachCalculator("tfAmount", "tfCalcBtn");
+    attachCalculator("tfAmount", null);
     attachCalculator("tfFee", null);
     function submitTransferForm() {
       var from = $("tfFrom").value, to = $("tfTo").value;
