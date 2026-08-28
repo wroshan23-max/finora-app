@@ -525,6 +525,43 @@
   .breakdown-row.drillable { cursor: pointer; padding: 6px; margin: 0 -6px 6px; border-radius: 8px; transition: background-color .12s; }
   .breakdown-row.drillable:hover, .breakdown-row.drillable:focus-visible { background: var(--grid); outline: none; }
   .breakdown-row.drillable .row-top span:first-child::after { content: " \2192"; opacity: .45; font-weight: 400; }
+
+  /* Category / Income Source icon-grid picker (replaces the plain <select>
+     for txSource/txCategory and the editTransaction modal's m_source/m_category
+     — the underlying <select> stays in the DOM, just visually hidden, so every
+     bit of existing code reading/writing its .value keeps working unchanged). */
+  .cat-picker-trigger {
+    display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+    padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--surface-2); color: var(--text-primary); font-size: 14px;
+    cursor: pointer; font-family: inherit;
+  }
+  .cat-picker-trigger:hover { border-color: var(--series-1); }
+  .cat-picker-trigger .cpt-trigger-icon { font-size: 18px; line-height: 1; }
+  .cat-picker-trigger .cpt-trigger-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cat-picker-trigger .cpt-trigger-chevron { color: var(--text-muted); font-size: 12px; }
+  .cat-picker-sub-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+  .cat-picker-section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); margin: 14px 0 6px; }
+  .cat-picker-section-label:first-of-type { margin-top: 4px; }
+  .cat-picker-search-wrap { position: relative; }
+  .cat-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; max-height: 240px; overflow-y: auto; padding: 2px; margin: 0 -2px; }
+  .cat-picker-tile {
+    display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 4px;
+    border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2);
+    cursor: pointer; font-size: 11px; text-align: center; color: var(--text-secondary);
+    line-height: 1.25; word-break: break-word;
+  }
+  .cat-picker-tile .cpt-icon { font-size: 22px; }
+  .cat-picker-tile:hover { border-color: var(--series-1); }
+  .cat-picker-tile.selected { border-color: var(--series-1); background: var(--series-1-tint); color: var(--text-primary); font-weight: 600; }
+  .cat-picker-empty { font-size: 13px; color: var(--text-muted); padding: 10px 2px; grid-column: 1 / -1; }
+  .cat-picker-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cat-picker-chip {
+    display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--surface-2); cursor: pointer;
+    font-size: 12px; color: var(--text-secondary); font-family: inherit;
+  }
+  .cat-picker-chip.selected { border-color: var(--series-1); background: var(--series-1-tint); color: var(--text-primary); font-weight: 600; }
   .drill-back-btn { background: none; border: none; color: var(--accent, #2a78d6); font-size: 12.5px; cursor: pointer; padding: 4px 0; margin-bottom: 10px; }
   .drill-tx-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--grid); font-size: 13px; }
   .drill-tx-row:last-child { border-bottom: none; }
@@ -1284,7 +1321,12 @@
         </div>
         <div class="field" id="categoryFieldWrap">
           <label>Category (what was it spent on?)</label>
-          <select id="txCategory"></select>
+          <select id="txCategory" style="display:none;"></select>
+          <button type="button" class="cat-picker-trigger" id="txCategoryPickBtn" data-picker-type="expense" data-picker-target="txCategory">
+            <span class="cpt-trigger-icon" id="txCategoryPickIcon">🏷️</span>
+            <span class="cpt-trigger-label" id="txCategoryPickLabel">Choose a category…</span>
+            <span class="cpt-trigger-chevron">▾</span>
+          </button>
         </div>
         <div class="field">
           <label id="accountFieldLabel">Account</label>
@@ -1292,7 +1334,14 @@
         </div>
         <div class="field" id="sourceFieldWrap">
           <label>Income Source</label>
-          <select id="txSource"></select>
+          <select id="txSource" style="display:none;"></select>
+          <button type="button" class="cat-picker-trigger" id="txSourcePickBtn" data-picker-type="income" data-picker-target="txSource" data-picker-subdetail="txSourceDetail">
+            <span class="cpt-trigger-icon" id="txSourcePickIcon">💰</span>
+            <span class="cpt-trigger-label" id="txSourcePickLabel">Choose a source…</span>
+            <span class="cpt-trigger-chevron">▾</span>
+          </button>
+          <input type="hidden" id="txSourceDetail" value="">
+          <div class="cat-picker-sub-hint" id="txSourceDetailHint" style="display:none;"></div>
         </div>
         <div class="field">
           <label>Date</label>
@@ -2579,6 +2628,36 @@
   </div>
 </div>
 
+<!-- Category Picker — icon-grid selector used for Income Source / Expense
+     Category wherever those are picked (Add Transaction form, Edit Transaction
+     modal). Opened via openCategoryPicker(); see setupCategoryPicker(). -->
+<div class="modal-overlay" id="categoryPickerModal">
+  <div class="modal" style="max-width:420px;">
+    <h2 id="categoryPickerTitle">Select Category</h2>
+    <div class="field cat-picker-search-wrap">
+      <input type="text" id="categoryPickerSearch" placeholder="Search…">
+    </div>
+    <div id="categoryPickerFrequentWrap" style="display:none;">
+      <div class="cat-picker-section-label">Frequently Used</div>
+      <div class="cat-picker-grid" id="categoryPickerFrequentGrid"></div>
+    </div>
+    <div class="cat-picker-section-label" id="categoryPickerAllLabel">All Categories</div>
+    <div class="cat-picker-grid" id="categoryPickerGrid"></div>
+    <button type="button" class="ghost" id="categoryPickerCreateBtn" style="width:100%;margin-top:10px;">+ Create New</button>
+    <div id="categoryPickerSubWrap" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:12px;">
+      <div class="cat-picker-section-label" id="categoryPickerSubLabel" style="margin-top:0;">Sub-category (optional)</div>
+      <div class="cat-picker-chips" id="categoryPickerSubChips"></div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <input type="text" id="categoryPickerSubInput" placeholder="Add a new one, e.g. Business A" style="flex:1;min-width:0;">
+        <button type="button" class="ghost small" id="categoryPickerSubAddBtn">Add</button>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="primary" id="categoryPickerDoneBtn">Done</button>
+    </div>
+  </div>
+</div>
+
 <!-- Full Report — a polished, printable, all-in-one financial report (cover,
      health score, net worth, cash flow, spending analysis, budgets, debt &
      liabilities, goals, fixed obligations, behavioral insights, top
@@ -2821,6 +2900,37 @@
   var DEFAULT_TX_TAGS = ["Essential", "Optional", "One-time"];
   var ADD_CATEGORY_VALUE = "__add_new_category__";
 
+  // Icon lookup for Income Sources / Expense Categories — matched case-
+  // insensitively against the name so both the built-in defaults and anything
+  // a user has already renamed/typed before this feature existed still get a
+  // sensible icon. Unrecognized/custom names fall back to a generic icon
+  // rather than showing nothing, so the icon-grid picker never has a blank tile.
+  var INCOME_SOURCE_ICONS = {
+    "salary": "💰", "business": "🏢", "freelance / side income": "💻",
+    "freelance": "💻", "investment / dividends": "📈", "investment": "📈",
+    "dividends": "📈", "gift": "🎁", "rental income": "🏠", "rental": "🏠",
+    "bonus": "🎉", "interest": "🏦", "refund": "↩️", "other": "📦"
+  };
+  var INCOME_SOURCE_ICON_FALLBACK = "💰";
+  function incomeSourceIcon(name) {
+    var key = String(name || "").trim().toLowerCase();
+    return INCOME_SOURCE_ICONS[key] || INCOME_SOURCE_ICON_FALLBACK;
+  }
+
+  var EXPENSE_CATEGORY_ICONS = {
+    "food & groceries": "🛒", "groceries": "🛒", "food": "🍔", "transport": "🚗",
+    "bills & utilities": "💡", "utilities": "💡", "electricity": "⚡", "water": "🚰",
+    "shopping": "🛍️", "health": "🏥", "entertainment": "🎬", "rent / housing": "🏠",
+    "rent": "🏠", "housing": "🏠", "education": "🎓", "subscriptions": "📺",
+    "pet care": "🐾", "insurance": "🛡️", "travel": "✈️", "fuel": "⛽",
+    "communication": "📱", "other": "📦"
+  };
+  var EXPENSE_CATEGORY_ICON_FALLBACK = "🏷️";
+  function expenseCategoryIcon(name) {
+    var key = String(name || "").trim().toLowerCase();
+    return EXPENSE_CATEGORY_ICONS[key] || EXPENSE_CATEGORY_ICON_FALLBACK;
+  }
+
   /* ================= Cloud config =================
      Leave every value blank to run fully offline (the default — nothing below ever
      runs, no network calls happen). After deploying to Netlify and creating a Supabase
@@ -2945,6 +3055,11 @@
     accounts: [],
     liabilities: [],
     incomeSources: DEFAULT_INCOME_SOURCES.slice(),
+    // Optional user-defined sub-items under an income source — e.g. Business
+    // Income split into named businesses ("Business": ["Cafe", "Tuition Classes"]).
+    // Keyed by the source name (case-sensitive, matches state.incomeSources
+    // entries); a source with no sub-items just doesn't have a key here yet.
+    incomeSourceSubItems: {},
     expenseCategories: DEFAULT_EXPENSE_CATEGORIES.slice(),
     jarPct: Object.assign({}, DEFAULT_PCT),
     homeCurrency: guessDefaultCurrency(),
@@ -4949,9 +5064,9 @@
     if (rows.length === 0) { list.innerHTML = '<div class="empty-state">No transactions yet.</div>'; return; }
     list.innerHTML = rows.map(function (t) {
       var acc = accountById(t.accountId);
-      var desc = t.type === "income" ? (t.source || "Income") : (t.category || "Expense");
+      var desc = t.type === "income" ? (t.source || "Income") + (t.sourceDetail ? " · " + t.sourceDetail : "") : (t.category || "Expense");
       var meta = fmtDate(t.date) + (acc ? " · " + escapeHtml(acc.name) : "");
-      var icon = t.type === "income" ? "💰" : "🧾";
+      var icon = t.type === "income" ? incomeSourceIcon(t.source) : expenseCategoryIcon(t.category);
       var amt = (t.type === "income" ? "+" : "-") + fmtMoney(txAmountInHome(t));
       return '<div class="recent-tx-row"><div class="tx-ic">' + icon + '</div>' +
         '<div class="tx-main"><div class="tx-desc">' + escapeHtml(desc) + (t.note ? " — " + escapeHtml(t.note) : "") + '</div><div class="tx-meta">' + meta + '</div></div>' +
@@ -6753,8 +6868,8 @@
           (jarByKey(t.jar) ? '<span class="tag"><span class="dot" style="background:' + jarColor(t.jar) + ';"></span>' + jarByKey(t.jar).name + '</span>' : "—");
         var acc = accountById(t.accountId);
         var accCell = acc ? escapeHtml(acc.name) : '<span style="color:var(--text-muted)">—</span>';
-        var noteCell = t.type === "income" ? escapeHtml(t.source || "") + (t.note ? " — " + escapeHtml(t.note) : "") :
-          (t.category ? '<span class="tag">' + escapeHtml(t.category) + '</span>' : "") + (t.note ? (t.category ? " " : "") + escapeHtml(t.note) : (t.category ? "" : "—"));
+        var noteCell = t.type === "income" ? incomeSourceIcon(t.source) + " " + escapeHtml(t.source || "") + (t.sourceDetail ? " · " + escapeHtml(t.sourceDetail) : "") + (t.note ? " — " + escapeHtml(t.note) : "") :
+          (t.category ? '<span class="tag">' + expenseCategoryIcon(t.category) + " " + escapeHtml(t.category) + '</span>' : "") + (t.note ? (t.category ? " " : "") + escapeHtml(t.note) : (t.category ? "" : "—"));
         // Tags/receipt are purely additive display — a transaction with neither
         // renders exactly as it always has.
         var extrasCell = (t.tags && t.tags.length ? t.tags.map(function (tg) { return '<span class="tag tag-mini">' + escapeHtml(tg) + '</span>'; }).join(" ") : "") +
@@ -6765,8 +6880,8 @@
 
         // Mobile card version of the exact same row — same data, no separate
         // fetch/compute, just a second HTML target (see .tx-card-list CSS).
-        var icon = t.isBusiness ? "💼" : (t.type === "income" ? "💰" : "🧾");
-        var desc = t.type === "income" ? (t.source || "Income") : (t.category || "Expense");
+        var icon = t.isBusiness ? "💼" : (t.type === "income" ? incomeSourceIcon(t.source) : expenseCategoryIcon(t.category));
+        var desc = t.type === "income" ? (t.source || "Income") + (t.sourceDetail ? " · " + t.sourceDetail : "") : (t.category || "Expense");
         var metaParts = [fmtDate(t.date)];
         if (acc) metaParts.push(acc.name);
         if (!t.isBusiness && t.type === "expense" && jarByKey(t.jar)) metaParts.push(jarByKey(t.jar).name);
@@ -6824,9 +6939,10 @@
     $("filterJar").innerHTML = '<option value="all">All jars</option>' + jarOpts + '<option value="__business__">💼 Business only</option>';
 
     var prevCategory = $("txCategory").value;
-    var categoryOpts = state.expenseCategories.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join("");
+    var categoryOpts = state.expenseCategories.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + expenseCategoryIcon(c) + ' ' + escapeHtml(c) + '</option>'; }).join("");
     $("txCategory").innerHTML = categoryOpts + '<option value="' + ADD_CATEGORY_VALUE + '">+ Add new category…</option>';
     if (state.expenseCategories.indexOf(prevCategory) !== -1) $("txCategory").value = prevCategory;
+    refreshCategoryPickerTrigger("txCategory");
     $("filterCategory").innerHTML = '<option value="all">All categories</option>' + categoryOpts;
 
     var accOpts = state.accounts.map(function (a) { return '<option value="' + a.id + '">' + accountTypeMeta(a.type).icon + ' ' + escapeHtml(a.name) + '</option>'; }).join("");
@@ -6847,13 +6963,14 @@
     }
 
     var prevSource = $("txSource").value;
-    $("txSource").innerHTML = state.incomeSources.map(function (s) { return '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>'; }).join("") +
+    $("txSource").innerHTML = state.incomeSources.map(function (s) { return '<option value="' + escapeHtml(s) + '">' + incomeSourceIcon(s) + ' ' + escapeHtml(s) + '</option>'; }).join("") +
       '<option value="' + ADD_SOURCE_VALUE + '">+ Add new source…</option>';
     if (state.incomeSources.indexOf(prevSource) !== -1) $("txSource").value = prevSource;
+    refreshCategoryPickerTrigger("txSource");
 
     if ($("recAccount")) {
       $("recAccount").innerHTML = currentRecType === "income" ? incomeAccOpts : accOpts;
-      var sourceOpts = state.incomeSources.map(function (s) { return '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>'; }).join("");
+      var sourceOpts = state.incomeSources.map(function (s) { return '<option value="' + escapeHtml(s) + '">' + incomeSourceIcon(s) + ' ' + escapeHtml(s) + '</option>'; }).join("");
       $("recSource").innerHTML = sourceOpts;
       $("recJar").innerHTML = jarOpts;
       $("recCategory").innerHTML = categoryOpts;
@@ -7325,6 +7442,8 @@
       if (!isBusiness) tx.jar = $("txJar").value;
     } else {
       tx.source = $("txSource").value;
+      var txSrcDetail = ($("txSourceDetail") ? $("txSourceDetail").value : "").trim();
+      if (txSrcDetail) tx.sourceDetail = txSrcDetail;
       if (skipJars) tx.skipJars = true;
     }
     if (pendingTxTags.length) tx.tags = pendingTxTags.slice();
@@ -7477,9 +7596,23 @@
       var jarField = tx.type === "expense" ?
         '<div class="field"><label>Jar</label><select id="m_jar">' + JARS.map(function (j) { return '<option value="' + j.key + '"' + (j.key === tx.jar ? " selected" : "") + '>' + j.name + '</option>'; }).join("") + '</select></div>' : "";
       var categoryField = tx.type === "expense" ?
-        '<div class="field"><label>Category</label><select id="m_category">' + state.expenseCategories.map(function (c) { return '<option value="' + escapeHtml(c) + '"' + (c === tx.category ? " selected" : "") + '>' + escapeHtml(c) + '</option>'; }).join("") + '</select></div>' : "";
+        '<div class="field"><label>Category</label>' +
+        '<select id="m_category" style="display:none;">' + state.expenseCategories.map(function (c) { return '<option value="' + escapeHtml(c) + '"' + (c === tx.category ? " selected" : "") + '>' + escapeHtml(c) + '</option>'; }).join("") + '</select>' +
+        '<button type="button" class="cat-picker-trigger" data-picker-type="expense" data-picker-target="m_category">' +
+        '<span class="cpt-trigger-icon">' + expenseCategoryIcon(tx.category) + '</span>' +
+        '<span class="cpt-trigger-label">' + escapeHtml(tx.category || "Choose a category…") + '</span>' +
+        '<span class="cpt-trigger-chevron">▾</span></button>' +
+        '</div>' : "";
       var sourceField = tx.type === "income" ?
-        '<div class="field"><label>Income Source</label><select id="m_source">' + state.incomeSources.map(function (s) { return '<option value="' + escapeHtml(s) + '"' + (s === tx.source ? " selected" : "") + '>' + escapeHtml(s) + '</option>'; }).join("") + '</select></div>' : "";
+        '<div class="field"><label>Income Source</label>' +
+        '<select id="m_source" style="display:none;">' + state.incomeSources.map(function (s) { return '<option value="' + escapeHtml(s) + '"' + (s === tx.source ? " selected" : "") + '>' + escapeHtml(s) + '</option>'; }).join("") + '</select>' +
+        '<button type="button" class="cat-picker-trigger" data-picker-type="income" data-picker-target="m_source" data-picker-subdetail="m_sourceDetail">' +
+        '<span class="cpt-trigger-icon">' + incomeSourceIcon(tx.source) + '</span>' +
+        '<span class="cpt-trigger-label">' + escapeHtml(tx.source || "Choose a source…") + '</span>' +
+        '<span class="cpt-trigger-chevron">▾</span></button>' +
+        '<input type="hidden" id="m_sourceDetail" value="' + escapeHtml(tx.sourceDetail || "") + '">' +
+        '<div class="cat-picker-sub-hint"' + (tx.sourceDetail ? "" : ' style="display:none;"') + '>' + escapeHtml(tx.sourceDetail || "") + '</div>' +
+        '</div>' : "";
       var businessLabel = tx.type === "income" ? "This is Business Income (kept separate from the 6 Jars)" : "This is a Business Expense (deducts from Business Income instead of a Jar)";
       var businessField = '<div class="field wide"><label style="font-size:12px;display:flex;align-items:center;gap:8px;">' +
         '<input type="checkbox" id="m_isBusiness"' + (tx.isBusiness ? " checked" : "") + '><span>' + businessLabel + '</span></label></div>';
@@ -7638,6 +7771,10 @@
             else editTxObj.jar = $("m_jar").value;
           }
           if (editTxObj.type === "income" && $("m_source")) editTxObj.source = $("m_source").value;
+          if (editTxObj.type === "income" && $("m_sourceDetail")) {
+            var editSrcDetail = $("m_sourceDetail").value.trim();
+            if (editSrcDetail) editTxObj.sourceDetail = editSrcDetail; else delete editTxObj.sourceDetail;
+          }
           if (editTxObj.type === "income") {
             if (!editTxObj.isBusiness && $("m_skipJars") && $("m_skipJars").checked) editTxObj.skipJars = true;
             else delete editTxObj.skipJars;
@@ -8218,6 +8355,7 @@
         state.accounts = incoming.accounts || [];
         state.liabilities = incoming.liabilities || [];
         state.incomeSources = (incoming.incomeSources && incoming.incomeSources.length) ? incoming.incomeSources : DEFAULT_INCOME_SOURCES.slice();
+        state.incomeSourceSubItems = incoming.incomeSourceSubItems || {};
         state.expenseCategories = (incoming.expenseCategories && incoming.expenseCategories.length) ? incoming.expenseCategories : DEFAULT_EXPENSE_CATEGORIES.slice();
         state.jarPct = Object.assign({}, DEFAULT_PCT, incoming.jarPct || {});
         state.jarBudgets = incoming.jarBudgets || {};
@@ -8499,6 +8637,8 @@
     $("txReceiptPreviewWrap").style.display = "none";
     $("txReceiptEmpty").style.display = "block";
     updateTxDetailsSummaryBtn();
+    if ($("txSourceDetail")) $("txSourceDetail").value = "";
+    if ($("txSourceDetailHint")) { $("txSourceDetailHint").textContent = ""; $("txSourceDetailHint").style.display = "none"; }
   }
   function openTxDetailsSheet() {
     renderTxTagChips();
@@ -9048,9 +9188,9 @@
       if (/desc|note|narrat|remark|detail|particular|payee|merchant/.test(hl)) noteSel.value = String(i);
     });
     $("csvAccount").innerHTML = state.accounts.map(function (a) { return '<option value="' + a.id + '">' + escapeHtml(a.name) + '</option>'; }).join("");
-    $("csvCategory").innerHTML = state.expenseCategories.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>'; }).join("");
+    $("csvCategory").innerHTML = state.expenseCategories.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + expenseCategoryIcon(c) + ' ' + escapeHtml(c) + '</option>'; }).join("");
     $("csvJar").innerHTML = JARS.map(function (j) { return '<option value="' + j.key + '">' + escapeHtml(j.name) + '</option>'; }).join("");
-    $("csvSource").innerHTML = state.incomeSources.map(function (s) { return '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>'; }).join("");
+    $("csvSource").innerHTML = state.incomeSources.map(function (s) { return '<option value="' + escapeHtml(s) + '">' + incomeSourceIcon(s) + ' ' + escapeHtml(s) + '</option>'; }).join("");
     $("csvImportStep1Hint").textContent = csvImportRows.length + " row(s) found in the file.";
     $("csvImportStep1").style.display = "block";
     $("csvImportStep2").style.display = "none";
@@ -9223,6 +9363,194 @@
     }
   }
 
+  /* ================= Category Picker (icon grid for Income Source / Expense Category) =================
+     A reusable modal that stands in for the plain <select> wherever an Income
+     Source or Expense Category is chosen. The underlying <select> is kept in
+     the DOM (just visually hidden via CSS) so every existing piece of code that
+     reads/writes .value, or listens for its "change" event, keeps working
+     unchanged — this modal is purely a nicer front-end for setting that same
+     value. Opened by clicking any ".cat-picker-trigger" button, which carries
+     data-picker-type ("income"/"expense"), data-picker-target (the <select>
+     id to drive) and, for income sources only, data-picker-subdetail (a hidden
+     input id that stores an optional free-form sub-category, e.g. which
+     specific business under "Business" income). */
+  var categoryPickerCtx = null; // { type, targetId, subDetailId }
+  // Modals that might already be open underneath the picker (Quick Add sheet,
+  // the Pro "Edit Transaction" modal) — hidden via .behind-overlay (same
+  // pattern used for the Quick Add / breakdown / tx-details stacking) so two
+  // dimmed backdrops don't stack on top of each other.
+  var CATEGORY_PICKER_HOST_MODALS = ["quickAddSheet", "actionModal"];
+  function hideCategoryPickerHosts() {
+    CATEGORY_PICKER_HOST_MODALS.forEach(function (id) { if ($(id) && $(id).classList.contains("show")) $(id).classList.add("behind-overlay"); });
+  }
+  function restoreCategoryPickerHosts() {
+    CATEGORY_PICKER_HOST_MODALS.forEach(function (id) { if ($(id)) $(id).classList.remove("behind-overlay"); });
+  }
+
+  // Most-used source/category names (by transaction count, all-time) — shown
+  // as a "Frequently Used" shortcut row above the full alphabetic-order grid,
+  // same idea as the reference app's picker screen.
+  function computeFrequentCategoryNames(type, limit) {
+    limit = limit || 6;
+    var counts = {};
+    state.transactions.forEach(function (t) {
+      if (type === "income" ? t.type !== "income" : t.type !== "expense") return;
+      var name = type === "income" ? t.source : t.category;
+      if (!name) return;
+      counts[name] = (counts[name] || 0) + 1;
+    });
+    return Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; }).slice(0, limit);
+  }
+  function categoryPickerTileHtml(name, type, selectedVal) {
+    var icon = type === "income" ? incomeSourceIcon(name) : expenseCategoryIcon(name);
+    var sel = name === selectedVal;
+    return '<div class="cat-picker-tile' + (sel ? " selected" : "") + '" data-pick-name="' + escapeHtml(name) + '" tabindex="0" role="button">' +
+      '<span class="cpt-icon">' + icon + '</span><span>' + escapeHtml(name) + '</span></div>';
+  }
+  function renderCategoryPickerGrids(filterText) {
+    var ctx = categoryPickerCtx; if (!ctx) return;
+    var list = ctx.type === "income" ? state.incomeSources : state.expenseCategories;
+    var selectedVal = $(ctx.targetId) ? $(ctx.targetId).value : "";
+    var q = (filterText || "").trim().toLowerCase();
+    var filtered = q ? list.filter(function (n) { return n.toLowerCase().indexOf(q) !== -1; }) : list.slice();
+    $("categoryPickerGrid").innerHTML = filtered.length ?
+      filtered.map(function (n) { return categoryPickerTileHtml(n, ctx.type, selectedVal); }).join("") :
+      '<div class="cat-picker-empty">No matches — try "+ Create New" below.</div>';
+    var frequent = q ? [] : computeFrequentCategoryNames(ctx.type).filter(function (n) { return list.indexOf(n) !== -1; });
+    if (frequent.length) {
+      $("categoryPickerFrequentWrap").style.display = "block";
+      $("categoryPickerFrequentGrid").innerHTML = frequent.map(function (n) { return categoryPickerTileHtml(n, ctx.type, selectedVal); }).join("");
+    } else {
+      $("categoryPickerFrequentWrap").style.display = "none";
+    }
+  }
+  function renderCategoryPickerSubItems() {
+    var ctx = categoryPickerCtx;
+    if (!ctx || ctx.type !== "income" || !ctx.subDetailId) { $("categoryPickerSubWrap").style.display = "none"; return; }
+    var sourceVal = $(ctx.targetId) ? $(ctx.targetId).value : "";
+    if (!sourceVal) { $("categoryPickerSubWrap").style.display = "none"; return; }
+    $("categoryPickerSubWrap").style.display = "block";
+    $("categoryPickerSubLabel").textContent = 'Sub-category under "' + sourceVal + '" (optional)';
+    var items = state.incomeSourceSubItems[sourceVal] || [];
+    var currentDetail = $(ctx.subDetailId) ? $(ctx.subDetailId).value : "";
+    $("categoryPickerSubChips").innerHTML = items.length ?
+      items.map(function (it) { return '<button type="button" class="cat-picker-chip' + (it === currentDetail ? " selected" : "") + '" data-pick-sub="' + escapeHtml(it) + '">' + escapeHtml(it) + '</button>'; }).join("") :
+      '<span style="font-size:12px;color:var(--text-muted);">No sub-categories yet for this source — add one below.</span>';
+  }
+  // Updates whichever "↳ sub-detail" hint element belongs to this target — the
+  // static Add Transaction form uses a fixed id ("<targetId>DetailHint"), the
+  // dynamically-generated Edit Transaction modal instead has a plain sibling
+  // ".cat-picker-sub-hint" div right next to the trigger button.
+  function updateSourceDetailHint(targetId, detailVal) {
+    var hintEl = $(targetId + "DetailHint");
+    if (!hintEl) {
+      var trigger = document.querySelector('.cat-picker-trigger[data-picker-target="' + targetId + '"]');
+      hintEl = trigger && trigger.parentElement ? trigger.parentElement.querySelector(".cat-picker-sub-hint") : null;
+    }
+    if (!hintEl) return;
+    if (detailVal) { hintEl.textContent = "↳ " + detailVal; hintEl.style.display = "block"; }
+    else { hintEl.textContent = ""; hintEl.style.display = "none"; }
+  }
+  // Refreshes a trigger button's icon + label to match its (hidden) select's
+  // current value — called after the picker sets a value, and from
+  // renderDropdowns() whenever the underlying option lists are rebuilt.
+  function refreshCategoryPickerTrigger(targetId) {
+    var trigger = document.querySelector('.cat-picker-trigger[data-picker-target="' + targetId + '"]');
+    if (!trigger || !$(targetId)) return;
+    var type = trigger.getAttribute("data-picker-type");
+    var val = $(targetId).value;
+    var iconEl = trigger.querySelector(".cpt-trigger-icon");
+    var labelEl = trigger.querySelector(".cpt-trigger-label");
+    if (iconEl) iconEl.textContent = type === "income" ? incomeSourceIcon(val) : expenseCategoryIcon(val);
+    if (labelEl) labelEl.textContent = val || (type === "income" ? "Choose a source…" : "Choose a category…");
+  }
+  function setPickerTargetValue(targetId, val) {
+    if (!$(targetId)) return;
+    $(targetId).value = val;
+    try { $(targetId).dispatchEvent(new Event("change", { bubbles: true })); } catch (e) { /* older engines — harmless if it doesn't fire */ }
+    refreshCategoryPickerTrigger(targetId);
+  }
+  function openCategoryPicker(type, targetId, subDetailId) {
+    if (!$(targetId)) return;
+    categoryPickerCtx = { type: type, targetId: targetId, subDetailId: subDetailId || null };
+    $("categoryPickerTitle").textContent = type === "income" ? "Select Income Source" : "Select Category";
+    $("categoryPickerAllLabel").textContent = type === "income" ? "All Sources" : "All Categories";
+    $("categoryPickerSearch").value = "";
+    $("categoryPickerSubInput").value = "";
+    renderCategoryPickerGrids("");
+    renderCategoryPickerSubItems();
+    hideCategoryPickerHosts();
+    $("categoryPickerModal").classList.add("show");
+    setTimeout(function () { $("categoryPickerSearch").focus(); }, 30);
+  }
+  function closeCategoryPicker() {
+    $("categoryPickerModal").classList.remove("show");
+    restoreCategoryPickerHosts();
+    categoryPickerCtx = null;
+  }
+  function setupCategoryPicker() {
+    document.addEventListener("click", function (evt) {
+      var trigger = evt.target.closest ? evt.target.closest(".cat-picker-trigger") : null;
+      if (!trigger) return;
+      openCategoryPicker(trigger.getAttribute("data-picker-type"), trigger.getAttribute("data-picker-target"), trigger.getAttribute("data-picker-subdetail"));
+    });
+    $("categoryPickerSearch").addEventListener("input", function () { renderCategoryPickerGrids($("categoryPickerSearch").value); });
+    function onTilePick(evt) {
+      var tile = evt.target.closest ? evt.target.closest("[data-pick-name]") : null;
+      if (!tile || !categoryPickerCtx) return;
+      setPickerTargetValue(categoryPickerCtx.targetId, tile.getAttribute("data-pick-name"));
+      renderCategoryPickerGrids($("categoryPickerSearch").value);
+      renderCategoryPickerSubItems();
+    }
+    $("categoryPickerGrid").addEventListener("click", onTilePick);
+    $("categoryPickerFrequentGrid").addEventListener("click", onTilePick);
+    $("categoryPickerSubChips").addEventListener("click", function (evt) {
+      var chip = evt.target.closest ? evt.target.closest("[data-pick-sub]") : null;
+      if (!chip || !categoryPickerCtx || !categoryPickerCtx.subDetailId) return;
+      var val = chip.getAttribute("data-pick-sub");
+      var current = $(categoryPickerCtx.subDetailId).value;
+      var next = current === val ? "" : val; // tap the selected chip again to clear it
+      $(categoryPickerCtx.subDetailId).value = next;
+      updateSourceDetailHint(categoryPickerCtx.targetId, next);
+      renderCategoryPickerSubItems();
+    });
+    $("categoryPickerSubAddBtn").addEventListener("click", function () {
+      if (!categoryPickerCtx || !categoryPickerCtx.subDetailId) return;
+      var val = $("categoryPickerSubInput").value.trim();
+      if (!val) return;
+      var sourceVal = $(categoryPickerCtx.targetId).value;
+      if (!sourceVal) { toast("Pick an income source first.", "error"); return; }
+      if (!state.incomeSourceSubItems[sourceVal]) state.incomeSourceSubItems[sourceVal] = [];
+      var subList = state.incomeSourceSubItems[sourceVal];
+      var exists = subList.some(function (s) { return s.toLowerCase() === val.toLowerCase(); });
+      var finalVal = exists ? subList.filter(function (s) { return s.toLowerCase() === val.toLowerCase(); })[0] : val;
+      if (!exists) subList.push(val);
+      $(categoryPickerCtx.subDetailId).value = finalVal;
+      updateSourceDetailHint(categoryPickerCtx.targetId, finalVal);
+      $("categoryPickerSubInput").value = "";
+      renderCategoryPickerSubItems();
+    });
+    $("categoryPickerCreateBtn").addEventListener("click", function () {
+      var ctx = categoryPickerCtx; if (!ctx) return;
+      var isIncome = ctx.type === "income";
+      closeCategoryPicker();
+      hideCategoryPickerHosts();
+      promptDialog("Name of the new " + (isIncome ? "income source" : "expense category") + ":", function (val) {
+        restoreCategoryPickerHosts();
+        if (!val) return;
+        var list = isIncome ? state.incomeSources : state.expenseCategories;
+        var exists = list.some(function (x) { return x.toLowerCase() === val.toLowerCase(); });
+        var finalVal = exists ? list.filter(function (x) { return x.toLowerCase() === val.toLowerCase(); })[0] : val;
+        if (!exists) list.push(val);
+        renderDropdowns();
+        setPickerTargetValue(ctx.targetId, finalVal);
+        toast((isIncome ? "Income source" : "Expense category") + ' "' + finalVal + '" added.', "good");
+      }, isIncome ? "e.g. Rental Income, Dividends..." : "e.g. Subscriptions, Pet Care...");
+    });
+    $("categoryPickerDoneBtn").addEventListener("click", closeCategoryPicker);
+    $("categoryPickerModal").addEventListener("click", function (evt) { if (evt.target === $("categoryPickerModal")) closeCategoryPicker(); });
+  }
+
   /* ================= Custom income sources ================= */
   function setupIncomeSourceAdd() {
     $("txSource").addEventListener("change", function () {
@@ -9264,6 +9592,7 @@
     state.accounts = incoming.accounts || [];
     state.liabilities = incoming.liabilities || [];
     state.incomeSources = (incoming.incomeSources && incoming.incomeSources.length) ? incoming.incomeSources : DEFAULT_INCOME_SOURCES.slice();
+    state.incomeSourceSubItems = incoming.incomeSourceSubItems || {};
     state.expenseCategories = (incoming.expenseCategories && incoming.expenseCategories.length) ? incoming.expenseCategories : DEFAULT_EXPENSE_CATEGORIES.slice();
     state.jarPct = Object.assign({}, DEFAULT_PCT, incoming.jarPct || {});
     state.jarBudgets = incoming.jarBudgets || {};
@@ -9321,6 +9650,7 @@
     return {
       transactions: [], accounts: [], liabilities: [],
       incomeSources: DEFAULT_INCOME_SOURCES.slice(),
+      incomeSourceSubItems: {},
       expenseCategories: DEFAULT_EXPENSE_CATEGORIES.slice(),
       jarPct: Object.assign({}, DEFAULT_PCT),
       jarBudgets: {}, categoryBudgets: {},
@@ -9338,6 +9668,7 @@
       accounts: state.accounts,
       liabilities: state.liabilities,
       incomeSources: state.incomeSources,
+      incomeSourceSubItems: state.incomeSourceSubItems,
       expenseCategories: state.expenseCategories,
       jarPct: state.jarPct,
       jarBudgets: state.jarBudgets,
@@ -10364,6 +10695,7 @@
     setupAddHub();
     setupIncomeSourceAdd();
     setupCategoryAdd();
+    setupCategoryPicker();
     setupBudgets();
     setupSavingsGoals();
     setupRecurringForm();
