@@ -469,6 +469,7 @@
   nav.tabs button[data-tab="transactions"].active, nav.tabs button[data-tab="transactions"]:hover { border-bottom-color: var(--series-4); background: var(--series-4-tint); }
   nav.tabs button[data-tab="transfers"].active, nav.tabs button[data-tab="transfers"]:hover { border-bottom-color: var(--series-3); background: var(--series-3-tint); }
   nav.tabs button[data-tab="accounts"].active, nav.tabs button[data-tab="accounts"]:hover { border-bottom-color: var(--series-2); background: var(--series-2-tint); }
+  nav.tabs button[data-tab="assets"].active, nav.tabs button[data-tab="assets"]:hover { border-bottom-color: var(--series-2); background: var(--series-2-tint); }
   nav.tabs button[data-tab="liabilities"].active, nav.tabs button[data-tab="liabilities"]:hover { border-bottom-color: var(--series-7); background: var(--series-7-tint); }
   nav.tabs button[data-tab="lending"].active, nav.tabs button[data-tab="lending"]:hover { border-bottom-color: var(--series-6); background: var(--series-6-tint); }
   nav.tabs button[data-tab="jars"].active, nav.tabs button[data-tab="jars"]:hover { border-bottom-color: var(--series-5); background: var(--series-5-tint); }
@@ -1157,6 +1158,7 @@
     <button data-tab="transactions"><span class="tab-ic">💳</span> Transactions</button>
     <button data-tab="transfers"><span class="tab-ic">⇄</span> Transfers</button>
     <button data-tab="accounts"><span class="tab-ic">🏦</span> Accounts</button>
+    <button data-tab="assets"><span class="tab-ic">🏠</span> Assets</button>
     <button data-tab="liabilities"><span class="tab-ic">📉</span> Liabilities</button>
     <button data-tab="lending"><span class="tab-ic">🤝</span> Lending</button>
     <button data-tab="jars"><span class="tab-ic">🏺</span> 6 Jars &amp; Freedom</button>
@@ -1746,6 +1748,56 @@
     </div>
   </section>
 
+  <!-- OTHER ASSETS -->
+  <section class="tab-panel" id="panel-assets">
+    <div class="section-intro">
+      <div class="section-intro-ic" style="background:var(--series-2-tint);color:var(--series-2);">🏠</div>
+      <div><h1>Assets</h1><p>Things you own outside a bank/cash account — property, a vehicle, gold, an outside investment — so your Net Worth reflects everything, not just what's in Accounts.</p></div>
+    </div>
+    <div class="card">
+      <h2>Add an Asset</h2>
+      <p class="hint">This is for wealth that isn't a bank/cash account you transact from — those belong under <strong>Accounts</strong> instead. An asset's value is set here and updated whenever you revalue it (no daily transactions to track).</p>
+      <form class="form-grid" id="otherAssetForm" novalidate>
+        <div class="field">
+          <label>Name</label>
+          <input type="text" id="oaName" placeholder="e.g. Colombo House, Toyota Aqua, Gold Chain" required>
+        </div>
+        <div class="field">
+          <label>Type</label>
+          <select id="oaType"></select>
+        </div>
+        <div class="field">
+          <label>Current value</label>
+          <div style="display:flex;gap:6px;">
+            <input type="text" inputmode="decimal" id="oaValue" placeholder="0.00" required style="flex:1;min-width:0;">
+            <button type="button" class="ghost" data-keypad-for="oaValue" title="Open number pad" aria-label="Open number pad">🔢</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Valued as of (optional)</label>
+          <input type="date" id="oaValueDate">
+        </div>
+        <div class="field wide">
+          <label>Note (optional)</label>
+          <input type="text" id="oaNote" placeholder="e.g. Bought 2019, current market estimate">
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <button type="button" class="primary" id="oaSubmitBtn">Add Asset</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <h2 style="margin:0;">Your Assets</h2>
+        <button type="button" class="ghost small" id="assetsViewReportBtn">📊 View Report</button>
+      </div>
+      <div class="liability-grid" id="otherAssetGrid"></div>
+      <div class="empty-state" id="otherAssetEmptyState" style="display:none;">No other assets yet — add property, a vehicle, gold, or anything else you own above.</div>
+    </div>
+  </section>
+
   <!-- LIABILITIES -->
   <section class="tab-panel" id="panel-liabilities">
     <div class="section-intro">
@@ -1812,7 +1864,10 @@
     </div>
 
     <div class="card">
-      <h2>Your Liabilities</h2>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <h2 style="margin:0;">Your Liabilities</h2>
+        <button type="button" class="ghost small" id="liabilityViewReportBtn">📊 View Report</button>
+      </div>
       <div class="liability-grid" id="liabilityGrid"></div>
       <div class="empty-state" id="liabilityEmptyState" style="display:none;">No liabilities yet — you're debt-free! 🎉</div>
     </div>
@@ -2871,7 +2926,7 @@
     { key: "home", label: "Home", icon: "🏠", tabs: ["dashboard"] },
     { key: "transactions", label: "Transactions", icon: "💳", tabs: ["add", "transactions", "transfers"] },
     { key: "plan", label: "Plan", icon: "🗓️", tabs: ["jars", "calendar", "planner", "events", "shopping"] },
-    { key: "wealth", label: "Wealth", icon: "🏦", tabs: ["accounts", "liabilities", "lending"] },
+    { key: "wealth", label: "Wealth", icon: "🏦", tabs: ["accounts", "assets", "liabilities", "lending"] },
     { key: "reports", label: "Reports", icon: "📊", tabs: ["reports"] },
     { key: "more", label: "More", icon: "⚙️", tabs: ["settings"] }
   ];
@@ -2888,6 +2943,7 @@
     transactions: { icon: "💳", label: "Transactions" },
     transfers: { icon: "⇄", label: "Transfers" },
     accounts: { icon: "🏦", label: "Accounts" },
+    assets: { icon: "🏠", label: "Assets" },
     liabilities: { icon: "📉", label: "Liabilities" },
     lending: { icon: "🤝", label: "Lending" },
     jars: { icon: "🏺", label: "6 Jars & Freedom" },
@@ -2915,6 +2971,20 @@
     { key: "loan", label: "Bank Loan", icon: "🏛️" },
     { key: "pawning", label: "Pawning", icon: "💍" },
     { key: "other", label: "Other Liability", icon: "📋" }
+  ];
+
+  // Things you own that aren't a bank/cash account and don't have transactions
+  // flowing through them — a house, a vehicle, gold, an investment held
+  // outside the app. Tracked as a manually-set current value (like a
+  // Liability's "balance owed"), not a transaction ledger, since there's no
+  // natural day-to-day activity to replay the way there is for an account.
+  var OTHER_ASSET_TYPES = [
+    { key: "property", label: "Property / Land", icon: "🏠" },
+    { key: "vehicle", label: "Vehicle", icon: "🚗" },
+    { key: "jewelry", label: "Jewelry / Gold", icon: "💍" },
+    { key: "investment", label: "Investment (Stocks, Fixed Deposit, etc.)", icon: "📈" },
+    { key: "business", label: "Business Equity", icon: "🏢" },
+    { key: "other", label: "Other Asset", icon: "📦" }
   ];
 
   var DEFAULT_INCOME_SOURCES = ["Salary", "Business", "Freelance / Side Income", "Investment / Dividends", "Gift", "Other"];
@@ -3168,6 +3238,11 @@
     // Money lent out to other people — the mirror image of `liabilities` (money
     // owed BY the user). See computeLendingBalance / the Lending tab.
     lendings: [],
+    // Assets that aren't a bank/cash account — property, a vehicle, gold, an
+    // outside investment — each { id, name, type, value, valueDate, note,
+    // createdDate }. Counted into Net Worth alongside Accounts and Lending;
+    // see computeOtherAssetsTotal / the Assets tab.
+    otherAssets: [],
     // Shopping Lists — { id, name, createdDate, items: [{ id, name, qty, note, bought }] }.
     shoppingLists: [],
     // Event Budgets — { id, name, budget, date, createdDate, expenses: [{ id, amount, note, date }] }.
@@ -3439,6 +3514,28 @@
   // transactions come in (which also add the cash to whichever account it
   // landed in — see computeAccountBalance/computeAccountBalanceAsOf above).
   function lendingById(id) { for (var i = 0; i < (state.lendings || []).length; i++) if (state.lendings[i].id === id) return state.lendings[i]; return null; }
+  function otherAssetById(id) { for (var i = 0; i < (state.otherAssets || []).length; i++) if (state.otherAssets[i].id === id) return state.otherAssets[i]; return null; }
+  function otherAssetTypeMeta(key) { for (var i = 0; i < OTHER_ASSET_TYPES.length; i++) if (OTHER_ASSET_TYPES[i].key === key) return OTHER_ASSET_TYPES[i]; return OTHER_ASSET_TYPES[OTHER_ASSET_TYPES.length - 1]; }
+  // A manually-tracked asset has no transaction ledger to replay for a past
+  // date, so "as of" support is a simple cutoff: before valueDate (or when it
+  // was added, for older data with no valueDate) it didn't count yet; from
+  // then on it's counted at whatever its current stored value is — the same
+  // "hasn't been revalued since" approximation Liabilities and Accounts
+  // already make for anything before their own opening/balance date.
+  function otherAssetValueAsOf(a, asOfDate) {
+    var since = a.valueDate || a.createdDate || "0000-01-01";
+    if (asOfDate < since) return 0;
+    return a.value || 0;
+  }
+  function computeOtherAssetsTotal() {
+    return (state.otherAssets || []).reduce(function (s, a) { return s + (a.value || 0); }, 0);
+  }
+  function computeOtherAssetsTotalAsOf(asOfDate) {
+    return (state.otherAssets || []).reduce(function (s, a) { return s + otherAssetValueAsOf(a, asOfDate); }, 0);
+  }
+  function computeBreakdownByOtherAsset() {
+    return (state.otherAssets || []).map(function (a) { return { key: a.id, label: a.name, value: a.value || 0 }; });
+  }
   function computeLendingBalance(lendingId) {
     var l = lendingById(lendingId);
     if (!l) return 0;
@@ -3606,7 +3703,8 @@
     });
     state.liabilities.forEach(function (l) { liabilitiesTotal += computeLiabilityBalance(l.id); });
     (state.lendings || []).forEach(function (l) { lendingsTotal += computeLendingBalance(l.id); });
-    return { assets: assets, cardDebt: cardDebt, liabilities: liabilitiesTotal, lendings: lendingsTotal, netWorth: assets + lendingsTotal - cardDebt - liabilitiesTotal };
+    var otherAssetsTotal = computeOtherAssetsTotal();
+    return { assets: assets, cardDebt: cardDebt, liabilities: liabilitiesTotal, lendings: lendingsTotal, otherAssets: otherAssetsTotal, netWorth: assets + lendingsTotal + otherAssetsTotal - cardDebt - liabilitiesTotal };
   }
 
   /* ================= Net Worth history (reconstructed, not stored) =================
@@ -3673,7 +3771,8 @@
     });
     state.liabilities.forEach(function (l) { liabilitiesTotal += computeLiabilityBalanceAsOf(l.id, asOfDate); });
     (state.lendings || []).forEach(function (l) { lendingsTotal += computeLendingBalanceAsOf(l.id, asOfDate); });
-    return assets + lendingsTotal - cardDebt - liabilitiesTotal;
+    var otherAssetsTotal = computeOtherAssetsTotalAsOf(asOfDate);
+    return assets + lendingsTotal + otherAssetsTotal - cardDebt - liabilitiesTotal;
   }
 
   // Itemized version of computeNetWorthAsOf() — same point-in-time reconstruction,
@@ -3703,6 +3802,11 @@
       var lbal = computeLendingBalanceAsOf(l.id, asOfDate);
       assets.push({ key: l.id, label: l.name + " (Money Lent Out)", value: lbal });
       totalAssets += lbal;
+    });
+    (state.otherAssets || []).forEach(function (oa) {
+      var oaVal = otherAssetValueAsOf(oa, asOfDate);
+      assets.push({ key: oa.id, label: oa.name + " (" + otherAssetTypeMeta(oa.type).label + ")", value: oaVal });
+      totalAssets += oaVal;
     });
     return {
       asOfDate: asOfDate,
@@ -4229,6 +4333,7 @@
     var nw = computeNetWorth();
     return [
       { key: "assets", label: "Total Assets (Cash + Bank)", value: nw.assets },
+      { key: "otherAssets", label: "Other Assets (Property, Vehicles, etc.)", value: nw.otherAssets },
       { key: "lendings", label: "Money Lent Out", value: nw.lendings },
       { key: "cardDebt", label: "Credit Card Debt", value: -nw.cardDebt },
       { key: "liabilities", label: "Other Liabilities", value: -nw.liabilities }
@@ -4924,6 +5029,7 @@
     var nw = computeNetWorth();
     var tiles = [
       { label: "Total Assets (Cash + Bank)", value: fmtMoney(nw.assets), cls: "good", breakdown: "assets" },
+      { label: "Other Assets", value: fmtMoney(nw.otherAssets), cls: nw.otherAssets > 0 ? "good" : "", breakdown: "otherAssets" },
       { label: "Money Lent Out", value: fmtMoney(nw.lendings), cls: nw.lendings > 0 ? "good" : "", breakdown: "lendings" },
       { label: "Credit Card Debt", value: fmtMoney(nw.cardDebt), cls: nw.cardDebt > 0 ? "bad" : "", breakdown: "cardDebt" },
       { label: "Other Liabilities", value: fmtMoney(nw.liabilities), cls: nw.liabilities > 0 ? "bad" : "", breakdown: "liabilities" },
@@ -5002,7 +5108,7 @@
       deltaEl.textContent = "Add an account to start tracking your net worth over time.";
     }
     var breakdownHtml =
-      '<div class="item">Assets<span class="amt">' + fmtMoney(nw.assets + nw.lendings) + '</span></div>' +
+      '<div class="item">Assets<span class="amt">' + fmtMoney(nw.assets + nw.lendings + nw.otherAssets) + '</span></div>' +
       '<div class="item">Debt<span class="amt">' + fmtMoney(nw.cardDebt + nw.liabilities) + '</span></div>';
     $("heroNetWorthBreakdown").innerHTML = breakdownHtml;
     renderSparkline("heroSparkline", state.accounts.length > 0 ? history : [], "#ffffff");
@@ -5908,6 +6014,28 @@
         }, 60);
       });
     }
+    // Liabilities didn't have any way to see payment/interest history at a
+    // glance — the same Full Report's "Debt & Liabilities" page (balance,
+    // rate, minimum payment per liability) is the closest thing to that, so
+    // this jumps straight there, exactly like the Lending tab's button above.
+    if ($("liabilityViewReportBtn")) {
+      $("liabilityViewReportBtn").addEventListener("click", function () {
+        openFullReport();
+        setTimeout(function () {
+          var band = Array.prototype.filter.call(document.querySelectorAll("#fullReportBody .report-section-band"), function (el) { return el.textContent.indexOf("Debt") !== -1; })[0];
+          if (band) band.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 60);
+      });
+    }
+    if ($("assetsViewReportBtn")) {
+      $("assetsViewReportBtn").addEventListener("click", function () {
+        openFullReport();
+        setTimeout(function () {
+          var band = Array.prototype.filter.call(document.querySelectorAll("#fullReportBody .report-section-band"), function (el) { return el.textContent.indexOf("Net Worth") !== -1; })[0];
+          if (band) band.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 60);
+      });
+    }
   }
 
   /* ================= Rendering: jars ================= */
@@ -6346,6 +6474,80 @@
       (result.order.length ? '<div class="order-list"><strong>Payoff order:</strong><br>' + result.order.map(function (n, i) { return (i + 1) + ". " + escapeHtml(n); }).join("<br>") + '</div>' : "") +
       (!result.possible ? '<div style="font-size:11px;color:var(--status-critical);margin-top:6px;">Increase your extra payment — minimums alone may not cover accruing interest.</div>' : "") +
       '</div>';
+  }
+
+  /* ================= Other Assets ================= */
+  // Reuses the .liability-card-v2 / .liability-grid styling (same card shape
+  // as Liabilities) — a manually-tracked value with no transaction ledger
+  // behind it, so "Edit" (to revalue it) and "Delete" are the only actions;
+  // there's no Record Payment/Interest equivalent since nothing accrues.
+  function otherAssetCardHtml(a) {
+    var meta = otherAssetTypeMeta(a.type);
+    var metaBits = [];
+    if (a.valueDate) metaBits.push("Valued as of " + fmtDate(a.valueDate));
+    if (a.note) metaBits.push(escapeHtml(a.note));
+    return '<div class="liability-card-v2"><div class="l2-head"><div class="l2-icon">' + meta.icon + '</div>' +
+      '<div><div class="l2-name">' + escapeHtml(a.name) + '</div><div class="l-type">' + meta.label + '</div></div></div>' +
+      '<div class="l-balance" style="color:var(--status-good);">' + fmtMoney(a.value || 0) + '</div>' +
+      (metaBits.length ? '<div class="l-meta">' + metaBits.join(" &middot; ") + '</div>' : "") +
+      '<div class="card-actions">' +
+      '<button type="button" class="ghost small" data-edit-other-asset="' + a.id + '">Edit' + (state.isPro ? "" : " 🔒") + '</button>' +
+      '<button type="button" class="ghost small danger" data-delete-other-asset="' + a.id + '">Delete</button>' +
+      '</div></div>';
+  }
+
+  function renderOtherAssets() {
+    var grid = $("otherAssetGrid");
+    if (!grid) return;
+    var items = state.otherAssets || [];
+    grid.innerHTML = items.map(otherAssetCardHtml).join("");
+    $("otherAssetEmptyState").style.display = items.length ? "none" : "block";
+  }
+
+  function setupOtherAssetForm() {
+    if (!$("oaSubmitBtn")) return;
+    $("oaType").innerHTML = OTHER_ASSET_TYPES.map(function (t) { return '<option value="' + t.key + '">' + t.icon + ' ' + t.label + '</option>'; }).join("");
+    function submitOtherAssetForm() {
+      var name = $("oaName").value.trim();
+      if (!name) { toast("Please enter a name for this asset.", "error"); $("oaName").focus(); return; }
+      var value = evalAmount($("oaValue").value);
+      if (isNaN(value) || value < 0) { toast("Please enter a valid current value.", "error"); $("oaValue").focus(); return; }
+      var todayStr = new Date().toISOString().slice(0, 10);
+      state.otherAssets.push({
+        id: uid(), name: name, type: $("oaType").value,
+        value: Math.round(value * 100) / 100,
+        valueDate: $("oaValueDate").value || null,
+        note: $("oaNote").value.trim(),
+        createdDate: todayStr
+      });
+      $("otherAssetForm").reset();
+      renderAll();
+      toast('Asset "' + name + '" added.', "good");
+    }
+    $("oaSubmitBtn").addEventListener("click", submitOtherAssetForm);
+    bindEnterKey($("otherAssetForm"), submitOtherAssetForm);
+    attachCalculator("oaValue", null);
+
+    document.addEventListener("click", function (evt) {
+      var editOa = evt.target.getAttribute && evt.target.getAttribute("data-edit-other-asset");
+      if (editOa) {
+        if (!state.isPro) {
+          confirmDialog("Editing assets is a Finora Pro feature. Open Settings to enable Pro?", function () { activateTab("settings"); });
+        } else {
+          openActionModal("editOtherAsset", editOa);
+        }
+        return;
+      }
+      var delOa = evt.target.getAttribute && evt.target.getAttribute("data-delete-other-asset");
+      if (delOa) {
+        var toDeleteOa = otherAssetById(delOa);
+        if (!toDeleteOa) return;
+        confirmDeleteAction('Delete "' + toDeleteOa.name + '"?', function () {
+          state.otherAssets = state.otherAssets.filter(function (a) { return a.id !== delOa; });
+          renderAll();
+        });
+      }
+    });
   }
 
   /* ================= Lending Tracker ================= */
@@ -7471,6 +7673,7 @@
     renderDropdowns();
     renderAccounts();
     renderForeignAssets();
+    renderOtherAssets();
     renderLiabilities();
     renderLendings();
     renderShoppingLists();
@@ -7744,6 +7947,16 @@
         '<div class="field"><label>Payment due day of month (optional)</label><input type="number" id="m_dueDay" min="1" max="31" step="1" value="' + (l3.dueDayOfMonth || "") + '"></div>' +
         '<div class="field wide"><label>Note (optional)</label><input type="text" id="m_note" value="' + escapeHtml(l3.note || "") + '"></div>' +
         '</div>';
+    } else if (mode === "editOtherAsset") {
+      var oa1 = otherAssetById(contextId);
+      title = "Edit Asset — Pro ✨";
+      body = '<div class="form-grid">' +
+        '<div class="field"><label>Name</label><input type="text" id="m_name" value="' + escapeHtml(oa1.name) + '" required></div>' +
+        '<div class="field"><label>Type</label><select id="m_assetType">' + OTHER_ASSET_TYPES.map(function (t) { return '<option value="' + t.key + '"' + (t.key === oa1.type ? " selected" : "") + '>' + t.icon + ' ' + t.label + '</option>'; }).join("") + '</select></div>' +
+        '<div class="field"><label>Current value</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="m_opening" value="' + oa1.value + '" required style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="m_opening" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' +
+        '<div class="field"><label>Valued as of (optional)</label><input type="date" id="m_valueDate" value="' + (oa1.valueDate || "") + '"></div>' +
+        '<div class="field wide"><label>Note (optional)</label><input type="text" id="m_note" value="' + escapeHtml(oa1.note || "") + '"></div>' +
+        '</div>';
     } else if (mode === "editLending") {
       var l4 = lendingById(contextId);
       title = "Edit Lending — Pro ✨";
@@ -7949,6 +8162,19 @@
         lEdit.dueDayOfMonth = (dueDayEditRaw >= 1 && dueDayEditRaw <= 31) ? dueDayEditRaw : null;
         if ($("m_note")) lEdit.note = $("m_note").value.trim();
         toast("Liability updated.", "good");
+      } else if (mode === "editOtherAsset") {
+        if (!state.isPro) { toast("Editing assets requires Pro.", "error"); return; }
+        var oaNameVal = $("m_name").value.trim();
+        if (!oaNameVal) { toast("Please enter an asset name.", "error"); return; }
+        var oaValueVal = evalAmount($("m_opening").value);
+        if (isNaN(oaValueVal) || oaValueVal < 0) { toast("Please enter a valid current value.", "error"); return; }
+        var oaEdit = otherAssetById(id);
+        oaEdit.name = oaNameVal;
+        oaEdit.type = $("m_assetType").value;
+        oaEdit.value = Math.round(oaValueVal * 100) / 100;
+        oaEdit.valueDate = $("m_valueDate") ? ($("m_valueDate").value || null) : oaEdit.valueDate;
+        if ($("m_note")) oaEdit.note = $("m_note").value.trim();
+        toast("Asset updated.", "good");
       } else if (mode === "editLending") {
         if (!state.isPro) { toast("Editing lending records requires Pro.", "error"); return; }
         var lendNameVal = $("m_name").value.trim();
@@ -8688,6 +8914,7 @@
         // don't want a routine sync to silently clear a password set on this device.
         if (incoming.appPassword !== undefined) state.appPassword = incoming.appPassword;
         state.settlement = incoming.settlement || { extraPayment: 0 };
+        state.otherAssets = incoming.otherAssets || [];
         // When real billing is on, Pro status always comes from the subscriptions table
         // (see syncProStatus below) — never trust a hand-editable "isPro" field from a
         // backup file. Only fall back to the file's value when billing isn't configured.
@@ -9384,16 +9611,26 @@
       if (!row || !lastBreakdownModal) return;
       var key = row.getAttribute("data-drill-key");
       var item = lastBreakdownModal.items.find(function (i) { return String(i.key) === key; });
-      // The Net Worth breakdown's four rows (Assets / Lending / Card Debt /
-      // Other Liabilities) are themselves each a whole other breakdown, not
-      // a single transaction slice — clicking one opens THAT breakdown
-      // (itself now drillable down to individual, editable transactions)
-      // instead of trying to list "transactions behind Net Worth" directly.
+      // The Net Worth breakdown's rows (Assets / Other Assets / Lending /
+      // Card Debt / Other Liabilities) are themselves each a whole other
+      // breakdown, not a single transaction slice — clicking one opens THAT
+      // breakdown (itself now drillable down to individual, editable
+      // transactions) instead of trying to list "transactions behind Net
+      // Worth" directly.
       if (lastBreakdownModal.drillDown && lastBreakdownModal.drillDown.mode === "netWorthNav") {
         if (key === "assets") openBreakdownModal("Total Assets — by Account", computeBreakdownByAssetAccount(), { mode: "account" });
+        else if (key === "otherAssets") openBreakdownModal("Other Assets — by Item", computeBreakdownByOtherAsset(), { mode: "otherAsset" });
         else if (key === "cardDebt") openBreakdownModal("Credit Card Debt — by Card", computeBreakdownByCardDebt(), { mode: "account" });
         else if (key === "liabilities") openBreakdownModal("Other Liabilities — by Liability", computeBreakdownByLiability(), { mode: "liability" });
         else if (key === "lendings") openBreakdownModal("Money Lent Out — by Borrower", computeBreakdownByLending(), { mode: "lending" });
+        return;
+      }
+      // An "Other Asset" item has no transaction ledger behind it at all — its
+      // value IS the source data — so clicking it jumps straight to editing
+      // it instead of opening an always-empty transaction list.
+      if (lastBreakdownModal.drillDown && lastBreakdownModal.drillDown.mode === "otherAsset") {
+        if (!state.isPro) { confirmDialog("Editing assets is a Finora Pro feature. Open Settings to enable Pro?", function () { activateTab("settings"); }); return; }
+        openActionModal("editOtherAsset", key);
         return;
       }
       openBreakdownDrillDetail(key, item ? item.label : key);
@@ -9412,6 +9649,7 @@
       else if (kind === "income") openBreakdownModal("Total Income — by Source", computeBreakdownByIncomeSource(), { txType: "income" });
       else if (kind === "expense") openBreakdownModal("Total Expense — by Category", computeBreakdownByExpenseCategory(), { txType: "expense" });
       else if (kind === "assets") openBreakdownModal("Total Assets — by Account", computeBreakdownByAssetAccount(), { mode: "account" });
+      else if (kind === "otherAssets") openBreakdownModal("Other Assets — by Item", computeBreakdownByOtherAsset(), { mode: "otherAsset" });
       else if (kind === "cardDebt") openBreakdownModal("Credit Card Debt — by Card", computeBreakdownByCardDebt(), { mode: "account" });
       else if (kind === "liabilities") openBreakdownModal("Other Liabilities — by Liability", computeBreakdownByLiability(), { mode: "liability" });
       else if (kind === "lendings") openBreakdownModal("Money Lent Out — by Borrower", computeBreakdownByLending(), { mode: "lending" });
@@ -10127,6 +10365,7 @@
     state.shoppingLists = incoming.shoppingLists || [];
     state.events = incoming.events || [];
     state.salaryPlans = incoming.salaryPlans || [];
+    state.otherAssets = incoming.otherAssets || [];
     state.accounts.forEach(function (a) { if (!a.currency) a.currency = state.homeCurrency; if (!a.exchangeRate) a.exchangeRate = 1; });
     if ($("pyfToggle")) $("pyfToggle").checked = state.pyfEnabled;
     if ($("settleExtra")) $("settleExtra").value = state.settlement.extraPayment || 0;
@@ -10207,7 +10446,8 @@
       lendings: state.lendings,
       shoppingLists: state.shoppingLists,
       events: state.events,
-      salaryPlans: state.salaryPlans
+      salaryPlans: state.salaryPlans,
+      otherAssets: state.otherAssets
     };
   }
 
@@ -11198,6 +11438,7 @@
     setupGroupNav();
     setupDelegatedEvents();
     setupAccountForm();
+    setupOtherAssetForm();
     setupLiabilityForm();
     setupLendingForm();
     setupShoppingLists();
