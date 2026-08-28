@@ -4188,7 +4188,7 @@
         catMap[key] = (catMap[key] || 0) - txAmountInHome(t);
       }
     });
-    var items = [{ key: "_allocated", label: "Allocated from income", value: allocated }];
+    var items = [{ key: "_allocated", label: "Allocated from income", value: allocated, noDrill: true }];
     Object.keys(catMap).forEach(function (k) { items.push({ key: k, label: k, value: catMap[k] }); });
     return items;
   }
@@ -6375,6 +6375,7 @@
       '<div class="form-grid" style="margin-bottom:0;">' +
       '<div class="field"><label>Amount received</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="lendRepayAmount-' + l.id + '" placeholder="' + bal.toFixed(2) + '" style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="lendRepayAmount-' + l.id + '" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' +
       '<div class="field"><label>Into account</label><select id="lendRepayAccount-' + l.id + '"></select></div>' +
+      '<div class="field"><label>Date</label><input type="date" id="lendRepayDate-' + l.id + '" value="' + new Date().toISOString().slice(0, 10) + '"></div>' +
       '<div class="field"><label>&nbsp;</label><button type="button" class="primary small" data-lend-repay-confirm="' + l.id + '">Confirm</button></div>' +
       '</div></div>' +
       '</div>';
@@ -6464,9 +6465,11 @@
         if (!amt || amt <= 0) { toast("Please enter a repayment amount greater than 0.", "error"); return; }
         var accSel = $("lendRepayAccount-" + clid);
         if (!accSel || !accSel.value) { toast("Please choose which account the money went into.", "error"); return; }
+        var dateInput = $("lendRepayDate-" + clid);
+        var repayDate = (dateInput && dateInput.value) || new Date().toISOString().slice(0, 10);
         state.transactions.push({
           id: uid(), type: "lendingRepayment", lendingId: clid, accountId: accSel.value,
-          amount: Math.round(amt * 100) / 100, date: new Date().toISOString().slice(0, 10)
+          amount: Math.round(amt * 100) / 100, date: repayDate
         });
         renderAll();
         toast('Repayment recorded for "' + lending.name + '".', "good");
@@ -9140,8 +9143,14 @@
     return items.map(function (it, i) {
       var color = palette[i % palette.length];
       var pctWidth = Math.min(100, (Math.abs(it.value) / maxAbs) * 100);
-      var attrs = drillable ? ' data-drill-key="' + escapeHtml(String(it.key)) + '" tabindex="0" role="button"' : "";
-      return '<div class="breakdown-row' + (drillable ? " drillable" : "") + '"' + attrs + '><div class="row-top"><span>' + escapeHtml(it.label) + '</span><span class="amt"' +
+      // Most items in a drillable breakdown can be clicked through to their
+      // underlying transactions — but a few (like a jar's "Allocated from
+      // income" line, which is a pro-rated slice of every income entry, not
+      // any one transaction) don't correspond to real entries, so they opt
+      // out with it.noDrill even while their siblings stay clickable.
+      var itemDrillable = drillable && !it.noDrill;
+      var attrs = itemDrillable ? ' data-drill-key="' + escapeHtml(String(it.key)) + '" tabindex="0" role="button"' : "";
+      return '<div class="breakdown-row' + (itemDrillable ? " drillable" : "") + '"' + attrs + '><div class="row-top"><span>' + escapeHtml(it.label) + '</span><span class="amt"' +
         (it.value < 0 ? ' style="color:var(--status-critical);"' : "") + '>' + fmtMoney(it.value) + '</span></div>' +
         '<div class="budget-bar-track"><div class="budget-bar-fill" style="width:' + pctWidth + '%;background:' + color + ';"></div></div></div>';
     }).join("");
@@ -9188,10 +9197,38 @@
     }
     $("breakdownModal").classList.add("show");
   }
-  // Finds the individual transactions behind one slice of a breakdown (e.g. every
-  // "Education" expense in the period that slice covers) so tapping a row can show
-  // exactly what makes up that number.
+  // Finds the individual transactions behind one slice of a breakdown so
+  // tapping a row can show exactly what makes up that number. Most
+  // breakdowns are "by income source" or "by expense category" (the
+  // original, default mode below); a few others — account balances,
+  // liability/lending balances, a jar's category lines — drill into a
+  // different underlying set of transactions, so they're dispatched here by
+  // drillDown.mode instead of duplicating openBreakdownDrillDetail for each.
   function computeBreakdownDrillTransactions(drillDown, key) {
+    if (drillDown.mode === "account") {
+      // Every transaction that actually touched this one account, whichever
+      // side of it (destination for income/lendingRepayment/adjustment/an
+      // incoming transfer, source for expense/liabilityPayment/an outgoing
+      // transfer, or the foreign side of a Sell/Convert) — this is the
+      // account's full activity, not one category's worth of it.
+      return state.transactions.filter(function (t) {
+        return t.accountId === key || t.fromAccountId === key || t.toAccountId === key || (t.fx && t.fx.fromAccountId === key);
+      }).sort(function (a, b) { return (b.date || "").localeCompare(a.date || ""); });
+    }
+    if (drillDown.mode === "liability") {
+      return state.transactions.filter(function (t) { return (t.type === "liabilityPayment" || t.type === "liabilityInterest") && t.liabilityId === key; })
+        .sort(function (a, b) { return (b.date || "").localeCompare(a.date || ""); });
+    }
+    if (drillDown.mode === "lending") {
+      return state.transactions.filter(function (t) { return t.type === "lendingRepayment" && t.lendingId === key; })
+        .sort(function (a, b) { return (b.date || "").localeCompare(a.date || ""); });
+    }
+    if (drillDown.mode === "jarCategory") {
+      return state.transactions.filter(function (t) { return t.type === "expense" && !t.isBusiness && t.jar === drillDown.jarKey && (t.category || "Uncategorized") === key; })
+        .sort(function (a, b) { return (b.date || "").localeCompare(a.date || ""); });
+    }
+    // Default mode: "by income source" / "by expense category" over an
+    // optional date range — the original behavior.
     var isIncome = drillDown.txType === "income";
     // "Bank Charges" is a synthetic category made up of transfer fees, not
     // actual expense-type transactions — so it needs its own filter instead
@@ -9215,34 +9252,127 @@
       return true;
     }).sort(function (a, b) { return (b.date || "").localeCompare(a.date || ""); });
   }
-  // A drilled-in row's amount: for a real income/expense transaction that's
-  // its full amount, but for a transfer shown under "Bank Charges" it's just
-  // the fee — the transfer's principal amount was never part of this total.
-  function breakdownDrillAmount(t) {
+  // A transaction's signed effect on one specific account's balance, in Home
+  // Currency — e.g. a transfer OUT of this account is negative even though
+  // t.amount itself is always stored positive. Used for the "account"
+  // drill-down mode, where the list mixes many transaction types together
+  // and a flat "always positive" amount would hide which way money moved.
+  function accountDrillAmount(t, accountId) {
+    var acc = accountById(accountId);
+    if (!acc) return 0;
+    // Mirrors computeAccountBalance's own branches exactly (accountDelta and
+    // all) rather than assuming "expense is always negative" — that
+    // assumption breaks for a credit card, where an expense (a charge)
+    // INCREASES what's owed rather than decreasing a cash-like balance.
+    var raw = 0;
+    if (t.type === "income" && t.accountId === accountId) raw = accountDelta(acc.type, "in", t.amount);
+    else if (t.type === "expense" && t.accountId === accountId) raw = accountDelta(acc.type, "out", t.amount);
+    else if (t.type === "adjustment" && t.accountId === accountId) raw = t.delta;
+    else if (t.type === "liabilityPayment" && t.accountId === accountId) raw = accountDelta(acc.type, "out", t.amount);
+    else if (t.type === "lendingRepayment" && t.accountId === accountId) raw = accountDelta(acc.type, "in", t.amount);
+    else if (t.type === "transfer") {
+      if (t.fromAccountId === accountId) raw = accountDelta(acc.type, "out", t.amount + (t.fee || 0));
+      else if (t.toAccountId === accountId) raw = accountDelta(acc.type, "in", t.toAmount != null ? t.toAmount : t.amount);
+    } else if (t.fx && t.fx.fromAccountId === accountId) raw = accountDelta(acc.type, "out", t.fx.foreignAmount);
+    return toHomeAmount(raw, acc);
+  }
+  // A short description of what a transaction was, from this account's point
+  // of view — used as the drill row's label when there's no note, since
+  // "Salary" or "→ NTB Bank" is more useful here than repeating this same
+  // account's own name on every row.
+  function accountDrillMeta(t, accountId) {
+    if (t.type === "transfer") {
+      var other = t.fromAccountId === accountId ? accountById(t.toAccountId) : accountById(t.fromAccountId);
+      return (t.fromAccountId === accountId ? "→ " : "← ") + (other ? other.name : "—");
+    }
+    if (t.fx && t.fx.fromAccountId === accountId) {
+      var toAcc = accountById(t.accountId);
+      return "Sold to " + (toAcc ? toAcc.name : "—");
+    }
+    if (t.type === "income") return t.source || "Income";
+    if (t.type === "expense") return t.category || "Expense";
+    if (t.type === "adjustment") return "Balance adjustment";
+    if (t.type === "liabilityPayment") return "Liability payment";
+    if (t.type === "lendingRepayment") return "Lending repayment received";
+    return "Entry";
+  }
+  // A drilled-in row's amount, dispatched the same way as
+  // computeBreakdownDrillTransactions above. Default mode: a real
+  // income/expense transaction shows its full amount, while a transfer shown
+  // under "Bank Charges" shows just the fee (the transfer's principal was
+  // never part of that total).
+  function breakdownDrillAmount(t, drillDown, key) {
+    if (drillDown && drillDown.mode === "account") return accountDrillAmount(t, key);
+    if (drillDown && drillDown.mode === "liability") return t.type === "liabilityInterest" ? t.amount : -t.amount;
+    if (drillDown && drillDown.mode === "lending") return -t.amount;
     return t.type === "transfer" ? transferFeeInHome(t) : txAmountInHome(t);
+  }
+  // Only income/expense/transfer entries have a working "Edit" form
+  // (openActionModal's editTransaction/editTransfer modes) — an adjustment,
+  // liability payment/interest, or lending repayment doesn't, so offering an
+  // Edit button for those would open a form that doesn't actually match what
+  // it's editing. Those rows still get a working Delete button (which is
+  // type-agnostic) so they're not a total dead end, just not editable here
+  // yet — manage them by deleting and re-recording instead.
+  function breakdownDrillIsEditable(t) {
+    return t.type === "income" || t.type === "expense" || t.type === "transfer";
   }
   function openBreakdownDrillDetail(key, label) {
     if (!lastBreakdownModal || !lastBreakdownModal.drillDown) return;
+    var drillDown = lastBreakdownModal.drillDown;
     lastBreakdownDrillKey = key; lastBreakdownDrillLabel = label;
-    var txs = computeBreakdownDrillTransactions(lastBreakdownModal.drillDown, key);
-    var total = txs.reduce(function (s, t) { return s + breakdownDrillAmount(t); }, 0);
+    var txs = computeBreakdownDrillTransactions(drillDown, key);
+    var total = txs.reduce(function (s, t) { return s + breakdownDrillAmount(t, drillDown, key); }, 0);
     var rowsHtml = txs.length ? txs.map(function (t) {
-      var acc = state.accounts.find(function (a) { return a.id === (t.type === "transfer" ? t.fromAccountId : t.accountId); });
-      var meta = [t.date, acc ? acc.name : null].filter(Boolean).join(" · ");
-      var rowLabel = t.type === "transfer" ? (t.note || "Bank charge / fee") : (t.note || label);
+      var amt = breakdownDrillAmount(t, drillDown, key);
+      var rowLabel, meta;
+      if (drillDown.mode === "account") {
+        rowLabel = t.note || accountDrillMeta(t, key);
+        meta = t.date;
+      } else if (drillDown.mode === "liability") {
+        var payAcc = accountById(t.accountId);
+        rowLabel = t.type === "liabilityInterest" ? "Interest accrued" : (t.note || "Payment made");
+        meta = [t.date, payAcc ? payAcc.name : null].filter(Boolean).join(" · ");
+      } else if (drillDown.mode === "lending") {
+        var repAcc = accountById(t.accountId);
+        rowLabel = "Repayment received";
+        meta = [t.date, repAcc ? repAcc.name : null].filter(Boolean).join(" · ");
+      } else {
+        var acc = state.accounts.find(function (a) { return a.id === (t.type === "transfer" ? t.fromAccountId : t.accountId); });
+        meta = [t.date, acc ? acc.name : null].filter(Boolean).join(" · ");
+        rowLabel = t.type === "transfer" ? (t.note || "Bank charge / fee") : (t.note || label);
+      }
       // Reuses the exact same data-edit-tx hook + Pro gate as the Transactions
       // table's row-level Edit button (see setupDelegatedEvents()) — clicking
       // it here opens the same edit modal; a non-Pro user sees the same
       // "editing entries requires Pro" prompt instead of the modal.
+      var actionBtns = (breakdownDrillIsEditable(t) ? '<button type="button" data-edit-tx="' + t.id + '" class="ghost small">Edit' + (state.isPro ? "" : " 🔒") + '</button>' : "") +
+        '<button type="button" data-del-tx="' + t.id + '" class="ghost small">Delete</button>';
       return '<div class="drill-tx-row"><div><div>' + escapeHtml(rowLabel) + '</div><div class="meta">' + escapeHtml(meta) + '</div></div>' +
-        '<div style="display:flex;align-items:center;gap:8px;"><div class="amt" style="font-weight:600;white-space:nowrap;">' + fmtMoney(breakdownDrillAmount(t)) + '</div>' +
-        '<button type="button" data-edit-tx="' + t.id + '" class="ghost small">Edit' + (state.isPro ? "" : " 🔒") + '</button></div></div>';
+        '<div style="display:flex;align-items:center;gap:8px;"><div class="amt" style="font-weight:600;white-space:nowrap;' + (amt < 0 ? "color:var(--status-critical);" : "") + '">' + fmtMoney(amt) + '</div>' +
+        actionBtns + '</div></div>';
     }).join("") : '<p class="hint">No individual entries found — they may have been edited or removed since.</p>';
+    // Unlike a category's transactions (which fully account for that
+    // category's total), an account's opening balance isn't any one
+    // transaction — so this list's total is these entries only, not the
+    // account's current balance. Say so once here instead of leaving the
+    // two numbers looking like they should match and don't.
+    var openingHint = "";
+    if (drillDown.mode === "account") {
+      var openingAcc = accountById(key);
+      if (openingAcc) openingHint = '<p class="hint" style="margin:-2px 0 10px;">Plus this account\'s opening balance (' + fmtMoneyIn(openingAcc.openingBalance || 0, accountCurrency(openingAcc)) + ') = its current balance.</p>';
+    } else if (drillDown.mode === "liability") {
+      var openingLi = liabilityById(key);
+      if (openingLi) openingHint = '<p class="hint" style="margin:-2px 0 10px;">Plus this liability\'s starting balance (' + fmtMoney(openingLi.openingBalance || 0) + ') = its current balance owed.</p>';
+    } else if (drillDown.mode === "lending") {
+      var openingLend = lendingById(key);
+      if (openingLend) openingHint = '<p class="hint" style="margin:-2px 0 10px;">Plus the original amount lent (' + fmtMoney(openingLend.openingAmount || 0) + ') = its current balance owed to you.</p>';
+    }
     $("breakdownModalTitle").textContent = label;
     $("breakdownModalBody").innerHTML =
       '<button type="button" class="drill-back-btn" id="breakdownDrillBackBtn">← Back to ' + escapeHtml(lastBreakdownModal.title) + '</button>' +
       '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;">Total: <strong style="color:var(--text-primary);">' + fmtMoney(total) + '</strong> · ' + txs.length + ' ' + (txs.length === 1 ? "entry" : "entries") + '</div>' +
-      rowsHtml;
+      openingHint + rowsHtml;
   }
   function setupBreakdownModal() {
     $("breakdownModalClose").addEventListener("click", function () { $("breakdownModal").classList.remove("show"); });
@@ -9254,6 +9384,18 @@
       if (!row || !lastBreakdownModal) return;
       var key = row.getAttribute("data-drill-key");
       var item = lastBreakdownModal.items.find(function (i) { return String(i.key) === key; });
+      // The Net Worth breakdown's four rows (Assets / Lending / Card Debt /
+      // Other Liabilities) are themselves each a whole other breakdown, not
+      // a single transaction slice — clicking one opens THAT breakdown
+      // (itself now drillable down to individual, editable transactions)
+      // instead of trying to list "transactions behind Net Worth" directly.
+      if (lastBreakdownModal.drillDown && lastBreakdownModal.drillDown.mode === "netWorthNav") {
+        if (key === "assets") openBreakdownModal("Total Assets — by Account", computeBreakdownByAssetAccount(), { mode: "account" });
+        else if (key === "cardDebt") openBreakdownModal("Credit Card Debt — by Card", computeBreakdownByCardDebt(), { mode: "account" });
+        else if (key === "liabilities") openBreakdownModal("Other Liabilities — by Liability", computeBreakdownByLiability(), { mode: "liability" });
+        else if (key === "lendings") openBreakdownModal("Money Lent Out — by Borrower", computeBreakdownByLending(), { mode: "lending" });
+        return;
+      }
       openBreakdownDrillDetail(key, item ? item.label : key);
     });
     document.addEventListener("click", function (evt) {
@@ -9263,17 +9405,17 @@
       if (kind.indexOf("jar:") === 0) {
         var jarKeyClicked = kind.slice(4);
         var jarMetaClicked = jarByKey(jarKeyClicked);
-        openBreakdownModal((jarMetaClicked ? jarMetaClicked.name : jarKeyClicked) + " — Breakdown", computeJarBreakdown(jarKeyClicked));
+        openBreakdownModal((jarMetaClicked ? jarMetaClicked.name : jarKeyClicked) + " — Breakdown", computeJarBreakdown(jarKeyClicked), { mode: "jarCategory", jarKey: jarKeyClicked });
         return;
       }
-      if (kind === "account") openBreakdownModal("Main Balance — by Account", computeBreakdownByAccount());
+      if (kind === "account") openBreakdownModal("Main Balance — by Account", computeBreakdownByAccount(), { mode: "account" });
       else if (kind === "income") openBreakdownModal("Total Income — by Source", computeBreakdownByIncomeSource(), { txType: "income" });
       else if (kind === "expense") openBreakdownModal("Total Expense — by Category", computeBreakdownByExpenseCategory(), { txType: "expense" });
-      else if (kind === "assets") openBreakdownModal("Total Assets — by Account", computeBreakdownByAssetAccount());
-      else if (kind === "cardDebt") openBreakdownModal("Credit Card Debt — by Card", computeBreakdownByCardDebt());
-      else if (kind === "liabilities") openBreakdownModal("Other Liabilities — by Liability", computeBreakdownByLiability());
-      else if (kind === "lendings") openBreakdownModal("Money Lent Out — by Borrower", computeBreakdownByLending());
-      else if (kind === "netWorth") openBreakdownModal("Net Worth — Breakdown", computeNetWorthBreakdown());
+      else if (kind === "assets") openBreakdownModal("Total Assets — by Account", computeBreakdownByAssetAccount(), { mode: "account" });
+      else if (kind === "cardDebt") openBreakdownModal("Credit Card Debt — by Card", computeBreakdownByCardDebt(), { mode: "account" });
+      else if (kind === "liabilities") openBreakdownModal("Other Liabilities — by Liability", computeBreakdownByLiability(), { mode: "liability" });
+      else if (kind === "lendings") openBreakdownModal("Money Lent Out — by Borrower", computeBreakdownByLending(), { mode: "lending" });
+      else if (kind === "netWorth") openBreakdownModal("Net Worth — Breakdown", computeNetWorthBreakdown(), { mode: "netWorthNav" });
       else if (kind === "businessIncome") openBreakdownModal("Business Income — by Source", computeBusinessIncomeBreakdown(), { txType: "income", businessOnly: true });
       else if (kind === "businessExpense") openBreakdownModal("Business Expenses — by Category", computeBusinessExpenseBreakdown(), { txType: "expense", businessOnly: true });
       else if (kind === "filteredIncome") openBreakdownModal("Filtered Income — by Source", computeFilteredIncomeBreakdown(getFilteredTransactions()));
