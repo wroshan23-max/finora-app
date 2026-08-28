@@ -2055,7 +2055,12 @@
       <div class="settings-grid" id="jarBudgetInputs"></div>
       <div id="jarBudgetBars" style="margin-top:10px;"></div>
       <div class="stat-section-label" style="margin-top:16px;">By Category</div>
+      <p class="hint" id="categoryBudgetEmptyHint" style="margin-top:-4px;display:none;">No category limits yet — pick one below to set its first limit.</p>
       <div class="settings-grid" id="categoryBudgetInputs"></div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
+        <select id="categoryBudgetAddSelect" style="flex:1;min-width:200px;"></select>
+        <button type="button" class="ghost small" id="categoryBudgetAddBtn">+ Add Limit</button>
+      </div>
       <div id="categoryBudgetBars" style="margin-top:10px;"></div>
     </div>
 
@@ -6329,15 +6334,40 @@
       '<div class="budget-bar-track"><div class="budget-bar-fill" style="width:' + Math.min(100, pct) + '%;background:' + status.color + ';"></div></div></div>';
   }
 
+  // With only 8 categories, showing one input per category was fine — with
+  // the much larger default category list (see NEW_EXPENSE_CATEGORIES_V1),
+  // that would mean 40+ permanent input rows most people never touch. So the
+  // "By Category" section now only shows a row for a category that either
+  // already has a real limit set, or that the "+ Add Limit" picker below has
+  // revealed a (possibly still-empty) row for this session — see
+  // categoryBudgetExtraShown. Deliberately NOT persisted: after a reload,
+  // only categories with an actual limit show a row, same as everything
+  // else in this "collapsed list, add what you need" pattern.
+  var categoryBudgetExtraShown = [];
+  function visibleCategoryBudgetCategories() {
+    return state.expenseCategories.filter(function (c) {
+      return (state.categoryBudgets[c] || 0) > 0 || categoryBudgetExtraShown.indexOf(c) !== -1;
+    });
+  }
+
   // Rebuilds the editable limit <input> fields — call on tab-level re-renders,
   // NOT on every keystroke (that would steal focus mid-typing).
   function renderBudgetInputs() {
     $("jarBudgetInputs").innerHTML = JARS.map(function (j) {
       return '<div class="field"><label>' + j.name + '</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" data-jar-budget="' + j.key + '" value="' + (state.jarBudgets[j.key] || "") + '" placeholder="No limit" style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="__prev" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>';
     }).join("");
-    $("categoryBudgetInputs").innerHTML = state.expenseCategories.map(function (c) {
-      return '<div class="field"><label>' + escapeHtml(c) + '</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" data-category-budget="' + escapeHtml(c) + '" value="' + (state.categoryBudgets[c] || "") + '" placeholder="No limit" style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="__prev" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>';
+    var visibleCats = visibleCategoryBudgetCategories();
+    $("categoryBudgetEmptyHint").style.display = visibleCats.length ? "none" : "block";
+    $("categoryBudgetInputs").innerHTML = visibleCats.map(function (c) {
+      return '<div class="field"><label>' + escapeHtml(c) + '</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" data-category-budget="' + escapeHtml(c) + '" value="' + (state.categoryBudgets[c] || "") + '" placeholder="No limit" style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="__prev" title="Open number pad" aria-label="Open number pad">🔢</button><button type="button" class="ghost" data-remove-category-budget="' + escapeHtml(c) + '" title="Remove this category from the list" aria-label="Remove">✕</button></div></div>';
     }).join("");
+    var remainingCats = state.expenseCategories.filter(function (c) { return visibleCats.indexOf(c) === -1; });
+    if ($("categoryBudgetAddSelect")) {
+      $("categoryBudgetAddSelect").innerHTML = remainingCats.length ?
+        remainingCats.map(function (c) { return '<option value="' + escapeHtml(c) + '">' + expenseCategoryIcon(c) + ' ' + escapeHtml(c) + '</option>'; }).join("") :
+        '<option value="">— All categories already added —</option>';
+      $("categoryBudgetAddBtn").disabled = remainingCats.length === 0;
+    }
     renderBudgetBars();
   }
 
@@ -6425,6 +6455,27 @@
       if (!val || isNaN(val) || val <= 0) delete state.categoryBudgets[key]; else state.categoryBudgets[key] = val;
       renderBudgetBars();
     });
+    // "Remove" (✕) on a category budget row — clears any real limit AND drops
+    // it from categoryBudgetExtraShown, so a still-empty just-added row can
+    // also be dismissed without having to type a value into it first.
+    $("categoryBudgetInputs").addEventListener("click", function (evt) {
+      var key = evt.target.getAttribute && evt.target.getAttribute("data-remove-category-budget");
+      if (!key) return;
+      delete state.categoryBudgets[key];
+      var idx = categoryBudgetExtraShown.indexOf(key);
+      if (idx !== -1) categoryBudgetExtraShown.splice(idx, 1);
+      renderBudgetInputs();
+    });
+    if ($("categoryBudgetAddBtn")) {
+      $("categoryBudgetAddBtn").addEventListener("click", function () {
+        var chosen = $("categoryBudgetAddSelect").value;
+        if (!chosen) return;
+        if (categoryBudgetExtraShown.indexOf(chosen) === -1) categoryBudgetExtraShown.push(chosen);
+        renderBudgetInputs();
+        var newInput = document.querySelector('[data-category-budget="' + CSS.escape(chosen) + '"]');
+        if (newInput) newInput.focus();
+      });
+    }
   }
 
   // Called right after an expense is added — warns (once) if it pushed a Jar or
