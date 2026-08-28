@@ -1635,6 +1635,13 @@
             <button type="button" class="ghost" data-keypad-for="tfAmount" title="Open number pad" aria-label="Open number pad">🔢</button>
           </div>
         </div>
+        <div class="field" id="tfRateWrap" style="display:none;">
+          <label id="tfRateLabel">Exchange rate</label>
+          <div style="display:flex;gap:6px;">
+            <input type="text" inputmode="decimal" id="tfRate" placeholder="e.g. 337" style="flex:1;min-width:0;">
+            <button type="button" class="ghost" data-keypad-for="tfRate" title="Open number pad" aria-label="Open number pad">🔢</button>
+          </div>
+        </div>
         <div class="field">
           <label>Bank charge / fee (optional)</label>
           <div style="display:flex;gap:6px;">
@@ -1655,6 +1662,7 @@
           <button type="button" class="primary" id="tfSubmitBtn">Transfer</button>
         </div>
       </form>
+      <p class="hint" id="tfConvertedHint" style="margin-top:8px;margin-bottom:0;display:none;"></p>
     </div>
     <div class="card">
       <h2>Transfer History</h2>
@@ -3230,6 +3238,36 @@
     return toHomeAmount(t.fee, acc);
   }
 
+  // Realizing a foreign-currency balance into Home Currency — selling $ for
+  // Rs, say — is the same event whether it's triggered from the Accounts
+  // tab's "💱 Sell / Convert" button (openActionModal's sellCurrency mode) or
+  // from the Transfer form when the two accounts are in different
+  // currencies, so both paths call this instead of keeping two copies of the
+  // same math that could quietly drift apart. Records it as Income (skipping
+  // jars, since it's not a fresh paycheck to budget out), deducts the
+  // foreign amount from the source account, and self-updates that account's
+  // stored exchange rate to the rate actually used — that's the "auto
+  // update" without needing a live rate feed: the account's rate stays
+  // current from the user's own real transactions.
+  function recordFxSale(fromAcc, toAccId, amountSold, rateUsed, dateStr, noteStr, sourceDetail, receivedOverride) {
+    amountSold = Math.round(amountSold * 100) / 100;
+    var receivedAmt = (receivedOverride && !isNaN(receivedOverride) && receivedOverride > 0)
+      ? Math.round(receivedOverride * 100) / 100
+      : Math.round(amountSold * rateUsed * 100) / 100;
+    var fxCurBefore = accountCurrency(fromAcc);
+    var fxPriorRate = fromAcc.exchangeRate || 0;
+    var fxGainLoss = Math.round((rateUsed - fxPriorRate) * amountSold * 100) / 100;
+    if (state.incomeSources.indexOf("Currency Exchange") === -1) state.incomeSources.push("Currency Exchange");
+    state.transactions.push({
+      id: uid(), type: "income", accountId: toAccId, amount: receivedAmt,
+      source: "Currency Exchange", sourceDetail: sourceDetail || fromAcc.name, skipJars: true,
+      date: dateStr || new Date().toISOString().slice(0, 10), note: noteStr || "",
+      fx: { fromAccountId: fromAcc.id, foreignAmount: amountSold, foreignCurrency: fxCurBefore, rateUsed: rateUsed, priorRate: fxPriorRate, gainLoss: fxGainLoss }
+    });
+    fromAcc.exchangeRate = rateUsed;
+    return { receivedAmt: receivedAmt, gainLoss: fxGainLoss, currency: fxCurBefore };
+  }
+
   function fmtDate(d) {
     var dt = new Date(d + "T00:00:00");
     if (isNaN(dt.getTime())) return d;
@@ -3355,8 +3393,12 @@
       } else if (t.type === "expense" && t.accountId === accountId) {
         bal += accountDelta(acc.type, "out", t.amount);
       } else if (t.type === "transfer") {
+        // toAmount only appears on a cross-currency transfer (see
+        // submitTransferForm) — the "to" side receives a different-currency
+        // amount than what left the "from" side, converted at the rate the
+        // user entered at the time.
         if (t.fromAccountId === accountId) bal += accountDelta(acc.type, "out", t.amount + (t.fee || 0));
-        if (t.toAccountId === accountId) bal += accountDelta(acc.type, "in", t.amount);
+        if (t.toAccountId === accountId) bal += accountDelta(acc.type, "in", t.toAmount != null ? t.toAmount : t.amount);
       } else if (t.type === "adjustment" && t.accountId === accountId) {
         bal += t.delta; // direct correction, already signed for this account's own convention
       } else if (t.type === "liabilityPayment" && t.accountId === accountId) {
@@ -3469,30 +3511,20 @@
     return results.sort(function (a, b) { return a.daysUntil - b.daysUntil; });
   }
 
+  // The dedicated top-of-dashboard reminder strip was removed per user
+  // feedback: it showed the exact same liability/lending due-date items
+  // that "Needs Your Attention" already lists right below it, and having
+  // the same reminder twice on one screen read as clutter rather than
+  // helpful. computeUpcomingLiabilityDues()/computeUpcomingLendingReminders()
+  // are still used — just only by computeNeedsAttention() now, so there's a
+  // single place these show up. Left as a no-op (rather than deleting the
+  // function and its #billRemindersBanner container) so it's a one-line
+  // revert if a future round wants the strip back.
   function renderBillReminders() {
     var banner = $("billRemindersBanner");
     if (!banner) return;
-    var dues = computeUpcomingLiabilityDues();
-    var lendDues = computeUpcomingLendingReminders();
-    if (dues.length === 0 && lendDues.length === 0) { banner.style.display = "none"; banner.innerHTML = ""; return; }
-    banner.style.display = "block";
-    var liHtml = dues.map(function (d) {
-      var when = d.daysUntil < 0 ? "was due " + Math.abs(d.daysUntil) + (Math.abs(d.daysUntil) === 1 ? " day ago" : " days ago")
-        : d.daysUntil === 0 ? "is due today" : "due in " + d.daysUntil + (d.daysUntil === 1 ? " day" : " days");
-      var icon = d.daysUntil < 0 ? "🔴" : d.daysUntil <= 2 ? "🟠" : "🟡";
-      return '<div class="banner" style="border-color:' + (d.daysUntil < 0 ? "var(--status-critical)" : "var(--series-4)") + ';">' +
-        '<span>' + icon + ' <strong>' + escapeHtml(d.liability.name) + '</strong> payment ' + when + ' — ' + fmtMoney(d.balance) + ' owed</span>' +
-        '<button class="ghost small" data-goto-tab="liabilities">View</button></div>';
-    }).join("");
-    var lendHtml = lendDues.map(function (d) {
-      var when = d.daysUntil < 0 ? "was expected " + Math.abs(d.daysUntil) + (Math.abs(d.daysUntil) === 1 ? " day ago" : " days ago")
-        : d.daysUntil === 0 ? "is expected today" : "expected in " + d.daysUntil + (d.daysUntil === 1 ? " day" : " days");
-      var icon = d.daysUntil < 0 ? "🔴" : d.daysUntil <= 2 ? "🟠" : "🟡";
-      return '<div class="banner" style="border-color:' + (d.daysUntil < 0 ? "var(--status-critical)" : "var(--series-4)") + ';">' +
-        '<span>' + icon + ' Repayment from <strong>' + escapeHtml(d.lending.name) + '</strong> ' + when + ' — ' + fmtMoney(d.balance) + ' owed to you</span>' +
-        '<button class="ghost small" data-goto-tab="lending">View</button></div>';
-    }).join("");
-    banner.innerHTML = liHtml + lendHtml;
+    banner.style.display = "none";
+    banner.innerHTML = "";
   }
 
   /* ================= Opt-in reminder notifications =================
@@ -3596,8 +3628,12 @@
       } else if (t.type === "expense" && t.accountId === accountId) {
         bal += accountDelta(acc.type, "out", t.amount);
       } else if (t.type === "transfer") {
+        // toAmount only appears on a cross-currency transfer (see
+        // submitTransferForm) — the "to" side receives a different-currency
+        // amount than what left the "from" side, converted at the rate the
+        // user entered at the time.
         if (t.fromAccountId === accountId) bal += accountDelta(acc.type, "out", t.amount + (t.fee || 0));
-        if (t.toAccountId === accountId) bal += accountDelta(acc.type, "in", t.amount);
+        if (t.toAccountId === accountId) bal += accountDelta(acc.type, "in", t.toAmount != null ? t.toAmount : t.amount);
       } else if (t.type === "adjustment" && t.accountId === accountId) {
         bal += t.delta;
       } else if (t.type === "liabilityPayment" && t.accountId === accountId) {
@@ -5035,11 +5071,11 @@
   // budget-limit and event-budget overages into one prioritized list — see the
   // Aug 2026 UX audit's "Needs Your Attention" recommendation.
   function computeNeedsAttention() {
-    // Liability/lending due-date reminders ARE also listed here (as well as
-    // in the prominent #billRemindersBanner strip above) — a brief attempt to
-    // de-duplicate them out of this digest made "Needs Your Attention" say
-    // "all caught up" even while a repayment banner was visibly overdue right
-    // above it, which read as more confusing than the original repetition.
+    // Liability/lending due-date reminders live ONLY here now — the old
+    // separate #billRemindersBanner strip above the dashboard showed the
+    // exact same items a second time (see renderBillReminders()), which was
+    // more confusing than helpful, so this digest is the single place they
+    // appear.
     var items = [];
     computeUpcomingLiabilityDues().forEach(function (d) {
       var when = d.daysUntil < 0 ? "was due " + Math.abs(d.daysUntil) + (Math.abs(d.daysUntil) === 1 ? " day ago" : " days ago")
@@ -7009,8 +7045,11 @@
     $("tfTableBody").innerHTML = rows.map(function (t) {
       var from = accountById(t.fromAccountId), to = accountById(t.toAccountId);
       var cur = from ? accountCurrency(from) : state.homeCurrency;
+      var toCur = to ? accountCurrency(to) : state.homeCurrency;
+      var amountCell = fmtMoneyIn(t.amount, cur);
+      if (t.toAmount != null && toCur !== cur) amountCell += '<div style="font-size:11px;color:var(--text-muted);">→ ' + fmtMoneyIn(t.toAmount, toCur) + '</div>';
       return '<tr><td>' + fmtDate(t.date) + '</td><td>' + (from ? escapeHtml(from.name) : "—") + '</td><td>' + (to ? escapeHtml(to.name) : "—") + '</td>' +
-        '<td>' + fmtMoneyIn(t.amount, cur) + '</td><td>' + fmtMoneyIn(t.fee || 0, cur) + '</td><td>' + escapeHtml(t.note || "—") + '</td>' +
+        '<td>' + amountCell + '</td><td>' + fmtMoneyIn(t.fee || 0, cur) + '</td><td>' + escapeHtml(t.note || "—") + '</td>' +
         '<td class="row-actions"><button data-edit-tx="' + t.id + '" class="ghost small">Edit' + (state.isPro ? "" : " 🔒") + '</button><button data-del-tx="' + t.id + '" class="ghost small">Delete</button></td></tr>';
     }).join("");
   }
@@ -7048,6 +7087,7 @@
     $("txAccount").innerHTML = currentTxType === "income" ? incomeAccOpts : accOpts;
     $("filterAccount").innerHTML = '<option value="all">All accounts</option>' + accOpts;
     $("tfFrom").innerHTML = accOpts; $("tfTo").innerHTML = accOpts;
+    if (typeof updateTfRateVisibility === "function") updateTfRateVisibility();
     if ($("liDepositAccount")) {
       var prevDeposit = $("liDepositAccount").value;
       $("liDepositAccount").innerHTML = '<option value="">— Don\'t add a transaction —</option>' + incomeAccOpts;
@@ -7876,23 +7916,10 @@
         if (!fxAmountSold || isNaN(fxAmountSold) || fxAmountSold <= 0) { toast("Please enter an amount greater than 0.", "error"); return; }
         var fxRateUsed = evalAmount($("m_fxRate").value);
         if (!fxRateUsed || isNaN(fxRateUsed) || fxRateUsed <= 0) { toast("Please enter a valid exchange rate.", "error"); return; }
-        var fxReceivedAmt = evalAmount($("m_fxReceived").value);
-        if (!fxReceivedAmt || isNaN(fxReceivedAmt) || fxReceivedAmt <= 0) fxReceivedAmt = fxAmountSold * fxRateUsed;
-        fxAmountSold = Math.round(fxAmountSold * 100) / 100;
-        fxReceivedAmt = Math.round(fxReceivedAmt * 100) / 100;
-        var fxCurBefore = accountCurrency(fxFromAcc);
-        var fxPriorRate = fxFromAcc.exchangeRate || 0;
-        var fxGainLoss = Math.round((fxRateUsed - fxPriorRate) * fxAmountSold * 100) / 100;
-        if (state.incomeSources.indexOf("Currency Exchange") === -1) state.incomeSources.push("Currency Exchange");
-        state.transactions.push({
-          id: uid(), type: "income", accountId: fxToId, amount: fxReceivedAmt,
-          source: "Currency Exchange", sourceDetail: fxFromAcc.name, skipJars: true,
-          date: $("m_date").value || new Date().toISOString().slice(0, 10), note: $("m_note").value.trim(),
-          fx: { fromAccountId: id, foreignAmount: fxAmountSold, foreignCurrency: fxCurBefore, rateUsed: fxRateUsed, priorRate: fxPriorRate, gainLoss: fxGainLoss }
-        });
-        fxFromAcc.exchangeRate = fxRateUsed; // "auto-updates" from your own real transactions, no live rate feed needed
-        var fxGainLossMsg = fxGainLoss === 0 ? "" : fxGainLoss > 0 ? (" Exchange gain: " + fmtMoney(fxGainLoss) + ".") : (" Exchange loss: " + fmtMoney(Math.abs(fxGainLoss)) + ".");
-        toast("Recorded as income: " + fmtMoneyIn(fxReceivedAmt, state.homeCurrency) + " from " + fmtMoneyIn(fxAmountSold, fxCurBefore) + "." + fxGainLossMsg, "good");
+        var fxReceivedRaw = evalAmount($("m_fxReceived").value);
+        var fxResult = recordFxSale(fxFromAcc, fxToId, fxAmountSold, fxRateUsed, $("m_date").value, $("m_note").value.trim(), fxFromAcc.name, fxReceivedRaw);
+        var fxGainLossMsg = fxResult.gainLoss === 0 ? "" : fxResult.gainLoss > 0 ? (" Exchange gain: " + fmtMoney(fxResult.gainLoss) + ".") : (" Exchange loss: " + fmtMoney(Math.abs(fxResult.gainLoss)) + ".");
+        toast("Recorded as income: " + fmtMoneyIn(fxResult.receivedAmt, state.homeCurrency) + " from " + fmtMoneyIn(fxAmountSold, fxResult.currency) + "." + fxGainLossMsg, "good");
       } else if (mode === "recordInterest") {
         var amt = evalAmount($("m_amount").value);
         if (!amt || isNaN(amt) || amt <= 0) { toast("Please enter an interest amount greater than 0.", "error"); return; }
@@ -7977,6 +8004,16 @@
         var tfFeeRaw = $("m_fee").value.trim();
         var tfFee = tfFeeRaw === "" ? 0 : evalAmount(tfFeeRaw);
         if (isNaN(tfFee)) tfFee = 0;
+        var editTfFromAcc = accountById(tfFromId), editTfToAcc = accountById(tfToId);
+        if (editTfFromAcc && editTfToAcc && accountCurrency(editTfFromAcc) !== accountCurrency(editTfToAcc)) {
+          // This simple editor only handles same-currency transfers — a
+          // cross-currency one carries a converted toAmount (and, if it
+          // realized foreign currency into Home Currency, was recorded as
+          // Income instead of a transfer at all) that this form has no
+          // fields for, so editing it here would silently corrupt it.
+          toast("This transfer converts between currencies — delete it and add it again from the Transfer form instead of editing here.", "error");
+          return;
+        }
         var editTfObj = state.transactions.filter(function (x) { return x.id === id; })[0];
         if (editTfObj) {
           editTfObj.fromAccountId = tfFromId;
@@ -7985,6 +8022,7 @@
           editTfObj.fee = Math.round(tfFee * 100) / 100;
           editTfObj.date = $("m_date").value || editTfObj.date;
           editTfObj.note = $("m_note").value.trim();
+          delete editTfObj.toAmount; // now same-currency (or already was) — no converted side to track
           toast("Transfer updated.", "good");
         }
       }
@@ -8235,10 +8273,54 @@
     ["liOpening", "liMinPay", "liDepositAmount"].forEach(function (fid) { attachCalculator(fid, null); });
   }
 
+  // Shows/labels the Transfer form's exchange-rate field whenever the two
+  // selected accounts are in different currencies — a plain "transfer"
+  // can't move money between currencies without one. The rate is always
+  // asked for the same way it's asked everywhere else in the app ("1
+  // <foreign currency> = ? <home currency>") when one side is Home
+  // Currency, since that's the direction people actually know the rate in.
+  function updateTfRateVisibility() {
+    var wrap = $("tfRateWrap");
+    if (!wrap) return;
+    var fromAcc = accountById($("tfFrom") && $("tfFrom").value), toAcc = accountById($("tfTo") && $("tfTo").value);
+    if (!fromAcc || !toAcc) { wrap.style.display = "none"; updateTfConvertedHint(); return; }
+    var fromCur = accountCurrency(fromAcc), toCur = accountCurrency(toAcc);
+    if (fromCur === toCur) { wrap.style.display = "none"; $("tfRate").value = ""; updateTfConvertedHint(); return; }
+    wrap.style.display = "flex";
+    var prefill = "";
+    if (toCur === state.homeCurrency) { $("tfRateLabel").textContent = "Exchange rate (1 " + fromCur + " = ? " + toCur + ")"; prefill = fromAcc.exchangeRate || ""; }
+    else if (fromCur === state.homeCurrency) { $("tfRateLabel").textContent = "Exchange rate (1 " + toCur + " = ? " + fromCur + ")"; prefill = toAcc.exchangeRate || ""; }
+    else { $("tfRateLabel").textContent = "Exchange rate (1 " + fromCur + " = ? " + toCur + ")"; prefill = ""; }
+    if (!$("tfRate").value) $("tfRate").value = prefill;
+    updateTfConvertedHint();
+  }
+
+  function updateTfConvertedHint() {
+    var hintEl = $("tfConvertedHint");
+    if (!hintEl) return;
+    var fromAcc = accountById($("tfFrom") && $("tfFrom").value), toAcc = accountById($("tfTo") && $("tfTo").value);
+    if (!fromAcc || !toAcc) { hintEl.style.display = "none"; return; }
+    var fromCur = accountCurrency(fromAcc), toCur = accountCurrency(toAcc);
+    if (fromCur === toCur) { hintEl.style.display = "none"; return; }
+    var amount = evalAmount($("tfAmount").value), rate = evalAmount($("tfRate").value);
+    if (!amount || !rate || isNaN(amount) || isNaN(rate) || amount <= 0 || rate <= 0) { hintEl.style.display = "none"; return; }
+    var toAmount = (fromCur === state.homeCurrency && toCur !== state.homeCurrency) ? (amount / rate) : (amount * rate);
+    var willBeIncome = toCur === state.homeCurrency && fromCur !== state.homeCurrency;
+    hintEl.style.display = "block";
+    hintEl.textContent = "≈ " + fmtMoneyIn(Math.round(toAmount * 100) / 100, toCur) + " will land in " + toAcc.name +
+      (willBeIncome ? " — this converts foreign currency into " + state.homeCurrency + ", so it'll be recorded as Income (see \"💱 Sell / Convert\")." : ".");
+  }
+
   function setupTransferForm() {
     $("tfDate").value = new Date().toISOString().slice(0, 10);
     attachCalculator("tfAmount", null);
     attachCalculator("tfFee", null);
+    attachCalculator("tfRate", null);
+    $("tfFrom").addEventListener("change", function () { $("tfRate").value = ""; updateTfRateVisibility(); });
+    $("tfTo").addEventListener("change", function () { $("tfRate").value = ""; updateTfRateVisibility(); });
+    $("tfAmount").addEventListener("input", updateTfConvertedHint);
+    $("tfRate").addEventListener("input", updateTfConvertedHint);
+    updateTfRateVisibility();
     function submitTransferForm() {
       var from = $("tfFrom").value, to = $("tfTo").value;
       var amount = evalAmount($("tfAmount").value);
@@ -8247,13 +8329,53 @@
       if (isNaN(fee)) fee = 0;
       if (!from || !to || from === to) { toast("Choose two different accounts.", "error"); return; }
       if (!amount || isNaN(amount) || amount <= 0) { toast("Please enter a transfer amount greater than 0.", "error"); $("tfAmount").focus(); return; }
+      var fromAcc = accountById(from), toAcc = accountById(to);
+      var fromCur = accountCurrency(fromAcc), toCur = accountCurrency(toAcc);
       amount = Math.round(amount * 100) / 100;
       fee = Math.round(fee * 100) / 100;
-      state.transactions.push({
-        id: uid(), type: "transfer", fromAccountId: from, toAccountId: to, amount: amount, fee: fee,
-        date: $("tfDate").value || new Date().toISOString().slice(0, 10), note: $("tfNote").value.trim()
-      });
+      var dateStr = $("tfDate").value || new Date().toISOString().slice(0, 10);
+      var noteStr = $("tfNote").value.trim();
+
+      if (fromCur === toCur) {
+        state.transactions.push({ id: uid(), type: "transfer", fromAccountId: from, toAccountId: to, amount: amount, fee: fee, date: dateStr, note: noteStr });
+        $("transferForm").reset(); $("tfDate").value = new Date().toISOString().slice(0, 10);
+        updateTfRateVisibility();
+        renderAll();
+        return;
+      }
+
+      // Currencies differ — a plain transfer can't apply the same number to
+      // both sides, so it needs a rate. Both fields were validated above
+      // being for the same-currency case; re-check here for the FX one.
+      var rate = evalAmount($("tfRate").value);
+      if (!rate || isNaN(rate) || rate <= 0) { toast("Please enter today's exchange rate to convert between these two currencies.", "error"); $("tfRate").focus(); return; }
+
+      if (toCur === state.homeCurrency && fromCur !== state.homeCurrency) {
+        // Realizing foreign currency into Home Currency — the exact same
+        // event as the Accounts tab's "💱 Sell / Convert" button, so it's
+        // recorded the same way (as Income, via the shared helper) rather
+        // than as a currency-blind "transfer".
+        var fxResult = recordFxSale(fromAcc, to, amount, rate, dateStr, noteStr, fromAcc.name, null);
+        if (fee > 0) state.transactions.push({ id: uid(), type: "adjustment", accountId: from, delta: -fee, date: dateStr, note: noteStr ? noteStr + " — bank charge / fee" : "Bank charge / fee" });
+        var fxMsg = fxResult.gainLoss === 0 ? "" : fxResult.gainLoss > 0 ? (" Exchange gain: " + fmtMoney(fxResult.gainLoss) + ".") : (" Exchange loss: " + fmtMoney(Math.abs(fxResult.gainLoss)) + ".");
+        toast("Recorded as income: " + fmtMoneyIn(fxResult.receivedAmt, state.homeCurrency) + " from " + fmtMoneyIn(amount, fxResult.currency) + "." + fxMsg, "good");
+      } else {
+        // Home → foreign (buying foreign currency) or foreign → a different
+        // foreign currency: you're moving your own money, not earning
+        // anything yet, so this stays a transfer — just with two different
+        // amounts, one per side.
+        var toAmount;
+        if (fromCur === state.homeCurrency && toCur !== state.homeCurrency) {
+          toAmount = Math.round((amount / rate) * 100) / 100;
+          toAcc.exchangeRate = rate; // keep the destination foreign account's own rate current too
+        } else {
+          toAmount = Math.round(amount * rate * 100) / 100;
+        }
+        state.transactions.push({ id: uid(), type: "transfer", fromAccountId: from, toAccountId: to, amount: amount, toAmount: toAmount, fee: fee, date: dateStr, note: noteStr });
+        toast("Transferred " + fmtMoneyIn(amount, fromCur) + " → " + fmtMoneyIn(toAmount, toCur) + ".", "good");
+      }
       $("transferForm").reset(); $("tfDate").value = new Date().toISOString().slice(0, 10);
+      updateTfRateVisibility();
       renderAll();
     }
     $("tfSubmitBtn").addEventListener("click", submitTransferForm);
