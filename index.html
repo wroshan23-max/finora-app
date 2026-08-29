@@ -40,7 +40,10 @@
     --surface-2:      #ffffff;
     --text-primary:   #0b0b0b;
     --text-secondary: #52514e;
-    --text-muted:     #898781;
+    /* Was #898781 (3.41:1 on --page, below WCAG AA's 4.5:1 for the small
+       11-13px captions/hints this is actually used at) — darkened to the
+       same hue at 4.83:1, still clearly the "muted" tier below --text-secondary. */
+    --text-muted:     #706e69;
     --grid:           #e1e0d9;
     --baseline:       #c3c2b7;
     --border:         rgba(11,11,11,0.10);
@@ -111,6 +114,27 @@
   }
 
   * { box-sizing: border-box; }
+
+  /* ================= Global keyboard-focus indicator (WCAG 2.4.7) =================
+     A clear, consistent ring on whatever's focused via keyboard, app-wide.
+     :focus-visible only fires for keyboard/programmatic focus (not mouse/touch
+     clicks) in every modern browser, so this changes nothing for mouse/touch
+     users and doesn't touch layout or existing hover styles — purely additive.
+     A few existing components (.quick-add-method, .breakdown-row.drillable,
+     .add-launcher-tile) already set their own "outline: none" on focus-visible
+     as part of a hover+focus combo rule; the second block below restores a
+     real focus ring for just those, without editing those original rules. */
+  :focus-visible {
+    outline: 2px solid var(--series-1);
+    outline-offset: 2px;
+  }
+  .quick-add-method:focus-visible,
+  .breakdown-row.drillable:focus-visible,
+  .add-launcher-tile:focus-visible {
+    outline: 2px solid var(--series-1);
+    outline-offset: 2px;
+  }
+
   html, body {
     margin: 0; padding: 0;
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -1193,10 +1217,10 @@
   <nav class="group-nav" id="groupNav">
     <div class="sidebar-brand" aria-hidden="true"><span class="sidebar-brand-ic">💠</span>Finora</div>
     <button data-group="home" class="active"><span class="group-ic">🏠</span> Home</button>
-    <button data-group="transactions"><span class="group-ic">💳</span> Transactions</button>
+    <button data-group="transactions"><span class="group-ic">💳</span> Money</button>
     <button data-group="plan"><span class="group-ic">🗓️</span> Plan</button>
     <button data-group="wealth"><span class="group-ic">🏦</span> Wealth</button>
-    <button data-group="reports"><span class="group-ic">📊</span> Reports</button>
+    <button data-group="reports"><span class="group-ic">📊</span> Insights</button>
     <button data-group="more"><span class="group-ic">⚙️</span> More</button>
   </nav>
 
@@ -1352,6 +1376,21 @@
     <div id="addTxCardAnchor" style="display:none;"></div>
     <div class="card" id="addTxCard">
       <h2>Add a Transaction</h2>
+
+      <!-- Optional natural-language shortcut. It only ever fills the real form
+           fields below (type/amount/category/account) — it never creates a
+           transaction on its own. The existing "Add" button, with all its
+           existing validation/jar-split/business logic, is still the only
+           thing that actually saves anything. See parseNaturalLanguageTransaction(). -->
+      <div class="nl-quick-entry" id="nlQuickEntry" style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border);">
+        <label style="font-size:12px;color:var(--text-secondary);font-weight:600;display:block;margin-bottom:4px;">⚡ Or just type it</label>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="nlInput" placeholder="e.g. lunch 2500 cash, or salary 350000 HNB" style="flex:1;min-width:0;" autocomplete="off">
+          <button type="button" class="ghost" id="nlParseBtn">Fill in</button>
+        </div>
+        <div id="nlPreview" style="display:none;font-size:12.5px;margin-top:8px;padding:8px 10px;border-radius:8px;background:var(--surface-2);line-height:1.6;"></div>
+      </div>
+
       <form class="tx-form" id="txForm" novalidate>
         <div class="field">
           <label>Type</label>
@@ -2281,7 +2320,14 @@
     </div>
 
     <div id="reportContent">
+      <p class="hint" id="reportPlainSummary" style="font-size:14.5px;line-height:1.7;color:var(--text-primary);margin:0 0 12px;"></p>
+
       <div class="stat-grid" id="reportStatGrid"></div>
+
+      <div class="card" id="reportCategoryCompareCard" style="display:none;margin-top:16px;">
+        <h2>Compared with Last Period</h2>
+        <div id="reportCategoryCompare"></div>
+      </div>
 
       <div class="card" id="reportBusinessCard" style="display:none;">
         <h2>💼 Business Income (this period)</h2>
@@ -3113,12 +3159,16 @@
   // unchanged; this only controls which tabs the group nav reveals. See
   // activateTab() for how a tab reached indirectly (e.g. a [data-goto-tab]
   // jump) still syncs the right group as active.
+  // Labels here are the goal-oriented names (Money / Insights) shown in the UI —
+  // `key` stays the original internal identifier ("transactions" / "reports")
+  // since it's used as the data-group value and in tabGroupFor() lookups
+  // throughout the app; renaming only the label is a zero-risk, display-only change.
   var TAB_GROUPS = [
     { key: "home", label: "Home", icon: "🏠", tabs: ["dashboard"] },
-    { key: "transactions", label: "Transactions", icon: "💳", tabs: ["add", "transactions", "transfers"] },
+    { key: "transactions", label: "Money", icon: "💳", tabs: ["add", "transactions", "transfers"] },
     { key: "plan", label: "Plan", icon: "🗓️", tabs: ["jars", "calendar", "planner", "events", "shopping"] },
     { key: "wealth", label: "Wealth", icon: "🏦", tabs: ["accounts", "assets", "liabilities", "lending"] },
-    { key: "reports", label: "Reports", icon: "📊", tabs: ["reports"] },
+    { key: "reports", label: "Insights", icon: "📊", tabs: ["reports"] },
     { key: "more", label: "More", icon: "⚙️", tabs: ["settings"] }
   ];
   function tabGroupFor(tab) {
@@ -5806,9 +5856,22 @@
     var tiles = [
       { label: "Income", value: fmtMoney(current.income), cls: "good", sub: trendSub(current.income, previous.income), breakdown: "reportIncome" },
       { label: "Expense", value: fmtMoney(current.expense), cls: "bad", sub: trendSub(current.expense, previous.expense), breakdown: "reportExpense" },
-      { label: "Net (Income − Expense)", value: fmtMoney(current.net), cls: current.net >= 0 ? "good" : "bad" },
+      { label: "Saved", value: fmtMoney(current.net), cls: current.net >= 0 ? "good" : "bad" },
       { label: "Savings Rate", value: (current.income > 0 ? current.savingsRate.toFixed(1) : "0.0") + "%", cls: current.savingsRate >= 20 ? "good" : (current.savingsRate < 0 ? "bad" : "") }
     ];
+
+    // One plain-language sentence up top, ahead of the tiles/charts below —
+    // the same numbers, just read out loud instead of requiring the reader to
+    // scan four separate tiles first. Purely additive: nothing below it changed.
+    if ($("reportPlainSummary")) {
+      if (current.income === 0 && current.expense === 0) {
+        $("reportPlainSummary").textContent = "No income or expenses logged for " + periodLabel + " yet.";
+      } else if (current.net >= 0) {
+        $("reportPlainSummary").innerHTML = "In <strong>" + escapeHtml(periodLabel) + "</strong>, you earned <strong>" + fmtMoney(current.income) + "</strong> and spent <strong>" + fmtMoney(current.expense) + "</strong> — you saved <strong style=\"color:var(--good);\">" + fmtMoney(current.net) + "</strong>, a " + current.savingsRate.toFixed(1) + "% savings rate.";
+      } else {
+        $("reportPlainSummary").innerHTML = "In <strong>" + escapeHtml(periodLabel) + "</strong>, you earned <strong>" + fmtMoney(current.income) + "</strong> but spent <strong>" + fmtMoney(current.expense) + "</strong> — <strong style=\"color:var(--status-critical);\">" + fmtMoney(-current.net) + "</strong> more than you brought in.";
+      }
+    }
     $("reportStatGrid").innerHTML = tiles.map(function (s) {
       return '<div class="stat-tile' + (s.breakdown ? ' clickable' : '') + '"' + (s.breakdown ? ' data-breakdown="' + s.breakdown + '" tabindex="0" role="button"' : '') +
         '><div class="label">' + s.label + '</div><div class="value ' + (s.cls || "") + '">' + s.value + '</div>' + (s.sub ? '<div class="sub">' + s.sub + '</div>' : "") +
@@ -5840,6 +5903,34 @@
     if (restTotal > 0) segments.push({ key: "other", label: "Other", value: restTotal, color: palette[5] });
     if (segments.length === 0) $("reportCategoryDonut").innerHTML = '<div class="empty-state">No expenses in this period.</div>';
     else renderDonut("reportCategoryDonut", segments, { centerLabel: fmtMoney(current.expense), centerSub: "total spent" });
+
+    // "Compared with Last Period" — per-category % change, e.g. "Food +18%,
+    // Transport -7%". Reuses the same current/previous categorySpend already
+    // computed above for the totals trend; purely additive, doesn't touch the
+    // existing donut/summary cards next to it.
+    if ($("reportCategoryCompareCard")) {
+      var compareRows = top.map(function (c) {
+        var prevVal = previous.categorySpend[c.key] || 0;
+        var pct = null;
+        if (prevVal > 0) pct = ((c.value - prevVal) / prevVal) * 100;
+        else if (c.value > 0) pct = null; // brand-new category this period — no "vs previous" to show
+        return { label: c.label, pct: pct, isNew: prevVal === 0 && c.value > 0 };
+      });
+      if (compareRows.length === 0) {
+        $("reportCategoryCompareCard").style.display = "none";
+      } else {
+        $("reportCategoryCompareCard").style.display = "block";
+        $("reportCategoryCompare").innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          compareRows.map(function (r) {
+            var text, color;
+            if (r.isNew) { text = escapeHtml(r.label) + ' — new this period'; color = "var(--text-secondary)"; }
+            else if (r.pct === null) { text = escapeHtml(r.label); color = "var(--text-secondary)"; }
+            else { text = escapeHtml(r.label) + ' ' + (r.pct >= 0 ? "+" : "") + r.pct.toFixed(0) + '%'; color = r.pct > 0 ? "var(--status-critical)" : (r.pct < 0 ? "var(--good)" : "var(--text-secondary)"); }
+            return '<span style="display:inline-block;padding:5px 12px;border-radius:999px;border:1px solid var(--border);font-size:12.5px;font-weight:600;color:' + color + ';">' + text + '</span>';
+          }).join("") + '</div>' +
+          '<p class="hint" style="margin:10px 0 0;">Spending up in a category shown in red, down shown in green, versus the same categories last period.</p>';
+      }
+    }
 
     $("reportSummaryText").innerHTML =
       '<div><strong>' + escapeHtml(periodLabel) + '</strong></div>' +
@@ -8219,9 +8310,139 @@
     if (currentTxType === "income" && state.pyfEnabled && !isBusiness && !skipJars) openPyfModal(tx);
     checkBudgetAlerts(tx);
   }
+  // Best-effort keyword -> category map for the natural-language quick entry
+  // below. Deliberately small and literal (no ML, no external calls) — if a
+  // word isn't here, the category is just left unset and the user picks it
+  // themselves. Only maps to categories that actually exist in
+  // DEFAULT_EXPENSE_CATEGORIES, so a match always corresponds to a real,
+  // existing category.
+  var NL_CATEGORY_KEYWORDS = {
+    lunch: "Food & Groceries", dinner: "Food & Groceries", breakfast: "Food & Groceries",
+    food: "Food & Groceries", grocery: "Food & Groceries", groceries: "Food & Groceries", coffee: "Food & Groceries",
+    taxi: "Transport", uber: "Transport", pickme: "Transport", bus: "Transport", train: "Transport",
+    petrol: "Fuel", diesel: "Fuel", fuel: "Fuel", parking: "Parking",
+    electricity: "Electricity", water: "Water", internet: "Internet", wifi: "Internet",
+    phone: "Phone", mobile: "Phone", rent: "Rent", garbage: "Garbage",
+    movie: "Movies", cinema: "Movies", netflix: "Subs", subscription: "Subs",
+    shopping: "Shopping", clothes: "Clothing", clothing: "Clothing",
+    doctor: "Doctor", hospital: "Doctor", medicine: "Meds", pharmacy: "Meds", dental: "Dental", dentist: "Dental",
+    gym: "Gym", salon: "Salon", haircut: "Salon",
+    gift: "Gifts", travel: "Travel", hotel: "Travel", flight: "Travel",
+    insurance: "Insurance", tuition: "Tuition", books: "Books"
+  };
+  // Same idea for income — only maps to income sources that actually exist
+  // in state.incomeSources (checked at parse time, not hardcoded here).
+  var NL_SOURCE_KEYWORDS = {
+    salary: "Salary", wage: "Salary", wages: "Salary",
+    freelance: "Freelance / Side Income", gig: "Freelance / Side Income",
+    business: "Business", dividend: "Investment / Dividends", interest: "Investment / Dividends",
+    gift: "Gift", bonus: "Salary", refund: "Other"
+  };
+
+  // Parses a short free-text line like "lunch 2500 cash" or "salary 350000 HNB"
+  // into a best-guess transaction shape. Never creates or saves anything by
+  // itself — applyNlParseToForm() below only fills the real, existing form
+  // fields, and the user still has to review and tap the real "Add" button,
+  // which runs all of its normal validation. If a field can't be confidently
+  // matched, it's left blank rather than guessed, so nothing wrong gets
+  // silently submitted.
+  function parseNaturalLanguageTransaction(raw) {
+    var text = (raw || "").trim();
+    if (!text) return null;
+    var lower = text.toLowerCase();
+    var result = { type: "expense", amount: null, accountId: null, accountName: null, category: null, source: null, note: text };
+
+    // Comma-grouped form ("2,500") must be tried first with a REQUIRED comma
+    // group (+, not *) — otherwise the alternation matches just the leading
+    // "250" of a plain "2500" and never backtracks to try the plain-digits
+    // alternative, silently truncating the amount.
+    var amountMatch = text.match(/\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?/);
+    if (amountMatch) result.amount = parseFloat(amountMatch[0].replace(/,/g, ""));
+
+    var matchedSourceName = null;
+    Object.keys(NL_SOURCE_KEYWORDS).some(function (kw) {
+      if (lower.indexOf(kw) === -1) return false;
+      var candidate = NL_SOURCE_KEYWORDS[kw];
+      if (state.incomeSources.indexOf(candidate) !== -1) { matchedSourceName = candidate; return true; }
+      return false;
+    });
+    var directSourceName = state.incomeSources.filter(function (s) { return lower.indexOf(s.toLowerCase()) !== -1; })[0];
+    if (directSourceName) matchedSourceName = directSourceName;
+    if (matchedSourceName) { result.type = "income"; result.source = matchedSourceName; }
+
+    if (result.type === "expense") {
+      var directCatName = state.expenseCategories.filter(function (c) { return lower.indexOf(c.toLowerCase()) !== -1; })[0];
+      if (directCatName) {
+        result.category = directCatName;
+      } else {
+        Object.keys(NL_CATEGORY_KEYWORDS).some(function (kw) {
+          if (lower.indexOf(kw) === -1) return false;
+          var candidate = NL_CATEGORY_KEYWORDS[kw];
+          if (state.expenseCategories.indexOf(candidate) !== -1) { result.category = candidate; return true; }
+          return false;
+        });
+      }
+    }
+
+    var matchedAccount = state.accounts.filter(function (a) { return lower.indexOf(a.name.toLowerCase()) !== -1; })[0];
+    if (!matchedAccount) {
+      if (/\bcash\b/.test(lower)) matchedAccount = state.accounts.filter(function (a) { return a.type === "cash"; })[0];
+      else if (/\bcard\b|\bcredit\b/.test(lower)) matchedAccount = state.accounts.filter(function (a) { return a.type === "creditcard"; })[0];
+      else if (/\bbank\b/.test(lower)) matchedAccount = state.accounts.filter(function (a) { return a.type === "bank"; })[0];
+    }
+    if (matchedAccount) { result.accountId = matchedAccount.id; result.accountName = matchedAccount.name; }
+
+    return result;
+  }
+
+  // Fills the real transaction form from a parsed result — reuses setTxType()/
+  // setPickerTargetValue() exactly as the existing UI does, so nothing about
+  // how a transaction actually gets saved changes. Never calls submitTxForm().
+  function applyNlParseToForm(parsed) {
+    setTxType(parsed.type);
+    if (parsed.amount) {
+      $("txAmount").value = parsed.amount;
+      $("txAmount").dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    if (parsed.accountId) {
+      $("txAccount").value = parsed.accountId;
+      $("txAccount").dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    if (parsed.type === "expense" && parsed.category) setPickerTargetValue("txCategory", parsed.category);
+    if (parsed.type === "income" && parsed.source) setPickerTargetValue("txSource", parsed.source);
+  }
+
+  function renderNlPreview(parsed) {
+    var parts = [];
+    parts.push('<strong>' + (parsed.type === "income" ? "Income" : "Expense") + '</strong>');
+    parts.push(parsed.amount ? fmtMoney(parsed.amount) : '<span style="color:var(--status-critical);">amount not found — enter it below</span>');
+    if (parsed.type === "expense") parts.push(parsed.category || '<span style="color:var(--text-muted);">pick a category below</span>');
+    if (parsed.type === "income") parts.push(parsed.source || '<span style="color:var(--text-muted);">pick a source below</span>');
+    parts.push(parsed.accountName || '<span style="color:var(--text-muted);">pick an account below</span>');
+    $("nlPreview").innerHTML = "Filled in: " + parts.join(" · ") + '. Review the form below, then tap <strong>Add</strong>.';
+    $("nlPreview").style.display = "block";
+  }
+
+  function setupNlQuickEntry() {
+    if (!$("nlParseBtn")) return;
+    function doParse() {
+      var text = $("nlInput").value;
+      var parsed = parseNaturalLanguageTransaction(text);
+      if (!parsed) { $("nlPreview").style.display = "none"; return; }
+      applyNlParseToForm(parsed);
+      renderNlPreview(parsed);
+      if (!parsed.amount) $("txAmount").focus();
+    }
+    $("nlParseBtn").addEventListener("click", doParse);
+    $("nlInput").addEventListener("keydown", function (evt) {
+      if (evt.key === "Enter") { evt.preventDefault(); doParse(); }
+    });
+  }
+
   function setupTxForm() {
     $("txDate").value = new Date().toISOString().slice(0, 10);
     renderTxNoteHistory();
+    setupNlQuickEntry();
 
     document.querySelectorAll(".type-toggle button").forEach(function (btn) {
       btn.addEventListener("click", function () { setTxType(btn.getAttribute("data-type")); });
