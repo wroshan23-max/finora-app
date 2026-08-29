@@ -1193,7 +1193,7 @@
       <button type="button" class="ghost toolbar-toggle-btn" id="toolbarToggleBtn" title="More options" aria-label="More options" aria-expanded="false">⋯</button>
       <div class="top-controls toolbar-drawer" id="toolbarDrawer">
         <select id="currencySelect" title="Currency"></select>
-        <button id="themeToggle" class="ghost" title="Toggle dark mode">🌙</button>
+        <button id="themeToggle" class="ghost" title="Toggle dark mode" aria-label="Toggle dark mode">🌙</button>
         <button id="exportBtn" class="ghost" title="Download a backup of your data">⬇ Save Data</button>
         <button id="importBtn" class="ghost" title="Restore data from a backup file">⬆ Load Data</button>
         <input type="file" id="importFile" class="file-input-hidden" accept="application/json">
@@ -1417,7 +1417,7 @@
           </label>
         </div>
         <div class="field">
-          <label>Amount <span id="txAmountCurrencyLabel" style="color:var(--text-muted);font-weight:400;"></span></label>
+          <label for="txAmount">Amount <span id="txAmountCurrencyLabel" style="color:var(--text-muted);font-weight:400;"></span></label>
           <div style="display:flex;gap:6px;">
             <input type="text" inputmode="decimal" id="txAmount" placeholder="e.g. 1500 or 100+50" style="flex:1;min-width:0;">
             <button type="button" class="ghost" id="txCalcBtn" title="Calculate a sum, e.g. 100+50-20" style="display:none;">🧮</button>
@@ -1425,7 +1425,7 @@
           </div>
         </div>
         <div class="field" id="jarFieldWrap">
-          <label id="jarFieldLabel">Jar (which jar covers this expense?)</label>
+          <label id="jarFieldLabel" for="txJar">Jar (which jar covers this expense?)</label>
           <select id="txJar"></select>
         </div>
         <div class="field" id="categoryFieldWrap">
@@ -1440,7 +1440,7 @@
           <div class="cat-picker-sub-hint" id="txCategoryDetailHint" style="display:none;"></div>
         </div>
         <div class="field">
-          <label id="accountFieldLabel">Account</label>
+          <label id="accountFieldLabel" for="txAccount">Account</label>
           <select id="txAccount"></select>
         </div>
         <div class="field" id="sourceFieldWrap">
@@ -1455,11 +1455,11 @@
           <div class="cat-picker-sub-hint" id="txSourceDetailHint" style="display:none;"></div>
         </div>
         <div class="field">
-          <label>Date</label>
+          <label for="txDate">Date</label>
           <input type="date" id="txDate" required>
         </div>
         <div class="field wide">
-          <label>Note (description)</label>
+          <label for="txNote">Note (description)</label>
           <input type="text" id="txNote" placeholder="e.g. Groceries, Client payment..." list="txNoteHistory" autocomplete="off">
           <datalist id="txNoteHistory"></datalist>
         </div>
@@ -1708,7 +1708,7 @@
           <input type="date" id="filterDateStart" aria-label="From date">
           <span class="date-range-sep">–</span>
           <input type="date" id="filterDateEnd" aria-label="To date">
-          <button type="button" class="ghost small" id="filterDateClearBtn" title="Clear date filter" style="display:none;">✕</button>
+          <button type="button" class="ghost small" id="filterDateClearBtn" title="Clear date filter" aria-label="Clear date filter" style="display:none;">✕</button>
         </div>
         <button id="exportCsvBtn" class="ghost">Export CSV</button>
         <button id="importCsvBtn" class="ghost">📥 Import CSV</button>
@@ -1815,30 +1815,30 @@
       <h2>Add an Account</h2>
       <form class="form-grid" id="accountForm" novalidate>
         <div class="field">
-          <label>Account name</label>
+          <label for="accName">Account name</label>
           <input type="text" id="accName" placeholder="e.g. Wallet, HNB Savings, Visa Card" required>
         </div>
         <div class="field">
-          <label>Type</label>
+          <label for="accType">Type</label>
           <select id="accType"></select>
         </div>
         <div class="field">
-          <label id="accOpeningLabel">Opening balance</label>
+          <label id="accOpeningLabel" for="accOpening">Opening balance</label>
           <div style="display:flex;gap:6px;">
             <input type="text" inputmode="decimal" id="accOpening" value="0" required style="flex:1;min-width:0;">
             <button type="button" class="ghost" data-keypad-for="accOpening" title="Open number pad" aria-label="Open number pad">🔢</button>
           </div>
         </div>
         <div class="field">
-          <label id="accBalanceDateLabel">Balance as of</label>
+          <label id="accBalanceDateLabel" for="accBalanceDate">Balance as of</label>
           <input type="date" id="accBalanceDate" required>
         </div>
         <div class="field">
-          <label>Currency</label>
+          <label for="accCurrency">Currency</label>
           <select id="accCurrency"></select>
         </div>
         <div class="field" id="accRateWrap" style="display:none;">
-          <label id="accRateLabel">Exchange rate</label>
+          <label id="accRateLabel" for="accRate">Exchange rate</label>
           <div style="display:flex;gap:6px;">
             <input type="text" inputmode="decimal" id="accRate" placeholder="e.g. 300" style="flex:1;min-width:0;">
             <button type="button" class="ghost" data-keypad-for="accRate" title="Open number pad" aria-label="Open number pad">🔢</button>
@@ -2139,8 +2139,8 @@
       <h2>🎯 Savings Goals</h2>
       <p class="hint">Give your Long-Term Savings (LTSS) jar named targets — e.g. "New Laptop — Rs 150,000" — and track progress toward each one separately. Allocating funds here is just a way to mentally sub-divide your LTSS jar; it doesn't move any money on its own.</p>
       <form class="settings-grid" id="goalForm" novalidate style="margin-bottom:12px;">
-        <div class="field"><label>Goal name</label><input type="text" id="goalName" placeholder="e.g. New Laptop"></div>
-        <div class="field"><label>Target amount</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="goalTarget" style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="goalTarget" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>
+        <div class="field"><label for="goalName">Goal name</label><input type="text" id="goalName" placeholder="e.g. New Laptop"></div>
+        <div class="field"><label for="goalTarget">Target amount</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="goalTarget" style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="goalTarget" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>
         <div class="field"><label>&nbsp;</label><button type="button" class="primary" id="goalAddBtn">Add Goal</button></div>
       </form>
       <div id="goalsList"></div>
@@ -3167,6 +3167,33 @@
   ];
   var DEFAULT_PCT = { NEC: 55, FFA: 10, LTSS: 10, EDU: 10, PLAY: 10, GIVE: 5 };
 
+  // Splits a single income amount across the 6 Jars for DISPLAY (the "this
+  // income will split into..." preview and the Pay Yourself First modal) so
+  // the shown per-jar amounts always add up to exactly the shown income —
+  // rounding each jar's share independently (homeAmt * pct/100, then round to
+  // cents) can leave the total a cent or two short of the income amount,
+  // which reads as unexplained missing money. This does NOT touch the real
+  // jar balances (computeJarBalances() intentionally keeps unrounded floats
+  // and accumulates across all transactions, so it has no drift at all) —
+  // it's purely a single-transaction display reconciliation, done by having
+  // the last jar absorb whatever cents the others' independent rounding left
+  // over.
+  function computeJarSplitAmounts(homeAmt) {
+    var shares = {};
+    var runningTotal = 0;
+    for (var i = 0; i < JARS.length; i++) {
+      var key = JARS[i].key;
+      if (i === JARS.length - 1) {
+        shares[key] = Math.round((homeAmt - runningTotal) * 100) / 100;
+      } else {
+        var share = Math.round(homeAmt * ((state.jarPct[key] || 0) / 100) * 100) / 100;
+        shares[key] = share;
+        runningTotal += share;
+      }
+    }
+    return shares;
+  }
+
   // Top-level information architecture (Aug 2026 UX audit) — groups the 14
   // existing tabs into 6 sections. Each tab keeps its original id/panel/logic
   // unchanged; this only controls which tabs the group nav reveals. See
@@ -3610,9 +3637,12 @@
   function fmtMoneyIn(n, code) {
     var c = currencyByCode(code || state.homeCurrency);
     var decimals = c.code === "JPY" ? 0 : 2;
-    var sign = n < 0 ? "-" : "";
-    var abs = Math.abs(n || 0);
-    var parts = abs.toFixed(decimals).split(".");
+    var abs = Math.abs(n || 0).toFixed(decimals);
+    // Decide the sign AFTER rounding to the displayed number of decimals, not
+    // before — a raw value like -0.001 rounds to "0.00" and should never
+    // display as "-0.00" (a negative-looking zero that isn't really negative).
+    var sign = (n < 0 && Number(abs) !== 0) ? "-" : "";
+    var parts = abs.split(".");
     parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     return sign + c.symbol + parts.join(".");
   }
@@ -5906,12 +5936,15 @@
     svg += "</svg>";
     $(containerId).innerHTML = svg + '<div class="legend">' + segments.map(function (seg) {
       var pct = total > 0 ? ((Math.max(seg.value, 0) / total) * 100).toFixed(0) : "0";
-      return '<span class="item"><span class="swatch-dot" style="background:' + seg.color + ';"></span>' + seg.label + ' (' + pct + '%)</span>';
+      return '<span class="item"><span class="swatch-dot" style="background:' + seg.color + ';"></span>' + escapeHtml(seg.label) + ' (' + pct + '%)</span>';
     }).join("") + '</div>';
     segments.forEach(function (seg) {
       var el = document.querySelector('[data-donut-id="' + containerId + "-" + seg.key + '"]'); if (!el) return;
       var pct = total > 0 ? ((Math.max(seg.value, 0) / total) * 100).toFixed(1) : "0.0";
-      el.addEventListener("mousemove", function (evt) { showTooltip(evt, "<strong>" + seg.label + "</strong><br>" + fmtMoney(seg.value) + " (" + pct + "%)"); });
+      // seg.label can be a user-typed account/category/liability/lending name
+      // (e.g. via the generic breakdown-modal chart) — must be escaped here,
+      // same as the legend above, since this goes into innerHTML too.
+      el.addEventListener("mousemove", function (evt) { showTooltip(evt, "<strong>" + escapeHtml(seg.label) + "</strong><br>" + fmtMoney(seg.value) + " (" + pct + "%)"); });
       el.addEventListener("mouseleave", hideTooltip);
     });
   }
@@ -7370,7 +7403,7 @@
       var isActive = l.id === activeShoppingListId;
       return '<span class="shop-list-chip' + (isActive ? " active" : "") + '" data-shop-list-select="' + l.id + '">' +
         escapeHtml(l.name) + ' <span style="color:var(--text-muted);font-size:11px;">(' + bought + '/' + l.items.length + ')</span>' +
-        '<button type="button" class="shop-chip-del" data-shop-list-del="' + l.id + '" title="Delete list">✕</button></span>';
+        '<button type="button" class="shop-chip-del" data-shop-list-del="' + l.id + '" title="Delete list" aria-label="Delete list ' + escapeHtml(l.name) + '">✕</button></span>';
     }).join("");
 
     var itemsCard = $("shopItemsCard");
@@ -8342,9 +8375,10 @@
       $("splitPreview").innerHTML = fxNote + "<strong>🚫 This will NOT be split into the 6 Jars</strong><div class=\"hint\" style=\"margin-top:4px;\">It still counts toward your Total Income, just not toward any Jar's balance.</div>";
       return;
     }
+    var splitShares = computeJarSplitAmounts(homeAmt);
     $("splitPreview").innerHTML = "<strong>This income will split into:</strong><br>" + fxNote + JARS.map(function (j) {
-      var pct = state.jarPct[j.key] || 0; var share = homeAmt * (pct / 100);
-      return '<div class="row"><span><span class="swatch" style="background:' + jarColor(j.key) + ';"></span>' + j.name + ' (' + pct + '%)</span><span>' + fmtMoney(share) + '</span></div>';
+      var pct = state.jarPct[j.key] || 0;
+      return '<div class="row"><span><span class="swatch" style="background:' + jarColor(j.key) + ';"></span>' + j.name + ' (' + pct + '%)</span><span>' + fmtMoney(splitShares[j.key]) + '</span></div>';
     }).join("");
   }
 
@@ -8653,9 +8687,12 @@
     var parts = [];
     parts.push('<strong>' + (parsed.type === "income" ? "Income" : "Expense") + '</strong>');
     parts.push(parsed.amount ? fmtMoney(parsed.amount) : '<span style="color:var(--status-critical);">amount</span>');
-    if (parsed.type === "expense") parts.push(parsed.category || '<span style="color:var(--text-muted);">category</span>');
-    if (parsed.type === "income") parts.push(parsed.source || '<span style="color:var(--text-muted);">source</span>');
-    parts.push(parsed.accountName || '<span style="color:var(--text-muted);">account</span>');
+    // category/source/accountName are matched against real, user-typed names
+    // (existing categories/sources/accounts) — must be escaped before going
+    // into innerHTML below, same as everywhere else user text is rendered.
+    if (parsed.type === "expense") parts.push(parsed.category ? escapeHtml(parsed.category) : '<span style="color:var(--text-muted);">category</span>');
+    if (parsed.type === "income") parts.push(parsed.source ? escapeHtml(parsed.source) : '<span style="color:var(--text-muted);">source</span>');
+    parts.push(parsed.accountName ? escapeHtml(parsed.accountName) : '<span style="color:var(--text-muted);">account</span>');
 
     var msg = "Filled in: " + parts.join(" · ") + ".";
     if (unsure.length) msg += ' I understood the rest, but I\'m not sure about ' + unsure.join(" and ") + " — please pick it below.";
@@ -8733,13 +8770,12 @@
   /* ================= Pay Yourself First modal ================= */
   function openPyfModal(tx, isFirstIncome) {
     var homeAmt = txAmountInHome(tx);
-    var ffaShare = homeAmt * ((state.jarPct.FFA || 0) / 100);
+    var splitShares = computeJarSplitAmounts(homeAmt);
     var acc = accountById(tx.accountId);
     var nativeNote = acc && isForeignAccount(acc) ? " (" + fmtMoneyIn(tx.amount, accountCurrency(acc)) + ")" : "";
-    $("pyfFfaAmt").textContent = fmtMoney(ffaShare);
+    $("pyfFfaAmt").textContent = fmtMoney(splitShares.FFA);
     $("pyfSplitList").innerHTML = JARS.map(function (j) {
-      var share = homeAmt * ((state.jarPct[j.key] || 0) / 100);
-      return '<div class="row"><span>' + j.name + '</span><span>' + fmtMoney(share) + '</span></div>';
+      return '<div class="row"><span>' + j.name + '</span><span>' + fmtMoney(splitShares[j.key]) + '</span></div>';
     }).join("");
     // First-ever income gets the "aha" framing (see PHASE 5/6 of the Aug 2026
     // activation round) instead of the regular Pay-Yourself-First reminder —
@@ -9176,7 +9212,14 @@
     });
   }
   function activateTab(tab) {
-    document.querySelectorAll("nav.tabs button").forEach(function (b) { b.classList.toggle("active", b.getAttribute("data-tab") === tab); });
+    document.querySelectorAll("nav.tabs button").forEach(function (b) {
+      var isActive = b.getAttribute("data-tab") === tab;
+      b.classList.toggle("active", isActive);
+      // aria-current alongside the visual class — screen readers and other
+      // assistive tech get no signal from a CSS class alone. See PHASE 26 of
+      // the Aug 2026 production-polish audit.
+      if (isActive) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+    });
     document.querySelectorAll("section.tab-panel").forEach(function (p) { p.classList.remove("active"); });
     $("panel-" + tab).classList.add("active");
     // Keep the group nav (and the filtered sub-nav row beneath it) in sync even
@@ -9184,7 +9227,11 @@
     // Your Attention jumping straight to "liabilities" without going through
     // the Wealth group button first.
     var group = tabGroupFor(tab);
-    document.querySelectorAll(".group-nav button[data-group]").forEach(function (b) { b.classList.toggle("active", b.getAttribute("data-group") === group.key); });
+    document.querySelectorAll(".group-nav button[data-group]").forEach(function (b) {
+      var isActiveGroup = b.getAttribute("data-group") === group.key;
+      b.classList.toggle("active", isActiveGroup);
+      if (isActiveGroup) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+    });
     document.querySelectorAll("nav.tabs button[data-tab]").forEach(function (b) {
       b.style.display = group.tabs.indexOf(b.getAttribute("data-tab")) !== -1 ? "" : "none";
     });
@@ -10265,6 +10312,30 @@
      window.confirm() can be blocked (or auto-return false) in sandboxed iframes
      without "allow-modals". This in-page dialog works the same way everywhere. */
   var confirmCallback = null;
+  // ================= Modal accessibility (Aug 2026 production-polish audit) =================
+  // Two small, safe additions that apply to EVERY existing modal (there are ~15+
+  // across the app, all built on the same .modal-overlay/.show pattern) without
+  // touching each one's markup or JS individually:
+  //   1. role="dialog" + aria-modal="true" on every modal box, once at init —
+  //      screen readers get no signal that an overlay is a dialog otherwise.
+  //   2. Escape closes whichever modal is currently open, by dispatching a
+  //      real click on the overlay itself — every modal already has a
+  //      "click the backdrop to close" handler (`if (evt.target === overlay)`),
+  //      so this reuses each modal's own existing close logic (including any
+  //      side effects, e.g. the onboarding tour's dismissal flag) instead of
+  //      duplicating ~15 different close functions here.
+  function setupModalAccessibility() {
+    document.querySelectorAll(".modal-overlay > .modal").forEach(function (el) {
+      if (!el.hasAttribute("role")) el.setAttribute("role", "dialog");
+      el.setAttribute("aria-modal", "true");
+    });
+    document.addEventListener("keydown", function (evt) {
+      if (evt.key !== "Escape") return;
+      var openOverlay = document.querySelector(".modal-overlay.show");
+      if (openOverlay) openOverlay.click();
+    });
+  }
+
   function confirmDialog(message, onConfirm) {
     $("confirmModalMsg").textContent = message;
     confirmCallback = onConfirm;
@@ -10653,7 +10724,12 @@
       if (evt.key !== "Enter" && evt.key !== " ") return;
       var el = document.activeElement;
       if (!el) return;
-      if ((el.hasAttribute && el.hasAttribute("data-breakdown")) || (el.classList && el.classList.contains("drillable"))) { evt.preventDefault(); el.click(); }
+      // .cat-picker-tile (category/source picker grid, used from Add Transaction
+      // and its edit modals) has tabindex="0" role="button" but was previously
+      // missing from this list — a keyboard-only user could Tab to a tile but
+      // Enter/Space did nothing, so there was no way to pick a category without
+      // a mouse. See PHASE 26 of the Aug 2026 production-polish audit.
+      if ((el.hasAttribute && el.hasAttribute("data-breakdown")) || (el.classList && (el.classList.contains("drillable") || el.classList.contains("cat-picker-tile")))) { evt.preventDefault(); el.click(); }
     });
   }
 
@@ -11310,6 +11386,18 @@
   function applyImportedState(incoming) {
     if (!incoming || !Array.isArray(incoming.transactions)) throw new Error("That backup doesn't look valid.");
     cloudSuppressAutoSave = true;
+    // Everything below is wrapped in try/finally purely so cloudSuppressAutoSave
+    // can never get stuck "true" — if anything in here throws partway (a
+    // malformed backup shape, a render bug on unusual imported data), the
+    // finally still restores it, so Cloud Sync doesn't silently stop saving
+    // for the rest of the session. See Aug 2026 production-polish audit.
+    try {
+      applyImportedStateBody(incoming);
+    } finally {
+      cloudSuppressAutoSave = false;
+    }
+  }
+  function applyImportedStateBody(incoming) {
     state.transactions = incoming.transactions || [];
     state.accounts = incoming.accounts || [];
     state.liabilities = incoming.liabilities || [];
@@ -11346,7 +11434,6 @@
     runDueRecurringTemplates();
     renderTxNoteHistory();
     renderAll();
-    cloudSuppressAutoSave = false;
     syncProStatus();
   }
 
@@ -11753,7 +11840,7 @@
       pendingInvites = (results[1] && !results[1].error && results[1].data) ? results[1].data : [];
       myMemberships = (results[2] && !results[2].error && results[2].data) ? results[2].data : [];
       renderHousehold();
-    });
+    }).catch(function () { toast("Couldn't load household data — check your connection and try again.", "error"); });
   }
 
   function inviteMember(email) {
@@ -11778,8 +11865,8 @@
         toast("Invite sent — they'll see it once they sign in to Finora with that email.", "good");
         if ($("householdInviteEmail")) $("householdInviteEmail").value = "";
         loadHouseholdData();
-      });
-    });
+      }).catch(function () { toast("Couldn't send invite — check your connection and try again.", "error"); });
+    }).catch(function () { toast("Couldn't send invite — check your connection and try again.", "error"); });
   }
 
   function revokeMember(id) {
@@ -11788,7 +11875,7 @@
         if (res.error) { toast("Couldn't revoke: " + res.error.message, "error"); return; }
         toast("Access revoked.", "good");
         loadHouseholdData();
-      });
+      }).catch(function () { toast("Couldn't revoke — check your connection and try again.", "error"); });
     });
   }
 
@@ -11798,7 +11885,7 @@
       if (!res.data) { toast("This invite is no longer available.", "error"); return; }
       toast("Invite accepted — you can switch to " + (ownerEmail || "their") + " household below.", "good");
       loadHouseholdData();
-    });
+    }).catch(function () { toast("Couldn't accept invite — check your connection and try again.", "error"); });
   }
 
   function renderHousehold() {
@@ -11893,7 +11980,7 @@
         cloudSession = res.data.session;
         bootstrapSignedInSession();
         toast("Signed in.", "good");
-      });
+      }).catch(function (e) { toast("Sign in failed — check your connection and try again." + (e && e.message ? " (" + e.message + ")" : ""), "error"); });
     });
     $("cloudSignUpBtn").addEventListener("click", function () {
       var email = $("cloudEmail").value.trim(), pw = $("cloudPassword").value;
@@ -11910,7 +11997,7 @@
         } else {
           toast("Account created — check your email to confirm it, then sign in.", "good");
         }
-      });
+      }).catch(function (e) { toast("Sign up failed — check your connection and try again." + (e && e.message ? " (" + e.message + ")" : ""), "error"); });
     });
     $("cloudForgotPasswordBtn").addEventListener("click", function () {
       var email = $("cloudEmail").value.trim();
@@ -11918,7 +12005,7 @@
       supaClient.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + window.location.pathname }).then(function (res) {
         if (res.error) { toast("Couldn't send reset email: " + res.error.message, "error"); return; }
         toast("Password reset email sent — check your inbox.", "good");
-      });
+      }).catch(function (e) { toast("Couldn't send reset email — check your connection and try again." + (e && e.message ? " (" + e.message + ")" : ""), "error"); });
     });
     $("cloudRecoverySubmitBtn").addEventListener("click", function () {
       var pw = $("cloudRecoveryPassword").value;
@@ -11930,7 +12017,7 @@
         $("cloudRecoveryPassword").value = "";
         toast("Password updated — you're signed in.", "good");
         bootstrapSignedInSession();
-      });
+      }).catch(function (e) { toast("Couldn't update password — check your connection and try again." + (e && e.message ? " (" + e.message + ")" : ""), "error"); });
     });
 
     // Passwordless: a 6-digit code emailed to you stands in for a password entirely,
@@ -11943,7 +12030,7 @@
         toast("Code sent — check your email.", "good");
         $("cloudOtpCodeBox").style.display = "block";
         $("cloudOtpEmail").disabled = true;
-      });
+      }).catch(function (e) { toast("Couldn't send code — check your connection and try again." + (e && e.message ? " (" + e.message + ")" : ""), "error"); });
     });
     $("cloudOtpResendBtn").addEventListener("click", function () { $("cloudOtpEmail").disabled = false; $("cloudOtpSendBtn").click(); });
     $("cloudOtpVerifyBtn").addEventListener("click", function () {
@@ -11957,7 +12044,7 @@
         $("cloudOtpCodeBox").style.display = "none";
         bootstrapSignedInSession();
         toast("Signed in.", "good");
-      });
+      }).catch(function (e) { toast("Invalid or expired code — check your connection and try again." + (e && e.message ? " (" + e.message + ")" : ""), "error"); });
     });
 
     // Google needs its provider enabled in Supabase (Authentication → Providers →
@@ -11966,7 +12053,7 @@
     $("cloudGoogleSignInBtn").addEventListener("click", function () {
       supaClient.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin + window.location.pathname } }).then(function (res) {
         if (res.error) { toast("Google sign-in failed: " + res.error.message, "error"); }
-      });
+      }).catch(function (e) { toast("Google sign-in failed — check your connection and try again." + (e && e.message ? " (" + e.message + ")" : ""), "error"); });
     });
 
     function performCloudSignOut() {
@@ -12423,6 +12510,7 @@
     applySavedThemePrefs();
     renderCurrencySelect();
     setupTxForm();
+    setupModalAccessibility();
     setupNeedsAttention();
     setupTabs();
     setupGroupNav();
