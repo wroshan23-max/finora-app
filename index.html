@@ -1721,7 +1721,7 @@
         </table>
       </div>
       <div class="tx-card-list" id="txCardList"></div>
-      <div class="empty-state" id="txEmptyState" style="display:none;">No transactions yet — add your first one from the Dashboard tab.</div>
+      <div class="empty-state" id="txEmptyState" style="display:none;">Nothing recorded yet. Add your first income or expense from the Dashboard tab to start understanding your spending.</div>
     </div>
   </section>
 
@@ -1854,7 +1854,7 @@
     <div class="card">
       <h2>Your Accounts</h2>
       <div class="account-grid" id="accountGrid"></div>
-      <div class="empty-state" id="accountEmptyState" style="display:none;">No accounts yet — add your first Cash or Bank account above.</div>
+      <div class="empty-state" id="accountEmptyState" style="display:none;">Your financial picture starts here. Add your first Cash or Bank account above so Finora can calculate your Net Worth.</div>
     </div>
   </section>
 
@@ -1904,7 +1904,7 @@
         <button type="button" class="ghost small" id="assetsViewReportBtn">📊 View Report</button>
       </div>
       <div class="liability-grid" id="otherAssetGrid"></div>
-      <div class="empty-state" id="otherAssetEmptyState" style="display:none;">No other assets yet — add property, a vehicle, gold, or anything else you own above.</div>
+      <div class="empty-state" id="otherAssetEmptyState" style="display:none;">Track what you own beyond your bank accounts. Add property, a vehicle, gold, or an investment above so it counts toward your real Net Worth.</div>
     </div>
   </section>
 
@@ -2140,7 +2140,7 @@
         <div class="field"><label>&nbsp;</label><button type="button" class="primary" id="goalAddBtn">Add Goal</button></div>
       </form>
       <div id="goalsList"></div>
-      <div class="empty-state" id="goalsEmptyState" style="display:none;">No savings goals yet — add one above.</div>
+      <div class="empty-state" id="goalsEmptyState" style="display:none;">Give your money a purpose. Create a savings goal above and Finora will track your progress toward it automatically.</div>
       <p class="hint" id="goalsOverAllocatedWarning" style="display:none;margin-top:8px;margin-bottom:0;"></p>
     </div>
 
@@ -5283,13 +5283,26 @@
     var savingsNote = totals.income > 0
       ? "You saved " + totals.savingsRate.toFixed(0) + "% of your income."
       : "Add some income to start measuring this.";
+    // "Could improve" hint — only added when it's a real number derived from
+    // data already in scope (never a guess at future income), and always
+    // hedged as "could" rather than a guaranteed outcome.
+    if (totals.income > 0 && totals.savingsRate < 20) {
+      var neededExtra = totals.income * 0.20 - totals.balance;
+      if (neededExtra > 0) savingsNote += " Saving about " + fmtMoney(neededExtra) + " more a month could move you toward the 20% target.";
+    }
     var netWorthNote;
     if (nw.assets <= 0 && totalDebt <= 0) netWorthNote = "Add an account to start tracking this.";
     else if (nw.assets <= 0) netWorthNote = "Your debt currently exceeds your tracked assets.";
-    else netWorthNote = totalDebt <= 0 ? "You have no debt weighing on your assets." : (Math.round((totalDebt / nw.assets) * 100) + "% of your assets are offset by debt.");
+    else {
+      netWorthNote = totalDebt <= 0 ? "You have no debt weighing on your assets." : (Math.round((totalDebt / nw.assets) * 100) + "% of your assets are offset by debt.");
+      if (totalDebt > 0) netWorthNote += " Paying down debt or growing your assets could improve this.";
+    }
     var debtNote;
     if (state.liabilities.length === 0) debtNote = "You have no liabilities on record.";
-    else debtNote = plan.possible ? ("On your current plan, about " + plan.months + " months to debt-free.") : "At your current extra payment, this isn't on track to clear — see the Debt Settlement Planner.";
+    else {
+      debtNote = plan.possible ? ("On your current plan, about " + plan.months + " months to debt-free.") : "At your current extra payment, this isn't on track to clear — see the Debt Settlement Planner.";
+      if (plan.possible && !(state.settlement.extraPayment > 0)) debtNote += " Adding even a small extra payment each month could shorten this.";
+    }
 
     return {
       score: score, band: band, bandColor: bandColor,
@@ -5570,6 +5583,31 @@
     return items.sort(function (a, b) { return order[a.severity] - order[b.severity]; });
   }
 
+  // "Next Best Action" — one plain-language suggestion for what to do next,
+  // based purely on what the user has and hasn't done yet. Deliberately only
+  // shown when computeNeedsAttention() has nothing real to report (see
+  // renderNeedsAttention() below) so there is never more than ONE primary
+  // recommendation on the dashboard at a time — no separate card, no
+  // competing with a real due-date/budget warning.
+  function computeNextBestAction() {
+    if (state.accounts.length === 0) {
+      return { text: "Your financial picture starts here. Add your first account so Finora can calculate your Net Worth.", cta: "Add account", tab: "accounts" };
+    }
+    var hasIncome = state.transactions.some(function (t) { return t.type === "income"; });
+    if (!hasIncome) {
+      return { text: "You've added an account — add your first income to start using the 6 Jars system.", cta: "Add income", action: "income" };
+    }
+    var hasExpense = state.transactions.some(function (t) { return t.type === "expense"; });
+    if (!hasExpense) {
+      return { text: "Your income is recorded. Add a few expenses to see where your money is actually going.", cta: "Add expense", action: "expense" };
+    }
+    var hasGoal = (state.savingsGoals || []).length > 0;
+    if (!hasGoal) {
+      return { text: "You're tracking your money well. Want to give some of it a purpose?", cta: "Create a savings goal", tab: "jars" };
+    }
+    return { text: "You're on track — nothing urgent right now. Take a look at your Insights below to see where you could improve.", cta: "View insights", scrollTo: "insightsCard" };
+  }
+
   // Non-persisted — resets to collapsed on every full reload/re-render pass,
   // which is fine: it's just "did the user ask to see the rest this visit."
   var attentionExpanded = false;
@@ -5580,7 +5618,13 @@
     if (!list) return;
     var items = computeNeedsAttention();
     if (items.length === 0) {
-      list.innerHTML = '<div class="all-caught-up">✅ All caught up — nothing needs your attention right now.</div>';
+      var nba = computeNextBestAction();
+      var nbaBtn = nba.tab ? ('<button class="ghost small" data-goto-tab="' + nba.tab + '">' + escapeHtml(nba.cta) + '</button>')
+        : nba.action ? ('<button class="ghost small" data-nba-action="' + nba.action + '">' + escapeHtml(nba.cta) + '</button>')
+        : nba.scrollTo ? ('<button class="ghost small" data-nba-scroll="' + nba.scrollTo + '">' + escapeHtml(nba.cta) + '</button>')
+        : "";
+      list.innerHTML = '<div class="all-caught-up">✅ All caught up — nothing urgent right now.</div>' +
+        '<div class="attention-item opportunity" style="margin-top:8px;"><span class="ic">💡</span><span>' + escapeHtml(nba.text) + '</span>' + nbaBtn + '</div>';
       if (moreBtn) moreBtn.style.display = "none";
       return;
     }
@@ -5607,6 +5651,18 @@
     $("attentionViewAllBtn").addEventListener("click", function () {
       attentionExpanded = !attentionExpanded;
       renderNeedsAttention();
+    });
+    // Next Best Action buttons — reuse the exact same quickAdd()/scroll
+    // mechanisms already used elsewhere (the Add Data launcher, etc.), never
+    // a new transaction/save path of their own.
+    $("attentionList").addEventListener("click", function (evt) {
+      var actionBtn = evt.target.closest ? evt.target.closest("[data-nba-action]") : null;
+      if (actionBtn) { quickAdd(actionBtn.getAttribute("data-nba-action")); return; }
+      var scrollBtn = evt.target.closest ? evt.target.closest("[data-nba-scroll]") : null;
+      if (scrollBtn) {
+        var target = $(scrollBtn.getAttribute("data-nba-scroll"));
+        if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
     });
   }
 
@@ -5640,6 +5696,11 @@
     var topCat = null, topAmt = 0;
     Object.keys(catSpent).forEach(function (c) { if (catSpent[c] > topAmt) { topAmt = catSpent[c]; topCat = c; } });
     if (topCat) insights.push({ type: "attention", icon: "🛒", headline: "Your biggest spending category this month is " + escapeHtml(topCat), detail: fmtMoney(topAmt) + " so far this month." });
+    // Most-important-first: a critical change should never sit below a "well
+    // done" — sort by severity before the cap, don't just show them in
+    // whatever order they happened to be computed.
+    var order = { critical: 0, attention: 1, positive: 2 };
+    insights.sort(function (a, b) { return order[a.type] - order[b.type]; });
     return insights.slice(0, 5);
   }
 
