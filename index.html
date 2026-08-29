@@ -1301,6 +1301,7 @@
     <div class="card" id="attentionCard">
       <h2>🔔 Needs Your Attention</h2>
       <div class="attention-list" id="attentionList"></div>
+      <button type="button" class="ghost small" id="attentionViewAllBtn" style="display:none;margin-top:8px;"></button>
     </div>
 
     <div class="card" id="insightsCard">
@@ -5275,11 +5276,27 @@
     var band = score >= 80 ? "Excellent" : score >= 60 ? "Good" : score >= 40 ? "Needs Attention" : "At Risk";
     var bandColor = score >= 80 ? "var(--status-good)" : score >= 60 ? "var(--good)" : score >= 40 ? "var(--status-warning)" : "var(--status-critical)";
 
+    // One plain-English line per component, derived only from numbers already
+    // computed above (totals.savingsRate, nw.assets/totalDebt, plan.months) —
+    // no new math, just explaining the score instead of leaving it as raw
+    // "X/40" numbers, which reads as arbitrary.
+    var savingsNote = totals.income > 0
+      ? "You saved " + totals.savingsRate.toFixed(0) + "% of your income."
+      : "Add some income to start measuring this.";
+    var netWorthNote;
+    if (nw.assets <= 0 && totalDebt <= 0) netWorthNote = "Add an account to start tracking this.";
+    else if (nw.assets <= 0) netWorthNote = "Your debt currently exceeds your tracked assets.";
+    else netWorthNote = totalDebt <= 0 ? "You have no debt weighing on your assets." : (Math.round((totalDebt / nw.assets) * 100) + "% of your assets are offset by debt.");
+    var debtNote;
+    if (state.liabilities.length === 0) debtNote = "You have no liabilities on record.";
+    else debtNote = plan.possible ? ("On your current plan, about " + plan.months + " months to debt-free.") : "At your current extra payment, this isn't on track to clear — see the Debt Settlement Planner.";
+
     return {
       score: score, band: band, bandColor: bandColor,
       savingsComponent: Math.round(savingsComponent),
       netWorthComponent: Math.round(netWorthComponent),
-      debtComponent: Math.round(debtComponent)
+      debtComponent: Math.round(debtComponent),
+      savingsNote: savingsNote, netWorthNote: netWorthNote, debtNote: debtNote
     };
   }
 
@@ -5340,9 +5357,9 @@
     bandEl.textContent = h.band;
     bandEl.style.color = h.bandColor;
     breakdownEl.innerHTML =
-      '<div>Savings Rate: ' + h.savingsComponent + '/40</div>' +
-      '<div>Net Worth Health: ' + h.netWorthComponent + '/30</div>' +
-      '<div>Debt Payoff Progress: ' + h.debtComponent + '/30</div>';
+      '<div style="margin-bottom:6px;"><strong>Savings Rate — ' + h.savingsComponent + '/40</strong><br><span style="color:var(--text-secondary);">' + escapeHtml(h.savingsNote) + '</span></div>' +
+      '<div style="margin-bottom:6px;"><strong>Net Worth Health — ' + h.netWorthComponent + '/30</strong><br><span style="color:var(--text-secondary);">' + escapeHtml(h.netWorthNote) + '</span></div>' +
+      '<div><strong>Debt Payoff Progress — ' + h.debtComponent + '/30</strong><br><span style="color:var(--text-secondary);">' + escapeHtml(h.debtNote) + '</span></div>';
   }
 
   function renderNetWorth() {
@@ -5553,41 +5570,76 @@
     return items.sort(function (a, b) { return order[a.severity] - order[b.severity]; });
   }
 
+  // Non-persisted — resets to collapsed on every full reload/re-render pass,
+  // which is fine: it's just "did the user ask to see the rest this visit."
+  var attentionExpanded = false;
+  var ATTENTION_VISIBLE_CAP = 3;
   function renderNeedsAttention() {
     var list = $("attentionList");
+    var moreBtn = $("attentionViewAllBtn");
     if (!list) return;
     var items = computeNeedsAttention();
-    if (items.length === 0) { list.innerHTML = '<div class="all-caught-up">✅ All caught up — nothing needs your attention right now.</div>'; return; }
-    list.innerHTML = items.map(function (it) {
+    if (items.length === 0) {
+      list.innerHTML = '<div class="all-caught-up">✅ All caught up — nothing needs your attention right now.</div>';
+      if (moreBtn) moreBtn.style.display = "none";
+      return;
+    }
+    var visible = attentionExpanded ? items : items.slice(0, ATTENTION_VISIBLE_CAP);
+    list.innerHTML = visible.map(function (it) {
       return '<div class="attention-item ' + it.severity + '"><span class="ic">' + it.icon + '</span><span>' + it.text + '</span>' +
         '<button class="ghost small" data-goto-tab="' + it.tab + '">View</button></div>';
     }).join("");
+    if (moreBtn) {
+      var remaining = items.length - ATTENTION_VISIBLE_CAP;
+      if (remaining > 0 && !attentionExpanded) {
+        moreBtn.style.display = "inline-block";
+        moreBtn.textContent = "View all (" + items.length + ")";
+      } else if (attentionExpanded && items.length > ATTENTION_VISIBLE_CAP) {
+        moreBtn.style.display = "inline-block";
+        moreBtn.textContent = "Show less";
+      } else {
+        moreBtn.style.display = "none";
+      }
+    }
+  }
+  function setupNeedsAttention() {
+    if (!$("attentionViewAllBtn")) return;
+    $("attentionViewAllBtn").addEventListener("click", function () {
+      attentionExpanded = !attentionExpanded;
+      renderNeedsAttention();
+    });
   }
 
   // Short, auto-generated observations from data Finora already tracks — not
   // financial advice, just plain-language pointers to what changed recently.
+  // Each insight is a plain-language headline (the observation) plus one
+  // supporting detail line (the context: compared with what, and why it
+  // matters) — rendered as two lines instead of one dense run-on sentence.
+  // Everything here is rule-based off numbers Finora already tracks, never a
+  // model call, which is why the card is labeled plainly as "Finora Insights"
+  // rather than implying AI.
   function computeFinoraInsights() {
     var insights = [];
     if (state.accounts.length === 0) return insights;
     var s = computeMonthlySummary();
     if (s.income > 0) {
-      if (s.savingsRate >= 20) insights.push({ type: "positive", icon: "🎯", text: "Your savings rate this month is " + s.savingsRate.toFixed(0) + "% — at or above the recommended 20%. Well done!" });
-      else insights.push({ type: "attention", icon: "🎯", text: "Your savings rate this month is " + s.savingsRate.toFixed(0) + "% — below the recommended 20%." });
+      if (s.savingsRate >= 20) insights.push({ type: "positive", icon: "🎯", headline: "Savings rate: " + s.savingsRate.toFixed(0) + "% this month", detail: "At or above the recommended 20% — well done." });
+      else insights.push({ type: "attention", icon: "🎯", headline: "Savings rate: " + s.savingsRate.toFixed(0) + "% this month", detail: "Below the recommended 20%." });
     }
     if (s.expenseChange !== null) {
-      if (s.expenseChange <= -10) insights.push({ type: "positive", icon: "📉", text: "Expenses are down " + Math.abs(s.expenseChange).toFixed(0) + "% vs. last month — nice work keeping spending in check." });
-      else if (s.expenseChange >= 20) insights.push({ type: "critical", icon: "📈", text: "Expenses are up " + s.expenseChange.toFixed(0) + "% vs. last month." });
+      if (s.expenseChange <= -10) insights.push({ type: "positive", icon: "📉", headline: "Expenses down " + Math.abs(s.expenseChange).toFixed(0) + "%", detail: "Compared with last month — nice work keeping spending in check." });
+      else if (s.expenseChange >= 20) insights.push({ type: "critical", icon: "📈", headline: "Expenses up " + s.expenseChange.toFixed(0) + "%", detail: "Compared with last month." });
     }
     var history = computeNetWorthHistory(2);
     if (history.length === 2) {
       var change = history[1].value - history[0].value;
-      if (change > 0) insights.push({ type: "positive", icon: "💰", text: "Your net worth grew by " + fmtMoney(change) + " over the last month." });
-      else if (change < 0) insights.push({ type: "attention", icon: "💰", text: "Your net worth dropped by " + fmtMoney(Math.abs(change)) + " over the last month." });
+      if (change > 0) insights.push({ type: "positive", icon: "💰", headline: "Net worth grew by " + fmtMoney(change), detail: "Over the last month." });
+      else if (change < 0) insights.push({ type: "attention", icon: "💰", headline: "Net worth dropped by " + fmtMoney(Math.abs(change)), detail: "Over the last month." });
     }
     var catSpent = computeMonthCategorySpent();
     var topCat = null, topAmt = 0;
     Object.keys(catSpent).forEach(function (c) { if (catSpent[c] > topAmt) { topAmt = catSpent[c]; topCat = c; } });
-    if (topCat) insights.push({ type: "attention", icon: "🛒", text: "Your biggest spending category this month is " + escapeHtml(topCat) + " at " + fmtMoney(topAmt) + "." });
+    if (topCat) insights.push({ type: "attention", icon: "🛒", headline: "Your biggest spending category this month is " + escapeHtml(topCat), detail: fmtMoney(topAmt) + " so far this month." });
     return insights.slice(0, 5);
   }
 
@@ -5597,7 +5649,8 @@
     var insights = computeFinoraInsights();
     if (insights.length === 0) { list.innerHTML = '<div class="all-caught-up">Add a few transactions and check back here for personalized insights.</div>'; return; }
     list.innerHTML = insights.map(function (i) {
-      return '<div class="insight-item ' + i.type + '"><span class="ic">' + i.icon + '</span><span>' + i.text + '</span></div>';
+      return '<div class="insight-item ' + i.type + '"><span class="ic">' + i.icon + '</span>' +
+        '<span><div style="font-weight:600;">' + i.headline + '</div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + i.detail + '</div></span></div>';
     }).join("");
   }
 
@@ -5625,7 +5678,7 @@
     var tiles = [
       { label: "Main Balance (visible accounts)", value: fmtMoney(mainBal), cls: mainBal >= 0 ? "good" : "bad", breakdown: "account" },
       { label: "Total Income", value: fmtMoney(t.income), cls: "good", breakdown: "income" },
-      { label: "Total Expense", value: fmtMoney(t.expense), cls: "bad", breakdown: "expense" },
+      { label: "Spent", value: fmtMoney(t.expense), cls: "bad", breakdown: "expense" },
       { label: "Savings Rate", value: (t.income > 0 ? t.savingsRate.toFixed(1) : "0.0") + "%",
         cls: t.savingsRate >= 20 ? "good" : (t.savingsRate < 0 ? "bad" : ""),
         sub: t.income > 0 ? (t.savingsRate >= 20 ? "Healthy — Eker recommends 20%+" : "Aim for 20%+ (FFA + LTSS)") : "Add income to see this" }
@@ -5937,7 +5990,7 @@
       '<div>Income: ' + fmtMoney(current.income) + '</div>' +
       '<div>Expense: ' + fmtMoney(current.expense) + '</div>' +
       '<div>Savings Rate: ' + (current.income > 0 ? current.savingsRate.toFixed(1) : "0.0") + '%</div>' +
-      (top.length ? '<div style="margin-top:8px;">Top category: <strong>' + escapeHtml(top[0].label) + '</strong> (' + fmtMoney(top[0].value) + ')</div>' : "");
+      (top.length ? '<div style="margin-top:8px;">Your biggest spending category: <strong>' + escapeHtml(top[0].label) + '</strong> (' + fmtMoney(top[0].value) + ')</div>' : "");
 
     renderReportAdvanced(startDate, endExclusive, periodLabel, current);
   }
@@ -8346,6 +8399,21 @@
   // which runs all of its normal validation. If a field can't be confidently
   // matched, it's left blank rather than guessed, so nothing wrong gets
   // silently submitted.
+  // Finds an account mentioned in a snippet of text — by exact name match
+  // first, then by a generic type keyword (cash/bank/card) as a fallback.
+  // Shared between the plain expense/income path and the transfer path below
+  // so both match accounts the same way.
+  function findAccountInText(snippet) {
+    var lower = snippet.toLowerCase();
+    var matched = state.accounts.filter(function (a) { return lower.indexOf(a.name.toLowerCase()) !== -1; })[0];
+    if (!matched) {
+      if (/\bcash\b/.test(lower)) matched = state.accounts.filter(function (a) { return a.type === "cash"; })[0];
+      else if (/\bcard\b|\bcredit\b/.test(lower)) matched = state.accounts.filter(function (a) { return a.type === "creditcard"; })[0];
+      else if (/\bbank\b/.test(lower)) matched = state.accounts.filter(function (a) { return a.type === "bank"; })[0];
+    }
+    return matched || null;
+  }
+
   function parseNaturalLanguageTransaction(raw) {
     var text = (raw || "").trim();
     if (!text) return null;
@@ -8358,6 +8426,24 @@
     // alternative, silently truncating the amount.
     var amountMatch = text.match(/\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?/);
     if (amountMatch) result.amount = parseFloat(amountMatch[0].replace(/,/g, ""));
+
+    // Transfer ("transfer 25000 from HNB to cash") is checked first and
+    // handled as its own branch — it's money moving between the user's own
+    // accounts, a completely different form (#tfFrom/#tfTo/#tfAmount) from
+    // income/expense, never a category or income source.
+    if (/\btransfer(red|ring)?\b/.test(lower) && /\bto\b/.test(lower)) {
+      result.type = "transfer";
+      var toSplit = lower.split(/\bto\b/);
+      var fromPart = (toSplit[0] || "").replace(/\bfrom\b/, " ");
+      var toPart = toSplit.slice(1).join(" to ");
+      var fromAcc = findAccountInText(fromPart);
+      var toAcc = findAccountInText(toPart);
+      result.fromAccountId = fromAcc ? fromAcc.id : null;
+      result.fromAccountName = fromAcc ? fromAcc.name : null;
+      result.toAccountId = toAcc ? toAcc.id : null;
+      result.toAccountName = toAcc ? toAcc.name : null;
+      return result;
+    }
 
     var matchedSourceName = null;
     Object.keys(NL_SOURCE_KEYWORDS).some(function (kw) {
@@ -8384,21 +8470,33 @@
       }
     }
 
-    var matchedAccount = state.accounts.filter(function (a) { return lower.indexOf(a.name.toLowerCase()) !== -1; })[0];
-    if (!matchedAccount) {
-      if (/\bcash\b/.test(lower)) matchedAccount = state.accounts.filter(function (a) { return a.type === "cash"; })[0];
-      else if (/\bcard\b|\bcredit\b/.test(lower)) matchedAccount = state.accounts.filter(function (a) { return a.type === "creditcard"; })[0];
-      else if (/\bbank\b/.test(lower)) matchedAccount = state.accounts.filter(function (a) { return a.type === "bank"; })[0];
-    }
+    var matchedAccount = findAccountInText(text);
     if (matchedAccount) { result.accountId = matchedAccount.id; result.accountName = matchedAccount.name; }
 
     return result;
   }
 
-  // Fills the real transaction form from a parsed result — reuses setTxType()/
-  // setPickerTargetValue() exactly as the existing UI does, so nothing about
-  // how a transaction actually gets saved changes. Never calls submitTxForm().
+  // Fills the real transaction (or transfer) form from a parsed result —
+  // reuses setTxType()/setPickerTargetValue()/activateTab() exactly as the
+  // existing UI does, so nothing about how a transaction or transfer actually
+  // gets saved changes. Never calls submitTxForm() or the transfer submit
+  // handler — the user always taps the real button themselves.
   function applyNlParseToForm(parsed) {
+    if (parsed.type === "transfer") {
+      activateTab("transfers");
+      setTimeout(function () {
+        if (parsed.amount) { $("tfAmount").value = parsed.amount; $("tfAmount").dispatchEvent(new Event("input", { bubbles: true })); }
+        if (parsed.fromAccountId) { $("tfFrom").value = parsed.fromAccountId; $("tfFrom").dispatchEvent(new Event("change", { bubbles: true })); }
+        if (parsed.toAccountId) { $("tfTo").value = parsed.toAccountId; $("tfTo").dispatchEvent(new Event("change", { bubbles: true })); }
+        var missing = [];
+        if (!parsed.amount) missing.push("the amount");
+        if (!parsed.fromAccountId) missing.push("which account it's from");
+        if (!parsed.toAccountId) missing.push("which account it's going to");
+        if (missing.length) toast("Got the transfer — I'm just not sure about " + missing.join(" and ") + ". Please fill that in below.", "good");
+        else toast("Transfer filled in below — review, then tap Transfer to save.", "good");
+      }, 120);
+      return;
+    }
     setTxType(parsed.type);
     if (parsed.amount) {
       $("txAmount").value = parsed.amount;
@@ -8413,13 +8511,25 @@
   }
 
   function renderNlPreview(parsed) {
+    // "Not sure about X" — named explicitly per field, rather than a vague
+    // generic message, so the user knows exactly what to check below.
+    var unsure = [];
+    if (!parsed.amount) unsure.push("the amount");
+    if (parsed.type === "expense" && !parsed.category) unsure.push("the category");
+    if (parsed.type === "income" && !parsed.source) unsure.push("the source");
+    if (!parsed.accountName) unsure.push("the account");
+
     var parts = [];
     parts.push('<strong>' + (parsed.type === "income" ? "Income" : "Expense") + '</strong>');
-    parts.push(parsed.amount ? fmtMoney(parsed.amount) : '<span style="color:var(--status-critical);">amount not found — enter it below</span>');
-    if (parsed.type === "expense") parts.push(parsed.category || '<span style="color:var(--text-muted);">pick a category below</span>');
-    if (parsed.type === "income") parts.push(parsed.source || '<span style="color:var(--text-muted);">pick a source below</span>');
-    parts.push(parsed.accountName || '<span style="color:var(--text-muted);">pick an account below</span>');
-    $("nlPreview").innerHTML = "Filled in: " + parts.join(" · ") + '. Review the form below, then tap <strong>Add</strong>.';
+    parts.push(parsed.amount ? fmtMoney(parsed.amount) : '<span style="color:var(--status-critical);">amount</span>');
+    if (parsed.type === "expense") parts.push(parsed.category || '<span style="color:var(--text-muted);">category</span>');
+    if (parsed.type === "income") parts.push(parsed.source || '<span style="color:var(--text-muted);">source</span>');
+    parts.push(parsed.accountName || '<span style="color:var(--text-muted);">account</span>');
+
+    var msg = "Filled in: " + parts.join(" · ") + ".";
+    if (unsure.length) msg += ' I understood the rest, but I\'m not sure about ' + unsure.join(" and ") + " — please pick it below.";
+    else msg += ' Review below, then tap <strong>Add</strong>.';
+    $("nlPreview").innerHTML = msg;
     $("nlPreview").style.display = "block";
   }
 
@@ -8430,8 +8540,11 @@
       var parsed = parseNaturalLanguageTransaction(text);
       if (!parsed) { $("nlPreview").style.display = "none"; return; }
       applyNlParseToForm(parsed);
-      renderNlPreview(parsed);
-      if (!parsed.amount) $("txAmount").focus();
+      if (parsed.type === "transfer") { $("nlPreview").style.display = "none"; }
+      else {
+        renderNlPreview(parsed);
+        if (!parsed.amount) $("txAmount").focus();
+      }
     }
     $("nlParseBtn").addEventListener("click", doParse);
     $("nlInput").addEventListener("keydown", function (evt) {
@@ -12139,6 +12252,7 @@
     applySavedThemePrefs();
     renderCurrencySelect();
     setupTxForm();
+    setupNeedsAttention();
     setupTabs();
     setupGroupNav();
     setupDelegatedEvents();
