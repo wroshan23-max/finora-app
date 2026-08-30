@@ -164,19 +164,23 @@
   .top-controls-wrap { position: relative; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .toolbar-toggle-btn { display: none; width: 34px; height: 34px; padding: 0; font-size: 18px; line-height: 1; border-radius: 50%; }
   body.toolbar-compact .toolbar-toggle-btn { display: inline-flex; align-items: center; justify-content: center; }
+  /* Opens as an actual dropdown menu — a narrow vertical column anchored under
+     the "⋯" toggle — rather than a wide horizontal strip of buttons, which
+     used to read as a stray floating row instead of a menu. See Aug 2026
+     toolbar-dropdown fix. */
   body.toolbar-compact .toolbar-drawer {
     position: absolute; top: calc(100% + 6px); right: 0; z-index: 320;
     background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-card, 12px);
-    box-shadow: var(--shadow-md); padding: 10px; flex-direction: row; flex-wrap: nowrap; align-items: center;
-    width: max-content; max-width: calc(100vw - 24px);
-    overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scrollbar-width: none;
-    max-height: 0; opacity: 0; pointer-events: none;
-    transition: max-height .18s ease, opacity .15s ease;
+    box-shadow: var(--shadow-md); padding: 6px; flex-direction: column; flex-wrap: nowrap; align-items: stretch;
+    width: 220px; max-width: calc(100vw - 24px);
+    overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    max-height: 0; opacity: 0; pointer-events: none; transform: translateY(-4px);
+    transition: max-height .18s ease, opacity .15s ease, transform .15s ease;
   }
   body.toolbar-compact .toolbar-drawer::-webkit-scrollbar { display: none; }
-  body.toolbar-compact .toolbar-drawer > * { flex-shrink: 0; }
+  body.toolbar-compact .toolbar-drawer > * { flex-shrink: 0; width: 100%; justify-content: flex-start; text-align: left; }
   body.toolbar-compact.toolbar-hover .toolbar-drawer, body.toolbar-compact.toolbar-pinned .toolbar-drawer {
-    max-height: 64px; opacity: 1; pointer-events: auto;
+    max-height: 320px; opacity: 1; pointer-events: auto; transform: translateY(0);
   }
   body.toolbar-compact #persistenceNote {
     max-height: 0; opacity: 0; overflow: hidden; padding: 0 12px; margin: 0 !important; border-width: 0;
@@ -1009,6 +1013,57 @@
   .onboarding-groups-preview { grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 16px 0 4px; }
   .onboarding-groups-preview .grp { border: 1px solid var(--border); border-radius: 12px; padding: 10px 4px; font-size: 11px; text-align: center; }
   .onboarding-groups-preview .grp .grp-ic { font-size: 20px; display: block; margin-bottom: 4px; }
+
+  /* ================= Onboarding: demo dashboard preview (Round 8) =================
+     A miniature, clearly-labeled example dashboard — plain static numbers,
+     never derived from or written to real state. */
+  .onboarding-demo-dashboard { margin: 14px 0 4px; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+  .onboarding-demo-badge {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--text-muted); text-align: center; padding: 5px 0; background: var(--page);
+    border-bottom: 1px solid var(--border);
+  }
+  .onboarding-demo-hero { padding: 12px 14px; background: linear-gradient(155deg, var(--series-1) 0%, #1d5aa8 100%); color: #fff; }
+  .onboarding-demo-hero .lbl { font-size: 10px; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.03em; }
+  .onboarding-demo-hero .val { font-size: 22px; font-weight: 800; margin-top: 2px; }
+  .onboarding-demo-hero .delta { font-size: 11px; opacity: 0.9; margin-top: 2px; }
+  .onboarding-demo-stats { display: grid; grid-template-columns: repeat(3, 1fr); }
+  .onboarding-demo-stats .stat { padding: 10px 6px; text-align: center; border-right: 1px solid var(--border); }
+  .onboarding-demo-stats .stat:last-child { border-right: none; }
+  .onboarding-demo-stats .stat .lbl { font-size: 10px; color: var(--text-muted); }
+  .onboarding-demo-stats .stat .val { font-size: 14px; font-weight: 700; margin-top: 2px; }
+
+  /* ================= Onboarding: interactive 6-Jar demo (Round 8) =================
+     The single most important "wow" moment — uses the app's REAL jar names,
+     colors and split logic (computeJarSplitAmounts()), just fed one fixed,
+     clearly-labeled demo income figure instead of real transaction data. */
+  .onboarding-jar-demo { margin: 14px 0 4px; text-align: center; }
+  .onboarding-jar-demo .jar-demo-income { font-size: 22px; font-weight: 800; margin: 4px 0 10px; }
+  .onboarding-jar-demo .jar-demo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; text-align: left; }
+  .onboarding-jar-demo .jar-demo-row {
+    display: flex; align-items: center; gap: 6px; border: 1px solid var(--border); border-radius: 10px;
+    padding: 7px 8px; font-size: 11px; opacity: 0; transform: translateY(4px);
+    animation: jarDemoRowIn .3s ease forwards; min-width: 0;
+  }
+  .onboarding-jar-demo .jar-demo-swatch { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .onboarding-jar-demo .jar-demo-row .jar-demo-label {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+  }
+  .onboarding-jar-demo .jar-demo-row .amt { margin-left: auto; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+  @media (max-width: 480px) {
+    .onboarding-jar-demo .jar-demo-grid { grid-template-columns: 1fr; }
+    .onboarding-jar-demo .jar-demo-row .jar-demo-label { overflow: visible; text-overflow: clip; white-space: normal; }
+  }
+  @keyframes jarDemoRowIn { to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .onboarding-jar-demo .jar-demo-row { animation: none; opacity: 1; transform: none; } }
+  .onboarding-jar-demo .jar-demo-tagline { font-size: 12px; color: var(--text-secondary); margin-top: 12px; }
+
+  /* ================= Onboarding: "bigger picture" feature grid (Round 8) ================= */
+  .onboarding-feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 14px 0 4px; }
+  .onboarding-feature-grid .feat { border: 1px solid var(--border); border-radius: 12px; padding: 10px; }
+  .onboarding-feature-grid .feat .feat-ic { font-size: 18px; }
+  .onboarding-feature-grid .feat .feat-title { font-size: 11.5px; font-weight: 700; margin: 4px 0 2px; }
+  .onboarding-feature-grid .feat .feat-desc { font-size: 10.5px; color: var(--text-secondary); line-height: 1.35; }
   .modal .ffa-highlight {
     background: var(--surface-2); border: 1px solid var(--series-2); border-radius: 10px;
     padding: 12px 14px; margin: 14px 0; text-align: center;
@@ -3049,6 +3104,19 @@
     <h2 id="onboardingTitle" style="text-align:center;"></h2>
     <p id="onboardingBody" style="text-align:center;"></p>
     <div class="onboarding-groups-preview" id="onboardingGroupsPreview" style="display:none;"></div>
+    <!-- Mini "example" dashboard preview (Round 8 first-impression upgrade) —
+         pure static demo numbers, never read from or written to state. See
+         renderOnboardingStep()/ONBOARDING_STEPS[0].showDemoDashboard. -->
+    <div class="onboarding-demo-dashboard" id="onboardingDemoPreview" style="display:none;"></div>
+    <!-- Interactive 6-Jar demo — the "wow" moment (Round 8). Uses the REAL
+         JARS list/colors/computeJarSplitAmounts() so the mechanic shown is
+         exactly what the real app does, fed a fixed demo income that is
+         clearly labeled and never touches state. -->
+    <div class="onboarding-jar-demo" id="onboardingJarDemo" style="display:none;"></div>
+    <!-- "See the bigger picture" feature grid — condensed merge of the
+         Round 8 prompt's "Why Finora" + "More than an expense tracker"
+         screens into one step, kept to 4 short cards. -->
+    <div class="onboarding-feature-grid" id="onboardingFeatureGrid" style="display:none;"></div>
     <div class="onboarding-progress" id="onboardingProgress"></div>
     <div class="modal-actions" style="justify-content:space-between;align-items:center;">
       <button type="button" class="ghost small" id="onboardingSkip">Skip</button>
@@ -10738,16 +10806,27 @@
      no accounts yet — added after the Aug 2026 UX audit found first-timers
      got nothing but a single hint line. Never shown again once dismissed
      (Skip or finishing the last step), tracked locally per browser. */
+  // Fixed demo figures for the welcome-tour preview widgets below — pure
+  // display constants, never read from or written to state.* (see the
+  // showDemoDashboard/showJarDemo containers in renderOnboardingStep()).
+  // Round 8 "First Impression" upgrade.
+  var ONBOARDING_DEMO_NET_WORTH = 1234567;
+  var ONBOARDING_DEMO_INCOME = 250000;
+  var ONBOARDING_DEMO_EXPENSE = 165000;
+  var ONBOARDING_DEMO_JAR_INCOME = 150000;
+
   var ONBOARDING_STEPS = [
     {
       emoji: "👋",
-      title: "Know where your money goes. Know what to do next.",
-      body: "Finora helps you organize your money, automatically split income into <strong>6 Jars</strong>, track spending, grow savings, and understand your financial health — all in one simple place."
+      title: "Know your money. Take control. Build your future.",
+      body: "Your personal money organizer and financial guide — organize income, track spending, grow savings, and understand your financial health, all in one simple place.",
+      showDemoDashboard: true
     },
     {
       emoji: "🏺",
-      title: "Meet your 6 Jars",
-      body: "<strong>Necessities</strong>, <strong>Financial Freedom</strong>, <strong>Long-Term Savings</strong>, <strong>Education</strong>, <strong>Play</strong>, and <strong>Give</strong>. Every time you log income, Finora splits it across these automatically — you can adjust the percentages anytime in Settings."
+      title: "What happens when you get paid?",
+      body: "The <strong>6 Jars</strong> system gives every rupee a purpose the moment it arrives. Tap below to see it in action.",
+      showJarDemo: true
     },
     {
       emoji: "🧭",
@@ -10756,18 +10835,68 @@
       showGroups: true
     },
     {
+      emoji: "🔭",
+      title: "Finora helps you see the bigger picture",
+      body: "Not just an expense tracker — a complete picture of where you stand.",
+      showFeatureGrid: true
+    },
+    {
       emoji: "🏦",
       title: "Start with your accounts",
       body: "Add your cash and bank accounts first — that's what Finora uses to calculate your Net Worth and lets you start logging income and expenses. Takes a few seconds."
-    },
-    {
-      emoji: "📊",
-      title: "Everything else follows",
-      body: "Once you're logging transactions, Finora tracks your Net Worth, savings goals, and liabilities automatically — and you can sign in anytime to back everything up to the cloud, free."
     }
   ];
   var onboardingStepIndex = 0;
   var onboardingAlreadyChecked = false;
+  var onboardingJarDemoRevealed = false;
+
+  function onboardingDemoDashboardHtml() {
+    return '<div class="onboarding-demo-badge">Example data — not your real numbers</div>' +
+      '<div class="onboarding-demo-hero">' +
+        '<div class="lbl">Net Worth</div>' +
+        '<div class="val">' + fmtMoney(ONBOARDING_DEMO_NET_WORTH) + '</div>' +
+        '<div class="delta">↑ 4.2%</div>' +
+      '</div>' +
+      '<div class="onboarding-demo-stats">' +
+        '<div class="stat"><div class="lbl">Income</div><div class="val">' + fmtMoney(ONBOARDING_DEMO_INCOME) + '</div></div>' +
+        '<div class="stat"><div class="lbl">Expenses</div><div class="val">' + fmtMoney(ONBOARDING_DEMO_EXPENSE) + '</div></div>' +
+        '<div class="stat"><div class="lbl">Saved</div><div class="val">' + fmtMoney(ONBOARDING_DEMO_INCOME - ONBOARDING_DEMO_EXPENSE) + '</div></div>' +
+      '</div>';
+  }
+
+  // Uses the REAL jar list/colors and the REAL computeJarSplitAmounts() split
+  // logic (same function the actual Pay Yourself First modal uses) — only the
+  // income figure is a fixed demo constant, clearly labeled, and this never
+  // touches state.transactions/state.jarPct.
+  function onboardingJarDemoHtml(revealed) {
+    var html = '<div class="jar-demo-income">Monthly Income: ' + fmtMoney(ONBOARDING_DEMO_JAR_INCOME) + '</div>';
+    if (!revealed) {
+      html += '<button type="button" class="primary" id="onboardingSeeJarsBtn">See my 6-Jar plan →</button>';
+      return html;
+    }
+    var shares = computeJarSplitAmounts(ONBOARDING_DEMO_JAR_INCOME);
+    html += '<div class="jar-demo-grid">' + JARS.map(function (j, i) {
+      return '<div class="jar-demo-row" style="animation-delay:' + (i * 0.06) + 's;">' +
+        '<span class="jar-demo-swatch" style="background:' + jarColor(j.key) + ';"></span>' +
+        '<span class="jar-demo-label">' + escapeHtml(j.name) + '</span>' +
+        '<span class="amt">' + fmtMoney(shares[j.key]) + '</span>' +
+        '</div>';
+    }).join("") + '</div>' +
+      '<div class="jar-demo-tagline">One income. Six purposes.<br>A better plan for your money.</div>';
+    return html;
+  }
+
+  function onboardingFeatureGridHtml() {
+    var feats = [
+      { ic: "💰", title: "Know", desc: "See where your money really goes." },
+      { ic: "🏺", title: "Organize", desc: "Give every rupee a purpose with the 6 Jars." },
+      { ic: "🎯", title: "Grow", desc: "Set goals and track your progress." },
+      { ic: "🧠", title: "Improve", desc: "Understand your financial health." }
+    ];
+    return feats.map(function (f) {
+      return '<div class="feat"><div class="feat-ic">' + f.ic + '</div><div class="feat-title">' + f.title + '</div><div class="feat-desc">' + f.desc + '</div></div>';
+    }).join("");
+  }
 
   function renderOnboardingStep() {
     var step = ONBOARDING_STEPS[onboardingStepIndex];
@@ -10785,6 +10914,27 @@
         groupsPreview.style.display = "none";
         groupsPreview.innerHTML = "";
       }
+    }
+    var demoPreview = $("onboardingDemoPreview");
+    if (demoPreview) {
+      if (step.showDemoDashboard) { demoPreview.style.display = "block"; demoPreview.innerHTML = onboardingDemoDashboardHtml(); }
+      else { demoPreview.style.display = "none"; demoPreview.innerHTML = ""; }
+    }
+    var jarDemo = $("onboardingJarDemo");
+    if (jarDemo) {
+      if (step.showJarDemo) {
+        onboardingJarDemoRevealed = false; // always start collapsed when (re)entering this step
+        jarDemo.style.display = "block";
+        jarDemo.innerHTML = onboardingJarDemoHtml(false);
+      } else {
+        jarDemo.style.display = "none";
+        jarDemo.innerHTML = "";
+      }
+    }
+    var featureGrid = $("onboardingFeatureGrid");
+    if (featureGrid) {
+      if (step.showFeatureGrid) { featureGrid.style.display = "grid"; featureGrid.innerHTML = onboardingFeatureGridHtml(); }
+      else { featureGrid.style.display = "none"; featureGrid.innerHTML = ""; }
     }
     var progress = $("onboardingProgress");
     if (progress) {
@@ -10840,7 +10990,14 @@
     });
     $("onboardingSkip").addEventListener("click", dismissOnboarding);
     $("onboardingModal").addEventListener("click", function (evt) {
-      if (evt.target === $("onboardingModal")) dismissOnboarding();
+      if (evt.target === $("onboardingModal")) { dismissOnboarding(); return; }
+      // #onboardingSeeJarsBtn is re-created inside onboardingJarDemo's innerHTML
+      // on every render, so it's handled here via delegation rather than a
+      // direct listener that would be lost on re-render.
+      if (evt.target.closest && evt.target.closest("#onboardingSeeJarsBtn")) {
+        onboardingJarDemoRevealed = true;
+        $("onboardingJarDemo").innerHTML = onboardingJarDemoHtml(true);
+      }
     });
   }
 
