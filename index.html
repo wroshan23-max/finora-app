@@ -1498,6 +1498,13 @@
           <label id="accountFieldLabel" for="txAccount">Account</label>
           <select id="txAccount"></select>
         </div>
+        <div class="field" id="txBankFeeWrap" style="display:none;">
+          <label for="txBankFee">Bank charge (if paid by transfer, optional)</label>
+          <div style="display:flex;gap:6px;">
+            <input type="text" inputmode="decimal" id="txBankFee" placeholder="e.g. 50" style="flex:1;min-width:0;">
+            <button type="button" class="ghost" data-keypad-for="txBankFee" title="Open number pad" aria-label="Open number pad">🔢</button>
+          </div>
+        </div>
         <div class="field" id="sourceFieldWrap">
           <label>Income Source</label>
           <select id="txSource" style="display:none;"></select>
@@ -2006,6 +2013,14 @@
         <div class="field">
           <label>Payment due day of month (optional)</label>
           <input type="number" id="liDueDay" min="1" max="31" step="1" placeholder="e.g. 15">
+        </div>
+        <div class="field">
+          <label for="liTakenDate">Date taken</label>
+          <input type="date" id="liTakenDate">
+        </div>
+        <div class="field">
+          <label for="liEndDate">Expected end date (optional)</label>
+          <input type="date" id="liEndDate">
         </div>
         <div class="field wide">
           <label>Note (optional)</label>
@@ -3744,6 +3759,17 @@
     return toHomeAmount(t.fee, acc);
   }
 
+  // Same idea for an ordinary expense that was paid by bank transfer and
+  // incurred its own fee (see the "Bank charge" field on the Add Transaction
+  // form) — converted using the expense's own paying account, exactly like
+  // transferFeeInHome does for a transfer's "from" account.
+  function expenseFeeInHome(t) {
+    if (!t.fee) return 0;
+    var acc = accountById(t.accountId);
+    if (!acc) return t.fee;
+    return toHomeAmount(t.fee, acc);
+  }
+
   // Realizing a foreign-currency balance into Home Currency — selling $ for
   // Rs, say — is the same event whether it's triggered from the Accounts
   // tab's "💱 Sell / Convert" button (openActionModal's sellCurrency mode) or
@@ -3897,7 +3923,10 @@
       if (t.type === "income" && t.accountId === accountId) {
         bal += accountDelta(acc.type, "in", t.amount);
       } else if (t.type === "expense" && t.accountId === accountId) {
-        bal += accountDelta(acc.type, "out", t.amount);
+        // A bank charge incurred paying this expense by transfer (t.fee) comes
+        // out of the same account as the expense itself — same treatment as a
+        // Transfer's fee on its "from" account, just below.
+        bal += accountDelta(acc.type, "out", t.amount + (t.fee || 0));
       } else if (t.type === "transfer") {
         // toAmount only appears on a cross-currency transfer (see
         // submitTransferForm) — the "to" side receives a different-currency
@@ -4039,6 +4068,63 @@
     return results.sort(function (a, b) { return a.daysUntil - b.daysUntil; });
   }
 
+  // The next occurrence of a manual Payment Calendar reminder (state.paymentReminders)
+  // from today, honoring its repeat setting — same rollover-when-overdue idea as
+  // computeUpcomingLiabilityDues (monthly/yearly roll forward to the next cycle once
+  // more than overdueGraceDays late; a one-time reminder just stays where it is).
+  // Pulled out as its own function so both computeUpcomingPaymentReminders (which
+  // occurrence is "current") and the "Mark done" action (which occurrence just got
+  // marked) always agree on the same date.
+  function computeReminderOccurrence(rem, overdueGraceDays) {
+    overdueGraceDays = overdueGraceDays == null ? 5 : overdueGraceDays;
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    function makeDate(y, m, day) {
+      var lastDay = new Date(y, m + 1, 0).getDate();
+      return new Date(y, m, Math.min(day, lastDay));
+    }
+    var anchor = new Date(rem.date + "T00:00:00");
+    var candidate, diffDays;
+    if (rem.repeat === "monthly") {
+      candidate = makeDate(today.getFullYear(), today.getMonth(), anchor.getDate());
+      diffDays = Math.round((candidate - today) / 86400000);
+      if (diffDays < -overdueGraceDays) {
+        var nm = today.getMonth() === 11 ? 0 : today.getMonth() + 1, ny = today.getMonth() === 11 ? today.getFullYear() + 1 : today.getFullYear();
+        candidate = makeDate(ny, nm, anchor.getDate());
+        diffDays = Math.round((candidate - today) / 86400000);
+      }
+    } else if (rem.repeat === "yearly") {
+      candidate = makeDate(today.getFullYear(), anchor.getMonth(), anchor.getDate());
+      diffDays = Math.round((candidate - today) / 86400000);
+      if (diffDays < -overdueGraceDays) {
+        candidate = makeDate(today.getFullYear() + 1, anchor.getMonth(), anchor.getDate());
+        diffDays = Math.round((candidate - today) / 86400000);
+      }
+    } else {
+      candidate = anchor;
+      diffDays = Math.round((candidate - today) / 86400000);
+    }
+    return { candidate: candidate, diffDays: diffDays, occurrence: calDateStr(candidate.getFullYear(), candidate.getMonth(), candidate.getDate()) };
+  }
+
+  // Manual Payment Calendar reminders due soon or recently overdue — surfaced in
+  // Needs Your Attention so a reminder doesn't just sit silently on the calendar
+  // until the user happens to open that tab. A reminder marked done for its
+  // current occurrence (rem.completedOccurrence, set by the "Mark done" button —
+  // see setupNeedsAttention()) is skipped until its NEXT occurrence comes around,
+  // so a monthly/yearly reminder reappears next cycle instead of being gone for good.
+  function computeUpcomingPaymentReminders(daysAhead, overdueGraceDays) {
+    daysAhead = daysAhead == null ? 7 : daysAhead;
+    overdueGraceDays = overdueGraceDays == null ? 5 : overdueGraceDays;
+    var results = [];
+    (state.paymentReminders || []).forEach(function (rem) {
+      var occ = computeReminderOccurrence(rem, overdueGraceDays);
+      if (rem.repeat !== "monthly" && rem.repeat !== "yearly" && occ.diffDays < -overdueGraceDays) return; // one-time, well past — stop nagging
+      if (rem.completedOccurrence === occ.occurrence) return; // already marked done for this occurrence
+      if (occ.diffDays <= daysAhead) results.push({ reminder: rem, dueDate: occ.candidate, daysUntil: occ.diffDays, occurrence: occ.occurrence });
+    });
+    return results.sort(function (a, b) { return a.daysUntil - b.daysUntil; });
+  }
+
   // The dedicated top-of-dashboard reminder strip was removed per user
   // feedback: it showed the exact same liability/lending due-date items
   // that "Needs Your Attention" already lists right below it, and having
@@ -4155,7 +4241,10 @@
       if (t.type === "income" && t.accountId === accountId) {
         bal += accountDelta(acc.type, "in", t.amount);
       } else if (t.type === "expense" && t.accountId === accountId) {
-        bal += accountDelta(acc.type, "out", t.amount);
+        // A bank charge incurred paying this expense by transfer (t.fee) comes
+        // out of the same account as the expense itself — same treatment as a
+        // Transfer's fee on its "from" account, just below.
+        bal += accountDelta(acc.type, "out", t.amount + (t.fee || 0));
       } else if (t.type === "transfer") {
         // toAmount only appears on a cross-currency transfer (see
         // submitTransferForm) — the "to" side receives a different-currency
@@ -4653,6 +4742,10 @@
       $("calRemDate").value = date;
       renderCalReminderList();
       renderCalendar();
+      // A reminder due soon can immediately qualify for Needs Your Attention
+      // (see computeUpcomingPaymentReminders) — refresh it right away rather
+      // than leaving the dashboard stale until some unrelated action re-renders.
+      renderNeedsAttention();
       scheduleCloudSave();
       toast('Reminder "' + title + '" added.', "good");
     }
@@ -4669,6 +4762,8 @@
         state.paymentReminders = state.paymentReminders.filter(function (r) { return r.id !== rid; });
         renderCalReminderList();
         renderCalendar();
+        renderNeedsAttention();
+        scheduleCloudSave();
       });
     });
 
@@ -4787,6 +4882,7 @@
       if (t.type === "expense") {
         var key = t.category || "Uncategorized";
         map[key] = (map[key] || 0) + txAmountInHome(t);
+        if (t.fee) map["Bank Charges"] = (map["Bank Charges"] || 0) + expenseFeeInHome(t);
       } else if (t.type === "transfer" && t.fee) {
         map["Bank Charges"] = (map["Bank Charges"] || 0) + transferFeeInHome(t);
       }
@@ -4812,7 +4908,12 @@
     var income = 0, expense = 0;
     state.transactions.forEach(function (t) {
       if (t.type === "income") income += txAmountInHome(t);
-      else if (t.type === "expense") expense += txAmountInHome(t);
+      else if (t.type === "expense") {
+        expense += txAmountInHome(t);
+        // A bank charge on the transfer used to pay this expense is real money
+        // gone too — see expenseFeeInHome / the "Bank charge" field.
+        if (t.fee) expense += expenseFeeInHome(t);
+      }
       // Transfer amounts move money between the user's own accounts and stay
       // out of Total Expense — but a bank fee on that transfer is real money
       // gone, so it counts as an (unbudgeted, "Bank Charges") expense.
@@ -4986,6 +5087,12 @@
         expense += amt;
         if (t.isBusiness) businessExpense += amt;
         if (t.category) categorySpend[t.category] = (categorySpend[t.category] || 0) + amt;
+        if (t.fee) {
+          var expFeeAmt = expenseFeeInHome(t);
+          expense += expFeeAmt;
+          if (t.isBusiness) businessExpense += expFeeAmt;
+          categorySpend["Bank Charges"] = (categorySpend["Bank Charges"] || 0) + expFeeAmt;
+        }
       }
     });
     return {
@@ -5711,6 +5818,17 @@
         tab: "lending"
       });
     });
+    computeUpcomingPaymentReminders().forEach(function (d) {
+      var when = d.daysUntil < 0 ? "was due " + Math.abs(d.daysUntil) + (Math.abs(d.daysUntil) === 1 ? " day ago" : " days ago")
+        : d.daysUntil === 0 ? "is due today" : "due in " + d.daysUntil + (d.daysUntil === 1 ? " day" : " days");
+      items.push({
+        severity: d.daysUntil < 0 ? "urgent" : d.daysUntil <= 2 ? "warning" : "opportunity",
+        icon: d.daysUntil < 0 ? "🔴" : d.daysUntil <= 2 ? "🟠" : "🟡",
+        text: "<strong>" + escapeHtml(d.reminder.title) + "</strong> reminder " + when + (d.reminder.note ? " — " + escapeHtml(d.reminder.note) : ""),
+        tab: "calendar",
+        reminderId: d.reminder.id
+      });
+    });
     computeSpendingAnomalies().forEach(function (a) {
       items.push({
         severity: "warning", icon: "📈",
@@ -5788,8 +5906,13 @@
     }
     var visible = attentionExpanded ? items : items.slice(0, ATTENTION_VISIBLE_CAP);
     list.innerHTML = visible.map(function (it) {
+      // A payment-reminder item also gets a "Mark done" button — it's the only
+      // attention item type with an actual way to dismiss it directly (see
+      // computeUpcomingPaymentReminders); everything else stays until its
+      // underlying data changes (a bill gets paid, spending drops, etc.).
+      var doneBtn = it.reminderId ? '<button class="ghost small" data-mark-reminder-done="' + it.reminderId + '">Mark done</button>' : "";
       return '<div class="attention-item ' + it.severity + '"><span class="ic">' + it.icon + '</span><span>' + it.text + '</span>' +
-        '<button class="ghost small" data-goto-tab="' + it.tab + '">View</button></div>';
+        '<button class="ghost small" data-goto-tab="' + it.tab + '">View</button>' + doneBtn + '</div>';
     }).join("");
     if (moreBtn) {
       var remaining = items.length - ATTENTION_VISIBLE_CAP;
@@ -5820,6 +5943,18 @@
       if (scrollBtn) {
         var target = $(scrollBtn.getAttribute("data-nba-scroll"));
         if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+      var doneBtn = evt.target.closest ? evt.target.closest("[data-mark-reminder-done]") : null;
+      if (doneBtn) {
+        var rid = doneBtn.getAttribute("data-mark-reminder-done");
+        var rem = (state.paymentReminders || []).find(function (r) { return r.id === rid; });
+        if (rem) {
+          rem.completedOccurrence = computeReminderOccurrence(rem).occurrence;
+          renderAll();
+          scheduleCloudSave();
+          toast('"' + rem.title + '" marked done.', "good");
+        }
       }
     });
   }
@@ -7195,6 +7330,8 @@
     }
     var metaBits = ["Interest: " + (l.interestRate || 0) + "% / year", "Min payment: " + fmtMoney(l.minPayment || 0) + "/mo"];
     if (l.dueDayOfMonth) metaBits.push("Due day " + l.dueDayOfMonth);
+    if (l.takenDate) metaBits.push("Taken " + fmtDate(l.takenDate));
+    if (l.endDate) metaBits.push("Ends " + fmtDate(l.endDate));
     if (l.note) metaBits.push(escapeHtml(l.note));
     return '<div class="liability-card-v2"><div class="l2-head"><div class="l2-icon">' + meta.icon + '</div>' +
       '<div><div class="l2-name">' + escapeHtml(l.name) + '</div><div class="l-type">' + meta.label + '</div></div></div>' +
@@ -7978,7 +8115,8 @@
           noteCell += '<div style="font-size:11px;color:var(--text-muted);">Sold ' + fmtMoneyIn(t.fx.foreignAmount, t.fx.foreignCurrency) + ' @ ' + t.fx.rateUsed + fxGlHtml + '</div>';
         }
         var cur = acc ? accountCurrency(acc) : state.homeCurrency;
-        var amtCell = fmtMoneyIn(t.amount, cur) + (acc && isForeignAccount(acc) ? '<div style="font-size:10px;color:var(--text-muted);font-weight:400;">≈ ' + fmtMoney(txAmountInHome(t)) + '</div>' : "");
+        var amtCell = fmtMoneyIn(t.amount, cur) + (acc && isForeignAccount(acc) ? '<div style="font-size:10px;color:var(--text-muted);font-weight:400;">≈ ' + fmtMoney(txAmountInHome(t)) + '</div>' : "") +
+          (t.fee ? '<div style="font-size:10px;color:var(--text-muted);font-weight:400;">+ ' + fmtMoneyIn(t.fee, cur) + ' bank charge</div>' : "");
 
         // Mobile card version of the exact same row — same data, no separate
         // fetch/compute, just a second HTML target (see .tx-card-list CSS).
@@ -7987,6 +8125,7 @@
         var metaParts = [fmtDate(t.date)];
         if (acc) metaParts.push(acc.name);
         if (!t.isBusiness && t.type === "expense" && jarByKey(t.jar)) metaParts.push(jarByKey(t.jar).name);
+        if (t.fee) metaParts.push("Bank charge " + fmtMoneyIn(t.fee, cur));
         var cardExtras = (t.tags && t.tags.length ? t.tags.map(function (tg) { return '<span class="tag tag-mini">' + escapeHtml(tg) + '</span>'; }).join(" ") : "") +
           (t.receipt ? ' <span class="tag tag-mini" data-view-receipt="' + t.id + '" style="cursor:pointer;" title="View receipt">📎</span>' : "");
         cardHtml.push('<div class="recent-tx-row tx-card">' +
@@ -8569,6 +8708,15 @@
       var txCatDetail = ($("txCategoryDetail") ? $("txCategoryDetail").value : "").trim();
       if (txCatDetail) tx.categoryDetail = txCatDetail;
       if (!isBusiness) tx.jar = $("txJar").value;
+      // Optional bank charge incurred paying this expense by transfer — kept as
+      // its own field (like a Transfer's .fee) so it can be deducted from the
+      // paying account and counted under "Bank Charges" without touching the
+      // jar/category the expense itself was budgeted against.
+      var bankFeeRaw = $("txBankFee") ? $("txBankFee").value.trim() : "";
+      var bankFee = bankFeeRaw === "" ? 0 : evalAmount(bankFeeRaw);
+      if (isNaN(bankFee) || bankFee < 0) bankFee = 0;
+      bankFee = Math.round(bankFee * 100) / 100;
+      if (bankFee > 0) tx.fee = bankFee;
     } else {
       tx.source = $("txSource").value;
       var txSrcDetail = ($("txSourceDetail") ? $("txSourceDetail").value : "").trim();
@@ -8587,6 +8735,7 @@
 
     state.transactions.push(tx);
     $("txAmount").value = ""; $("txNote").value = "";
+    if ($("txBankFee")) $("txBankFee").value = "";
     resetTxDetails();
     renderTxNoteHistory();
     renderAll();
@@ -8817,6 +8966,7 @@
     var jarWrap = $("jarFieldWrap"), sourceWrap = $("sourceFieldWrap"), categoryWrap = $("categoryFieldWrap");
     var isBusiness = $("txIsBusiness").checked;
     var skipJarsWrap = $("skipJarsFieldWrap");
+    var bankFeeWrap = $("txBankFeeWrap");
     if (currentTxType === "income") {
       jarWrap.style.display = "none"; sourceWrap.style.display = "flex"; categoryWrap.style.display = "none";
       $("accountFieldLabel").textContent = "Account (receives income)";
@@ -8827,11 +8977,18 @@
         skipJarsWrap.style.display = isBusiness ? "none" : "flex";
         if (isBusiness) $("txSkipJars").checked = false;
       }
+      if (bankFeeWrap) { bankFeeWrap.style.display = "none"; if ($("txBankFee")) $("txBankFee").value = ""; }
     } else {
       jarWrap.style.display = isBusiness ? "none" : "flex"; sourceWrap.style.display = "none"; categoryWrap.style.display = "flex";
       $("accountFieldLabel").textContent = "Account (pays for this)";
       $("businessFieldLabel").textContent = "This is a Business Expense (deducts from Business Income instead of a Jar)";
       if (skipJarsWrap) { skipJarsWrap.style.display = "none"; $("txSkipJars").checked = false; }
+      // A bank fee on the transfer used to PAY this expense is real money spent
+      // but wasn't part of what the expense was actually for — kept out of every
+      // jar/category the base amount touches and counted separately under the
+      // synthetic "Bank Charges" category instead, exactly like a Transfer's fee
+      // (see transferFeeInHome / computeBreakdownByExpenseCategory).
+      if (bankFeeWrap) bankFeeWrap.style.display = "flex";
     }
   }
 
@@ -8944,6 +9101,8 @@
         '<div class="field"><label>Annual interest rate (%)</label><input type="text" inputmode="decimal" id="m_intRate" value="' + (l3.interestRate || 0) + '"></div>' +
         '<div class="field"><label>Minimum monthly payment</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="m_minPay" value="' + (l3.minPayment || 0) + '" style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="m_minPay" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' +
         '<div class="field"><label>Payment due day of month (optional)</label><input type="number" id="m_dueDay" min="1" max="31" step="1" value="' + (l3.dueDayOfMonth || "") + '"></div>' +
+        '<div class="field"><label>Date taken</label><input type="date" id="m_takenDate" value="' + (l3.takenDate || l3.createdDate || "") + '"></div>' +
+        '<div class="field"><label>Expected end date (optional)</label><input type="date" id="m_endDate" value="' + (l3.endDate || "") + '"></div>' +
         '<div class="field wide"><label>Note (optional)</label><input type="text" id="m_note" value="' + escapeHtml(l3.note || "") + '"></div>' +
         '</div>';
     } else if (mode === "editOtherAsset") {
@@ -9002,11 +9161,13 @@
       var skipJarsField = (tx.type === "income" && !tx.isBusiness) ?
         '<div class="field wide" id="m_skipJarsWrap"><label style="font-size:12px;display:flex;align-items:center;gap:8px;">' +
         '<input type="checkbox" id="m_skipJars"' + (tx.skipJars ? " checked" : "") + '><span>Don\'t split this into the 6 Jars (e.g. a one-off amount you don\'t want budgeted)</span></label></div>' : "";
+      var feeField = tx.type === "expense" ?
+        '<div class="field"><label>Bank charge (if paid by transfer, optional)</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="m_fee" value="' + (tx.fee || 0) + '" style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="m_fee" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' : "";
       body = '<div class="form-grid">' +
         businessField + skipJarsField +
         '<div class="field"><label>Amount</label><div style="display:flex;gap:6px;"><input type="text" inputmode="decimal" id="m_amount" value="' + tx.amount + '" required style="flex:1;min-width:0;"><button type="button" class="ghost" data-keypad-for="m_amount" title="Open number pad" aria-label="Open number pad">🔢</button></div></div>' +
         '<div class="field"><label>Account</label><select id="m_account">' + mAccOpts + '</select></div>' +
-        jarField + categoryField + sourceField +
+        jarField + categoryField + sourceField + feeField +
         '<div class="field"><label>Date</label><input type="date" id="m_date" value="' + tx.date + '"></div>' +
         '<div class="field"><label>Note</label><input type="text" id="m_note" value="' + escapeHtml(tx.note || "") + '"></div>' +
         '</div>';
@@ -9159,6 +9320,8 @@
         lEdit.minPayment = evalAmount($("m_minPay").value) || 0;
         var dueDayEditRaw = parseInt($("m_dueDay").value, 10);
         lEdit.dueDayOfMonth = (dueDayEditRaw >= 1 && dueDayEditRaw <= 31) ? dueDayEditRaw : null;
+        if ($("m_takenDate")) lEdit.takenDate = $("m_takenDate").value || lEdit.takenDate;
+        if ($("m_endDate")) lEdit.endDate = $("m_endDate").value || null;
         if ($("m_note")) lEdit.note = $("m_note").value.trim();
         toast("Liability updated.", "good");
       } else if (mode === "editOtherAsset") {
@@ -9220,6 +9383,13 @@
           if (editTxObj.type === "income") {
             if (!editTxObj.isBusiness && $("m_skipJars") && $("m_skipJars").checked) editTxObj.skipJars = true;
             else delete editTxObj.skipJars;
+          }
+          if (editTxObj.type === "expense" && $("m_fee")) {
+            var editFeeRaw = $("m_fee").value.trim();
+            var editFee = editFeeRaw === "" ? 0 : evalAmount(editFeeRaw);
+            if (isNaN(editFee) || editFee < 0) editFee = 0;
+            editFee = Math.round(editFee * 100) / 100;
+            if (editFee > 0) editTxObj.fee = editFee; else delete editTxObj.fee;
           }
           toast("Entry updated.", "good");
         }
@@ -9473,12 +9643,16 @@
       if (openingRaw === "" || isNaN(openingParsed)) { toast("Please enter the current balance owed.", "error"); $("liOpening").focus(); return; }
       var dueDayRaw = parseInt($("liDueDay").value, 10);
       var openingBal = openingParsed || 0;
+      var liTodayStr = new Date().toISOString().slice(0, 10);
       state.liabilities.push({
         id: uid(), name: name, type: $("liType").value,
         openingBalance: openingBal,
         interestRate: evalAmount($("liRate").value) || 0,
         minPayment: evalAmount($("liMinPay").value) || 0,
         dueDayOfMonth: (dueDayRaw >= 1 && dueDayRaw <= 31) ? dueDayRaw : null,
+        takenDate: ($("liTakenDate") && $("liTakenDate").value) ? $("liTakenDate").value : liTodayStr,
+        endDate: ($("liEndDate") && $("liEndDate").value) ? $("liEndDate").value : null,
+        createdDate: liTodayStr,
         note: $("liNote").value.trim()
       });
       // Optional: if cash actually landed in an account (e.g. gold pawning, a loan
@@ -10557,7 +10731,7 @@
     // of the normal type/category match below.
     if (drillDown.txType === "expense" && key === "Bank Charges") {
       return state.transactions.filter(function (t) {
-        if (t.type !== "transfer" || !t.fee) return false;
+        if (!((t.type === "transfer" || t.type === "expense") && t.fee)) return false;
         if (drillDown.startDate && (t.date || "") < drillDown.startDate) return false;
         if (drillDown.endExclusive && (t.date || "") >= drillDown.endExclusive) return false;
         return true;
@@ -10588,7 +10762,7 @@
     // INCREASES what's owed rather than decreasing a cash-like balance.
     var raw = 0;
     if (t.type === "income" && t.accountId === accountId) raw = accountDelta(acc.type, "in", t.amount);
-    else if (t.type === "expense" && t.accountId === accountId) raw = accountDelta(acc.type, "out", t.amount);
+    else if (t.type === "expense" && t.accountId === accountId) raw = accountDelta(acc.type, "out", t.amount + (t.fee || 0));
     else if (t.type === "adjustment" && t.accountId === accountId) raw = t.delta;
     else if (t.type === "liabilityPayment" && t.accountId === accountId) raw = accountDelta(acc.type, "out", t.amount);
     else if (t.type === "lendingRepayment" && t.accountId === accountId) raw = accountDelta(acc.type, "in", t.amount);
@@ -10627,6 +10801,10 @@
     if (drillDown && drillDown.mode === "account") return accountDrillAmount(t, key);
     if (drillDown && drillDown.mode === "liability") return t.type === "liabilityInterest" ? t.amount : -t.amount;
     if (drillDown && drillDown.mode === "lending") return -t.amount;
+    // Under the synthetic "Bank Charges" category, an expense row shows just
+    // its fee portion (like a transfer already does) — the expense's base
+    // amount was never part of this total, it's counted under its own category.
+    if (drillDown && drillDown.txType === "expense" && key === "Bank Charges" && t.type === "expense") return expenseFeeInHome(t);
     return t.type === "transfer" ? transferFeeInHome(t) : txAmountInHome(t);
   }
   // Only income/expense/transfer entries have a working "Edit" form
