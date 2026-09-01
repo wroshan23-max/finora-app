@@ -4051,9 +4051,15 @@
   // date, unlike Liabilities' recurring day-of-month) that's coming up soon or
   // recently passed. Same in-app-only limitation as computeUpcomingLiabilityDues
   // above — no server, so this only surfaces while Finora is actually open.
-  function computeUpcomingLendingReminders(daysAhead, overdueGraceDays) {
+  // Unlike a recurring bill (which rolls forward to next month once well overdue,
+  // so it never really vanishes) a lending reminder is a one-time fixed date with
+  // nothing to roll into — so it does NOT auto-hide once far overdue. As long as
+  // money is still owed (balance > 0) it keeps showing, growing more "overdue"
+  // each day, until the lender records a repayment or clears/edits the reminder
+  // date. That's a deliberate choice: a silent timeout would make an unpaid debt
+  // quietly disappear from view, which is the opposite of what this widget is for.
+  function computeUpcomingLendingReminders(daysAhead) {
     daysAhead = daysAhead == null ? 7 : daysAhead;
-    overdueGraceDays = overdueGraceDays == null ? 5 : overdueGraceDays;
     var today = new Date(); today.setHours(0, 0, 0, 0);
     var results = [];
     (state.lendings || []).forEach(function (l) {
@@ -4062,7 +4068,6 @@
       if (balance <= 0) return; // already repaid — nothing to remind about
       var candidate = new Date(l.reminderDate + "T00:00:00");
       var diffDays = Math.round((candidate - today) / 86400000);
-      if (diffDays < -overdueGraceDays) return; // a fixed date that's well past just quietly stops nagging
       if (diffDays <= daysAhead) results.push({ lending: l, dueDate: candidate, daysUntil: diffDays, balance: balance });
     });
     return results.sort(function (a, b) { return a.daysUntil - b.daysUntil; });
