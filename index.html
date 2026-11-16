@@ -10,6 +10,12 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Finora">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<!-- Nov 2026 visual-refresh round: Space Grotesk for headings/hero numbers only
+     (body text stays on the existing system-ui stack below) — additive, no
+     logic touched. Same typeface already used in Finora's marketing graphics. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/png" href="data:image/png;base64,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">
 <style>
   /* ================= Component reference (read this before adding new CSS) =================
@@ -269,7 +275,7 @@
 
   /* ================= Dashboard 2.0 ================= */
   .dash-greeting { margin-bottom: 18px; }
-  .dash-greeting h2 { font-size: 22px; margin: 0 0 2px; letter-spacing: -0.015em; }
+  .dash-greeting h2 { font-size: 22px; margin: 0 0 2px; letter-spacing: -0.015em; font-family: 'Space Grotesk', system-ui, -apple-system, "Segoe UI", sans-serif; font-weight: 700; }
   .dash-greeting .dash-date { font-size: 12.5px; color: var(--text-secondary); }
 
   /* Hero card colors are CSS variables — kept as variables (rather than
@@ -292,7 +298,7 @@
   .hero-card.hero-negative { background: linear-gradient(155deg, #d64545 0%, #7a1f1f 100%); }
   .hero-card.hero-positive { background: linear-gradient(155deg, #1fa855 0%, #0f5c30 100%); }
   .hero-card .hero-label { font-size: 12.5px; opacity: 0.85; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; cursor: pointer; }
-  .hero-card .hero-value { font-size: 34px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; cursor: pointer; }
+  .hero-card .hero-value { font-size: 34px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; cursor: pointer; font-family: 'Space Grotesk', system-ui, -apple-system, "Segoe UI", sans-serif; }
   .hero-card .hero-delta { font-size: 12.5px; opacity: 0.92; margin-top: 4px; }
   .hero-card .hero-breakdown { display: flex; gap: 22px; margin-top: 16px; flex-wrap: wrap; }
   .hero-card .hero-breakdown .item { font-size: 11.5px; opacity: 0.85; }
@@ -517,14 +523,32 @@
     background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-card, 12px);
     padding: 18px 20px; margin-bottom: 18px; box-shadow: var(--shadow-sm);
   }
-  .card h2 { font-size: 15px; margin: 0 0 12px; letter-spacing: -0.01em; }
+  .card h2 { font-size: 15px; margin: 0 0 12px; letter-spacing: -0.01em; font-family: 'Space Grotesk', system-ui, -apple-system, "Segoe UI", sans-serif; font-weight: 600; }
+
+  /* Nov 2026 visual-refresh round: collapsed-by-default "Show more on your
+     Dashboard" wrapper — see the dashMoreSection comment in the dashboard
+     HTML. Pure presentation; the <details>/<summary> default marker is
+     replaced with a styled pill so it reads as a dashboard action, not a
+     generic disclosure triangle. */
+  .dash-more-section { margin-top: 4px; }
+  .dash-more-summary {
+    list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    gap: 6px; padding: 12px; margin-bottom: 16px; border-radius: var(--radius-card, 12px);
+    border: 1px dashed var(--border); color: var(--text-secondary); font-size: 13px; font-weight: 600;
+    font-family: 'Space Grotesk', system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .dash-more-summary:hover { color: var(--text-primary); border-color: var(--text-secondary); }
+  .dash-more-summary::-webkit-details-marker { display: none; }
+  .dash-more-summary::after { content: "▾"; font-size: 11px; transition: transform .15s ease; }
+  .dash-more-section[open] .dash-more-summary::after { transform: rotate(180deg); }
+  .dash-more-section[open] .dash-more-summary { margin-bottom: 16px; }
   .card h3 { font-size: 13px; margin: 0 0 8px; color: var(--text-secondary); }
   .card p.hint { font-size: 12px; color: var(--text-secondary); margin-top: -6px; margin-bottom: 12px; line-height: 1.55; }
 
   .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 18px; }
   .stat-tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-tile, 12px); padding: 14px 16px; box-shadow: var(--shadow-sm); }
   .stat-tile .label { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
-  .stat-tile .value { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+  .stat-tile .value { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; font-family: 'Space Grotesk', system-ui, -apple-system, "Segoe UI", sans-serif; }
   .stat-tile .value.good { color: var(--good); }
   .stat-tile .value.bad { color: var(--status-critical); }
   .stat-tile .sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
@@ -1368,6 +1392,25 @@
       <div class="insight-list" id="insightsList"></div>
     </div>
 
+    <div class="card" id="recentTxCard">
+      <h2>Recent Transactions</h2>
+      <div id="recentTxList"></div>
+      <button type="button" class="view-all-link" data-goto-tab="transactions">View all transactions →</button>
+    </div>
+
+    <!-- Nov 2026 visual-refresh round: deeper/secondary dashboard content
+         (health score detail, full net worth breakdown/history, cash flow,
+         business income, charts, account list, foreign assets, and the
+         inline add-transaction form — already reachable via the Quick Add
+         FAB/bottom sheet) collapsed by default so a first view leads with
+         what matters most. Nothing inside was removed, renamed, or had its
+         id changed — every render function below still finds its element
+         exactly as before; this only wraps them in a closed <details> so
+         they don't add height on first paint. See activateTab() / renderAll()
+         — neither was touched. -->
+    <details class="dash-more-section" id="dashMoreSection">
+      <summary class="dash-more-summary">Show more on your Dashboard</summary>
+
     <div class="card" id="healthScoreCard">
       <h2>🏆 Financial Health Score</h2>
       <div id="healthScoreEmpty" style="display:none;">
@@ -1410,12 +1453,6 @@
         <h2>Spending by Jar</h2>
         <div id="expenseDonut"></div>
       </div>
-    </div>
-
-    <div class="card" id="recentTxCard">
-      <h2>Recent Transactions</h2>
-      <div id="recentTxList"></div>
-      <button type="button" class="view-all-link" data-goto-tab="transactions">View all transactions →</button>
     </div>
 
     <div class="card">
@@ -1556,6 +1593,8 @@
         </button>
       </div>
     </div>
+
+    </details>
   </section>
 
   <!-- ADD DATA — a hub bringing together every way to get data into Finora, so
@@ -10017,6 +10056,53 @@
     });
   }
 
+  /* ================= Bottom nav auto-hide on scroll (Nov 2026) =================
+     Mirrors #bottomNavToggleBtn above — reuses the exact same
+     body.bottomnav-minimized class and CSS transition, just driven by scroll
+     direction instead of a tap: hide the bottom tab bar while scrolling down
+     a dashboard/report, bring it back on scrolling up or near the top. Only
+     meaningful at the same <=640px width where the bar is actually a fixed
+     bottom bar (checked live on every scroll tick, not just once, since a
+     device can rotate or a window can resize); desktop's sidebar variant of
+     .group-nav is untouched either way. Skipped entirely under
+     prefers-reduced-motion, same convention already used for the splash
+     video and the Add Data FAB's gradient animation elsewhere in this file. */
+  function setupBottomNavAutoHide() {
+    var btn = $("bottomNavToggleBtn");
+    if (!btn) return;
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    var lastY = window.scrollY || 0;
+    var ticking = false;
+    var TOP_GUARD = 60;   // never hide right at the top of the page
+    var THRESHOLD = 8;    // ignore sub-pixel/bounce scroll jitter
+
+    function setMinimized(minimized) {
+      if (document.body.classList.contains("bottomnav-minimized") === minimized) return;
+      document.body.classList.toggle("bottomnav-minimized", minimized);
+      btn.textContent = minimized ? "▴" : "▾";
+      btn.setAttribute("aria-expanded", minimized ? "false" : "true");
+      btn.title = minimized ? "Show tabs" : "Minimize tabs";
+    }
+
+    function onScroll() {
+      ticking = false;
+      if (window.innerWidth > 640) return; // desktop sidebar — nothing to auto-hide
+      var y = window.scrollY || 0;
+      var delta = y - lastY;
+      if (y <= TOP_GUARD) setMinimized(false);
+      else if (delta > THRESHOLD) setMinimized(true);
+      else if (delta < -THRESHOLD) setMinimized(false);
+      lastY = y;
+    }
+
+    window.addEventListener("scroll", function () {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(onScroll);
+    }, { passive: true });
+  }
+
   /* ================= Settings ================= */
   function setupSettings() {
     $("jarPctInputs").addEventListener("input", function (evt) {
@@ -12894,6 +12980,7 @@
     setupWelcomeCard();
     setupSideDrawer();
     setupBottomNavToggle();
+    setupBottomNavAutoHide();
     setupCloudSync();
     setupReferralCard();
     setupDriveBackup();
