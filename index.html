@@ -10042,6 +10042,78 @@
     });
   }
 
+  /* ================= Side drawer: swipe to open / close (Nov 2026) =================
+     Reuses the exact same openSideDrawer()/closeSideDrawer() functions and
+     .show-class mechanism the hamburger button (#sideDrawerToggleBtn), the
+     ✕ close button, and the backdrop click already use above — this only
+     adds two more ways to trigger them, both touch-only:
+       - swipe right starting very close to the left screen edge, while the
+         drawer is closed -> opens it (the standard "edge swipe" pattern
+         used by most native apps' left-side menus)
+       - swipe left anywhere on the open drawer panel itself -> closes it
+     Axis-locked: a gesture is only claimed once it's clearly more
+     horizontal than vertical, so normal vertical page/drawer scrolling is
+     never interrupted. Doesn't touch any existing click handler above. */
+  function setupSideDrawerSwipe() {
+    var overlay = $("sideDrawerOverlay");
+    var drawer = $("sideDrawer");
+    if (!overlay || !drawer) return;
+
+    var EDGE_ZONE = 24;       // px from the left screen edge that can start an "open" swipe
+    var OPEN_THRESHOLD = 60;  // px of horizontal travel needed to commit to opening
+    var CLOSE_THRESHOLD = 60; // px of horizontal travel needed to commit to closing
+    var AXIS_LOCK = 1.2;      // horizontal movement must beat vertical by this ratio to claim the gesture
+
+    function attach(el, mode) {
+      // mode "open": edge swipe-right while the drawer is closed.
+      // mode "close": swipe-left anywhere on the open drawer panel.
+      var startX = 0, startY = 0, tracking = false, decided = false, horizontal = false;
+
+      el.addEventListener("touchstart", function (evt) {
+        var isOpen = overlay.classList.contains("show");
+        if (mode === "open" && isOpen) return;
+        if (mode === "close" && !isOpen) return;
+        var t = evt.touches[0];
+        if (mode === "open" && t.clientX > EDGE_ZONE) return; // only a true edge-start counts as "open"
+        startX = t.clientX; startY = t.clientY;
+        tracking = true; decided = false; horizontal = false;
+      }, { passive: true });
+
+      el.addEventListener("touchmove", function (evt) {
+        if (!tracking) return;
+        var t = evt.touches[0];
+        var dx = t.clientX - startX, dy = t.clientY - startY;
+        if (!decided) {
+          if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return; // not enough movement yet to classify
+          decided = true;
+          horizontal = Math.abs(dx) > Math.abs(dy) * AXIS_LOCK;
+          if (!horizontal) { tracking = false; return; } // vertical scroll — let it through untouched
+        }
+        if (!horizontal) return;
+        if ((mode === "open" && dx > 0) || (mode === "close" && dx < 0)) evt.preventDefault();
+      }, { passive: false });
+
+      el.addEventListener("touchend", function (evt) {
+        var wasHorizontal = tracking && horizontal;
+        tracking = false;
+        if (!wasHorizontal) return;
+        var t = evt.changedTouches[0];
+        var dx = t.clientX - startX;
+        if (mode === "open" && dx > OPEN_THRESHOLD) openSideDrawer();
+        else if (mode === "close" && dx < -CLOSE_THRESHOLD) closeSideDrawer();
+      }, { passive: true });
+
+      el.addEventListener("touchcancel", function () { tracking = false; }, { passive: true });
+    }
+
+    // Edge-open works from anywhere in the app (whichever tab is active), so
+    // it listens on the whole document instead of just the dashboard panel.
+    attach(document.body, "open");
+    // Swipe-to-close only listens on the drawer panel itself, so it never
+    // fights with vertical scrolling of the drawer's own link list.
+    attach(drawer, "close");
+  }
+
   // Mobile-only handle (see .bottom-nav-toggle-btn, max-width:640px) that
   // collapses the fixed bottom tab bar out of the way to free screen space.
   // Pure display toggle — doesn't touch group-nav's own tab logic.
@@ -12979,6 +13051,7 @@
     setupToolbarDrawer();
     setupWelcomeCard();
     setupSideDrawer();
+    setupSideDrawerSwipe();
     setupBottomNavToggle();
     setupBottomNavAutoHide();
     setupCloudSync();
